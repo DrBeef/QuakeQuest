@@ -713,7 +713,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
                 VectorSubtract(cl.gunangles_highpass, cl.gunangles_prev, cl.gunangles_highpass);
 
                 // 3. calculate the RAW adjustment vectors
-                gunorg[0] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
+               /* gunorg[0] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
                 gunorg[1] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
                 gunorg[2] *= (cl_followmodel.value ? -cl_followmodel_up_speed.value : 0);
 
@@ -732,13 +732,13 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 
 
                 // 5. use the adjusted vectors
-                VectorAdd(vieworg, gunorg, gunorg);
+                VectorAdd(vieworg, gunorg, gunorg);*/
 
                 // bounded XY speed, used by several effects below
                 xyspeed = bound (0, sqrt(clvelocity[0] * clvelocity[0] +
                                          clvelocity[1] * clvelocity[1]), 400);
 
-                // vertical view bobbing code
+            /*    // vertical view bobbing code
                 if (cl_bob.value && cl_bobcycle.value) {
                     // LordHavoc: this code is *weird*, but not replacable (I think it
                     // should be done in QC on the server, but oh well, quake is quake)
@@ -864,7 +864,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
                     VectorMA (gunorg, bob, right, gunorg);
                     bob = bspeed * cl_bobmodel_up.value * cl_viewmodel_scale.value * cos(s * 2) * t;
                     VectorMA (gunorg, bob, up, gunorg);
-                }
+                }*/
             }
         }
         // calculate a view matrix for rendering the scene

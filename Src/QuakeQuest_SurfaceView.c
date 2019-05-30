@@ -285,7 +285,6 @@ void QC_exit(int exitCode)
 vec3_t hmdorientation;
 extern float gunangles[3];
 float weaponOffset[3];
-float hmdRemoteYawDiff = 0.0f;
 
 float horizFOV;
 float vertFOV;
@@ -959,10 +958,10 @@ static float uvs[8] = {
 };
 
 static float SCREEN_COORDS[12] = {
-		-3.0f, 2.5f, 0.0f,
-		-3.0f, -2.5f, 0.0f,
-		3.0f, -2.5f, 0.0f,
-		3.0f, 2.5f, 0.0f
+		-1.5f, 1.25f, 0.0f,
+		-1.5f, -1.25f, 0.0f,
+		1.5f, -1.25f, 0.0f,
+		1.5f, 1.25f, 0.0f
 };
 
 int vignetteTexture = 0;
@@ -997,7 +996,7 @@ static void ovrRenderer_Create( ovrRenderer * renderer, const ovrJava * java )
 
     modelScreen = ovrMatrix4f_CreateIdentity();
     rotation = ovrMatrix4f_CreateIdentity();
-    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -4.0f );
+    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -3.0f );
     modelScreen = ovrMatrix4f_Multiply( &modelScreen, &translation );
 
     horizFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X);
@@ -1413,21 +1412,6 @@ static void ovrApp_HandleVrModeChanges( ovrApp * app )
 	}
 }
 
-static int ovrApp_HandleKeyEvent( ovrApp * app, const int keyCode, const int action, const int character  )
-{
-    if ( keyCode == AKEYCODE_BACK || keyCode == AKEYCODE_B )
-    {
-        return 1;
-    }
-    else
-    {
-        //Dispatch to quake
-        QC_KeyEvent(action == AKEY_EVENT_ACTION_DOWN ? 1 : 0, keyCode, character);
-    }
-
-    return 0;
-}
-
 static void handleTrackedControllerButton(ovrInputStateTrackedRemote * trackedRemoteState, ovrInputStateTrackedRemote * prevTrackedRemoteState, uint32_t button, int key)
 {
     if ((trackedRemoteState->Buttons & button) != (prevTrackedRemoteState->Buttons & button))
@@ -1436,15 +1420,19 @@ static void handleTrackedControllerButton(ovrInputStateTrackedRemote * trackedRe
     }
 }
 
-static void rotate(float v1, float v2, float yaw, vec3_t out)
+static void rotateAboutOrigin(float v1, float v2, float rotation, vec2_t out)
 {
     vec3_t temp;
     temp[0] = v1;
     temp[1] = v2;
 
+    vec3_t v;
     matrix4x4_t matrix;
-    Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, yaw, 0.0f, 1.0f);
-    Matrix4x4_Transform(&matrix, temp, out);
+    Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, rotation, 0.0f, 1.0f);
+    Matrix4x4_Transform(&matrix, temp, v);
+
+    out[0] = v[0];
+    out[1] = v[1];
 }
 
 ovrInputStateTrackedRemote leftTrackedRemoteState_old;
@@ -1497,7 +1485,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 		}
 	}
 
-	ovrInputStateTrackedRemote dominantTrackedRemoteState = rightHanded ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
+    ovrInputStateTrackedRemote dominantTrackedRemoteState = rightHanded ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
+    ovrInputStateTrackedRemote dominantTrackedRemoteStateOld = rightHanded ? rightTrackedRemoteState_old : leftTrackedRemoteState_old;
 	ovrTracking dominantRemoteTracking = rightHanded ? rightRemoteTracking : leftRemoteTracking;
 	ovrInputStateTrackedRemote offHandTrackedRemoteState = !rightHanded ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
 	ovrTracking offHandRemoteTracking = !rightHanded ? rightRemoteTracking : leftRemoteTracking;
@@ -1511,10 +1500,10 @@ static void ovrApp_HandleInput( ovrApp * app )
         setWorldPosition(dominantRemoteTracking.HeadPose.Pose.Position.x, dominantRemoteTracking.HeadPose.Pose.Position.y, dominantRemoteTracking.HeadPose.Pose.Position.z);
 
 		///Weapon location relative to view
-		vec3_t v;
-		rotate(weaponOffset[0], weaponOffset[2],  -yawOffset, v);
-		weaponOffset[0] = v[0];
-		weaponOffset[2] = v[1];
+        vec2_t v;
+        rotateAboutOrigin(weaponOffset[0], weaponOffset[2],  -yawOffset, v);
+        weaponOffset[0] = v[0];
+        weaponOffset[2] = v[1];
 
 
 		//Set gun angles
@@ -1524,30 +1513,35 @@ static void ovrApp_HandleInput( ovrApp * app )
 		//Adjust gun pitch down slightly
 		gunangles[PITCH] += 8.0f;
 		gunangles[YAW] += yawOffset;
+
+        //Change laser sight on joystick click
+        if ((dominantTrackedRemoteState.Buttons & ovrButton_Joystick) &&
+            (dominantTrackedRemoteState.Buttons & ovrButton_Joystick) != (dominantTrackedRemoteStateOld.Buttons & ovrButton_Joystick))
+        {
+            Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
+        }
 	}
 
 	//off-hand stuff
+    float controllerYawHeading;
 	{
 		QuatToYawPitchRoll(offHandRemoteTracking.HeadPose.Pose.Orientation,
 						   controllerAngles);
 
-		hmdRemoteYawDiff = hmdorientation[YAW] - controllerAngles[YAW];
+        controllerYawHeading = controllerAngles[YAW] - gunangles[YAW] + yawOffset;
 	}
 
 	//Right-hand specific stuff
 	{
 		ALOGE("        Right-Controller-Position: %f, %f, %f", rightRemoteTracking.HeadPose.Pose.Position.x, rightRemoteTracking.HeadPose.Pose.Position.y, rightRemoteTracking.HeadPose.Pose.Position.z);
 
-		if (rightHanded) {
-		}
-
 		//This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
 		//player is facing for positional tracking
 		float multiplier = /*arbitrary value that works ->*/
 				(2000.0f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
 
-		vec3_t v;
-		rotate(-positionDeltaThisFrame[0] * multiplier, positionDeltaThisFrame[2] * multiplier,  -hmdorientation[YAW], v);
+        vec2_t v;
+		rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier, positionDeltaThisFrame[2] * multiplier,  -hmdorientation[YAW], v);
 		positional_movementSideways = v[0];
 		positional_movementForward = v[1];
 
@@ -1603,21 +1597,12 @@ static void ovrApp_HandleInput( ovrApp * app )
 		//Next Weapon
 		handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_GripTrigger, '/');
 
-		//Change laser sight on B button down
-		if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) &&
-			(rightTrackedRemoteState_new.Buttons & ovrButton_B) != (rightTrackedRemoteState_old.Buttons & ovrButton_B))
-		{
-			Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
-		}
-
 		rightTrackedRemoteState_old = rightTrackedRemoteState_new;
 
 	}
 
 	//Left-hand specific stuff
 	{
-		//Left hand
-
 		ALOGE("        Left-Controller-Position: %f, %f, %f", leftRemoteTracking.HeadPose.Pose.Position.x, leftRemoteTracking.HeadPose.Pose.Position.y, leftRemoteTracking.HeadPose.Pose.Position.z);
 
 		//Menu button
@@ -1644,15 +1629,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 
 		//Adjust to be HMD oriented
-		vec3_t temp;
-		vec3_t v;
-		temp[0] = leftTrackedRemoteState_new.Joystick.x;
-		temp[1] = leftTrackedRemoteState_new.Joystick.y;
-
-		matrix4x4_t matrix;
-		Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, hmdRemoteYawDiff, 0.0f, 1.0f);
-		Matrix4x4_Transform(&matrix, temp, v);
-
+        vec2_t v;
+        rotateAboutOrigin(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y,  controllerYawHeading, v);
 		remote_movementSideways = v[0];
 		remote_movementForward = v[1];
 
@@ -1670,6 +1648,13 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 		//Prev Weapon
 		handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old, ovrButton_GripTrigger, '#');
+
+        //Change handedness - temporary for testing
+        if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
+            (leftTrackedRemoteState_new.Buttons & ovrButton_Y) != (leftTrackedRemoteState_old.Buttons & ovrButton_Y))
+        {
+            rightHanded = !rightHanded;
+        }
 
 		leftTrackedRemoteState_old = leftTrackedRemoteState_new;
 	}
@@ -1872,8 +1857,7 @@ enum
 	MESSAGE_ON_STOP,
 	MESSAGE_ON_DESTROY,
 	MESSAGE_ON_SURFACE_CREATED,
-	MESSAGE_ON_SURFACE_DESTROYED,
-    MESSAGE_ON_KEY_EVENT
+	MESSAGE_ON_SURFACE_DESTROYED
 };
 
 typedef struct
@@ -2002,10 +1986,6 @@ void * AppThreadFunction( void * parm )
 				}
 				case MESSAGE_ON_SURFACE_CREATED:	{ appState.NativeWindow = (ANativeWindow *)ovrMessage_GetPointerParm( &message, 0 ); break; }
 				case MESSAGE_ON_SURFACE_DESTROYED:	{ appState.NativeWindow = NULL; break; }
-                case MESSAGE_ON_KEY_EVENT:			{ ovrApp_HandleKeyEvent( &appState,
-                                                                               ovrMessage_GetIntegerParm( &message, 0 ),
-                                                                               ovrMessage_GetIntegerParm( &message, 1 ),
-                                                                               ovrMessage_GetIntegerParm( &message, 2 )); break; }
 			}
 
 			ovrApp_HandleVrModeChanges( &appState );
@@ -2363,29 +2343,6 @@ JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onSurfaceDestroyed
 	ALOGV( "        ANativeWindow_release( NativeWindow )" );
 	ANativeWindow_release( appThread->NativeWindow );
 	appThread->NativeWindow = NULL;
-}
-
-/*
-================================================================================
-
-Input
-
-================================================================================
-*/
-
-JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onKeyEvent( JNIEnv * env, jobject obj, jlong handle, int keyCode, int action, int character )
-{
-    if ( action == AKEY_EVENT_ACTION_UP )
-    {
-        ALOGV( "    GLES3JNILib::onKeyEvent( %d, %d )", keyCode, action );
-    }
-    ovrAppThread * appThread = (ovrAppThread *)((size_t)handle);
-    ovrMessage message;
-    ovrMessage_Init( &message, MESSAGE_ON_KEY_EVENT, MQ_WAIT_NONE );
-    ovrMessage_SetIntegerParm( &message, 0, keyCode );
-    ovrMessage_SetIntegerParm( &message, 1, action );
-    ovrMessage_SetIntegerParm( &message, 2, character );
-    ovrMessageQueue_PostMessage( &appThread->MessageQueue, &message );
 }
 
 JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_requestAudioData(JNIEnv *env, jclass c, jlong handle)

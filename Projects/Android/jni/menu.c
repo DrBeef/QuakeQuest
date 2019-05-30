@@ -1897,7 +1897,7 @@ static void M_Options_Draw (void)
 	M_Options_PrintSlider(  "       Game Brightness", true, r_hdr_scenebrightness.value, 1, 4);
 	M_Options_PrintSlider(  "            Brightness", true, v_contrast.value, 1, 2);
 	M_Options_PrintSlider(  "                 Gamma", true, v_gamma.value, 0.5, 3);
-	M_Options_PrintCheckbox("      Toy Soldier Mode", true, r_worldscale.value > 200.0f);
+	M_Options_PrintCommand( "", true);
 	M_Options_PrintCommand( "     Customize Effects", true);
 	M_Options_PrintCommand( "       Effects:  Quake", true);
 	M_Options_PrintCommand( "       Effects: Normal", true);
@@ -1962,17 +1962,7 @@ static void M_Options_Key (int k, int ascii)
 		case 10:
 			M_Menu_Options_ColorControl_f ();
 			break;
-		case 14: // Toy Soldier Mode
-			if (r_worldscale.value < 200.0f)
-			{
-				Cvar_SetValueQuick (&r_worldscale, 400.0f);
-				Cvar_SetValueQuick (&chase_active, 1);
-			}
-			else
-			{
-				Cvar_SetValueQuick (&r_worldscale, 30.0f);
-				Cvar_SetValueQuick (&chase_active, 0);
-			}
+		case 14:
 			break;
 		case 15: // Customize Effects
 			M_Menu_Options_Effects_f ();

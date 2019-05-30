@@ -21,9 +21,7 @@ public class GLES3JNILib
 	public static native void onSurfaceChanged( long handle, Surface s );
 	public static native void onSurfaceDestroyed( long handle );
 
-	// Input
-	public static native void onKeyEvent( long handle, int keyCode, int action, int character );
-
+	//Audio
 	public static native void requestAudioData();
 	public static native void setCallbackObjects(Object obj1, Object obj2);
 }
