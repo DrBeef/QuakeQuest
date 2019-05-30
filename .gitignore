@@ -1,0 +1,30 @@
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows shortcuts
+*.lnk
+
+# build files
+*.o
+*.d
+
+#binaries
+*.so
+
+#libs
+*.a
+
+#files created by build
+*.apk
+*.ap_
+*.class
+*.keystore
+projects/Android/build/*
+assets/oculussig*

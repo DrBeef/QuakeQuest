@@ -1,0 +1,4 @@
+rootProject.projectDir = new File(settingsDir, '../../../..')
+rootProject.name = "QuakeQuest"
+
+include ':', 'VrSamples:QuakeQuest:Projects:Android'
