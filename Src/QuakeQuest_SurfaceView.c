@@ -1628,7 +1628,7 @@ static void ovrApp_HandleInput( ovrApp * app )
 		}
 
 
-		//Adjust to be HMD oriented
+		//Adjust to be off-hand controller oriented
         vec2_t v;
         rotateAboutOrigin(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y,  controllerYawHeading, v);
 		remote_movementSideways = v[0];
