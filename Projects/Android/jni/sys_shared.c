@@ -48,9 +48,7 @@ void Sys_Quit (int returnvalue)
 		Sys_AllowProfiling(false);
 
 	//Inform the main rendering loop we are exiting the game
-	QC_exit(1);
-	//host_shuttingdown = true;
-	//Host_Shutdown();
+	QC_exit(0);
 }
 
 #if defined(__linux__) || defined(__FreeBSD__)

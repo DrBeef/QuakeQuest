@@ -445,6 +445,11 @@ cvar_t cl_pitchspeed = {CVAR_SAVE, "cl_pitchspeed","150","keyboard pitch turning
 cvar_t cl_yawmult = {CVAR_SAVE, "cl_yawmult","1.0","Multiplier for yaw (leave at 1.0)"};
 cvar_t cl_pitchmult = {CVAR_SAVE, "cl_pitchmult","1.0","Multiplier for yaw (leave at 1.0)"};
 cvar_t cl_controllerdeadzone = {0, "cl_controllerdeadzone","0.05","Amount of deadzone to prevent movement drift due to badly calibrated controller (0.0 to 1.0)"};
+cvar_t cl_righthanded = {CVAR_SAVE, "cl_righthanded","1","right-handed?"};
+
+cvar_t cl_weapon_offset_lr = {CVAR_SAVE, "cl_weapon_offset_lr","0.0","left/right weapon offset (+ve move right)"};
+cvar_t cl_weapon_offset_fb = {CVAR_SAVE, "cl_weapon_offset_fb","0.15","front/back weapon offset (+ve move back)"};
+
 
 cvar_t cl_anglespeedkey = {CVAR_SAVE, "cl_anglespeedkey","1.5","how much +speed multiplies keyboard turning speed"};
 
@@ -2260,7 +2265,9 @@ void CL_InitInput (void)
 	Cvar_RegisterVariable(&cl_pitchmult);
 	Cvar_RegisterVariable(&cl_yawmult);
 	Cvar_RegisterVariable(&cl_controllerdeadzone);
-
+	Cvar_RegisterVariable(&cl_righthanded);
+	Cvar_RegisterVariable(&cl_weapon_offset_lr);
+	Cvar_RegisterVariable(&cl_weapon_offset_fb);
 
 	Cvar_RegisterVariable(&cl_movecliptokeyboard);
 	Cvar_RegisterVariable(&cl_movement);

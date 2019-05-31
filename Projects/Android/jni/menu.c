@@ -40,7 +40,6 @@ static const char* sYes = "Yes";
 
 //Game always starts in vr mode, showing the menu on the big screen in stereo
 int vrMode = 2;
-int stereoMode = 1;
 
 extern int andrw;
 
@@ -52,6 +51,7 @@ extern char *strGameFolder;
 
 extern cvar_t r_worldscale;
 extern cvar_t r_lasersight;
+extern cvar_t cl_righthanded;
 
 extern void BigScreenMode(int mode);
 extern void SwitchStereoMode(int mode);
@@ -1726,9 +1726,7 @@ static void M_Menu_Options_AdjustSliders (int dir)
 	S_LocalSound ("sound/misc/menu3.wav");
 
 	optnum = 0;
-	if (options_cursor == optnum++) {
-		stereoMode = 1 - stereoMode;
-	}
+	if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
@@ -1850,20 +1848,11 @@ static void M_Options_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_ITEMS - visible)) * 8;
 
-	switch (stereoMode)
-	{
-		case 0:
-			M_Options_PrintCommand( "     Stereo Mode: MONO", true);
-			break;
-		case 1:
-			M_Options_PrintCommand( "     Stereo Mode: STEREO", true);
-			break;
-	}
-
+    M_Options_PrintCommand( "                      ", false);
 	M_Options_PrintCommand( "   Controller Settings", true);
 	M_Options_PrintCommand( "    Open Quake Console", true);
 	M_Options_PrintCommand( "     Reset to defaults", true);
-	M_Options_PrintCommand( "                      ", true);
+	M_Options_PrintCommand( "                      ", false);
 	M_Options_PrintCommand( "   Key/Button Bindings", true);
 	switch (r_lasersight.integer)
 	{
@@ -1925,7 +1914,6 @@ static void M_Options_Key (int k, int ascii)
 		switch (options_cursor)
 		{
 		case 0:
-			stereoMode = 1 - stereoMode;
 			break;
 		case 1:
 			M_Menu_YawPitchControl_f ();
@@ -3004,7 +2992,7 @@ static void M_Reset_Draw (void)
 	M_Print(8 + 4 * (linelength - 11), 16, "Press y / n");
 }
 
-#define	YAWCONTROL_ITEMS	3
+#define	YAWCONTROL_ITEMS	4
 
 static int controllermode_cursor;
 
@@ -3023,6 +3011,7 @@ static void M_Menu_YawPitchControl_AdjustSliders (int dir)
 	optnum = 0;
 
 	     if (controllermode_cursor == optnum++) ;
+	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++ && cl_yawmode.integer == 1)
 		{
 			float value = 45.0f;
@@ -3082,7 +3071,11 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 
 	case 'a':
 	case K_LEFTARROW:
-		if (controllermode_cursor == 0)
+        if (controllermode_cursor == 0)
+        {
+            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
+        }
+        else if (controllermode_cursor == 1)
 		{
 			int newYawMode = cl_yawmode.integer;
 			if (--newYawMode < 0)
@@ -3096,7 +3089,11 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 
 	case 'd':
 	case K_RIGHTARROW:
-		if (controllermode_cursor == 0)
+        if (controllermode_cursor == 0)
+        {
+            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
+        }
+        else if (controllermode_cursor == 1)
 		{
 			int newYawMode = cl_yawmode.integer;
 			if (++newYawMode > 2)
@@ -3128,6 +3125,11 @@ static void M_Menu_YawPitchControl_Draw (void)
 	optcursor = controllermode_cursor;
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, YAWCONTROL_ITEMS - visible)) * 8;
+
+    if (cl_righthanded.integer == 0)
+        M_Options_PrintCommand("Controller:     Left Handed", true);
+    else if (cl_righthanded.integer == 1)
+        M_Options_PrintCommand("Controller:     Right Handed", true);
 
 	if (cl_yawmode.integer == 0)
 		M_Options_PrintCommand(" Turn Mode:     Swivel-Chair (default)", true);

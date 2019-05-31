@@ -91,7 +91,10 @@ PFNEGLGETSYNCATTRIBKHRPROC		eglGetSyncAttribKHR;
 #include "VrApi_SystemUtils.h"
 #include "VrApi_Input.h"
 
+#ifndef NDEBUG
 #define DEBUG 1
+#endif
+
 #define LOG_TAG "QuakeQuest"
 
 #define ALOGE(...) __android_log_print( ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__ )
@@ -118,10 +121,11 @@ extern cvar_t cl_forwardspeed;
 extern cvar_t cl_postrackmultiplier;
 extern cvar_t cl_controllerstrafe;
 extern cvar_t cl_controllerdeadzone;
+extern cvar_t cl_righthanded;
+extern cvar_t cl_weapon_offset_lr;
+extern cvar_t cl_weapon_offset_fb;
 
 extern int			key_consoleactive;
-
-qboolean rightHanded = true;
 
 static float radians(float deg) {
 	return (deg * M_PI) / 180.0;
@@ -276,10 +280,10 @@ int Sys_Milliseconds (void)
 	return curtime;
 }
 
-int returnvalue = -1;
+int runStatus = -1;
 void QC_exit(int exitCode)
 {
-	returnvalue = exitCode;
+	runStatus = exitCode;
 }
 
 vec3_t hmdorientation;
@@ -958,10 +962,10 @@ static float uvs[8] = {
 };
 
 static float SCREEN_COORDS[12] = {
-		-1.5f, 1.25f, 0.0f,
-		-1.5f, -1.25f, 0.0f,
-		1.5f, -1.25f, 0.0f,
-		1.5f, 1.25f, 0.0f
+		-3.0f, 2.0f, 0.0f,
+		-3.0f, -2.0f, 0.0f,
+		3.0f, -2.0f, 0.0f,
+		3.0f, 2.0f, 0.0f
 };
 
 int vignetteTexture = 0;
@@ -1435,6 +1439,7 @@ static void rotateAboutOrigin(float v1, float v2, float rotation, vec2_t out)
     out[1] = v[1];
 }
 
+
 ovrInputStateTrackedRemote leftTrackedRemoteState_old;
 ovrInputStateTrackedRemote leftTrackedRemoteState_new;
 ovrTracking leftRemoteTracking;
@@ -1485,11 +1490,11 @@ static void ovrApp_HandleInput( ovrApp * app )
 		}
 	}
 
-    ovrInputStateTrackedRemote dominantTrackedRemoteState = rightHanded ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
-    ovrInputStateTrackedRemote dominantTrackedRemoteStateOld = rightHanded ? rightTrackedRemoteState_old : leftTrackedRemoteState_old;
-	ovrTracking dominantRemoteTracking = rightHanded ? rightRemoteTracking : leftRemoteTracking;
-	ovrInputStateTrackedRemote offHandTrackedRemoteState = !rightHanded ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
-	ovrTracking offHandRemoteTracking = !rightHanded ? rightRemoteTracking : leftRemoteTracking;
+    ovrInputStateTrackedRemote dominantTrackedRemoteState = cl_righthanded.integer ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
+    ovrInputStateTrackedRemote dominantTrackedRemoteStateOld = cl_righthanded.integer ? rightTrackedRemoteState_old : leftTrackedRemoteState_old;
+	ovrTracking dominantRemoteTracking = cl_righthanded.integer ? rightRemoteTracking : leftRemoteTracking;
+	ovrInputStateTrackedRemote offHandTrackedRemoteState = !cl_righthanded.integer ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
+	ovrTracking offHandRemoteTracking = !cl_righthanded.integer ? rightRemoteTracking : leftRemoteTracking;
 
 	//dominant hand stuff first
 	{
@@ -1505,6 +1510,13 @@ static void ovrApp_HandleInput( ovrApp * app )
         weaponOffset[0] = v[0];
         weaponOffset[2] = v[1];
 
+        //Doesn't work - leaving out for now
+ /*       // Adjust right (+ve), adjust Back (+ve)
+        rotateAboutOrigin(cl_weapon_offset_lr.value,  cl_weapon_offset_fb.value, -gunangles[YAW]-yawOffset, v);
+        vec3_t adjustment;
+        VectorSet(adjustment, v[0], 0.0f, v[1]);
+        VectorAdd(adjustment, weaponOffset, weaponOffset);
+*/
 
 		//Set gun angles
 		const ovrQuatf quatRemote = dominantRemoteTracking.HeadPose.Pose.Orientation;
@@ -1537,8 +1549,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 		//This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
 		//player is facing for positional tracking
-		float multiplier = /*arbitrary value that works ->*/
-				(2000.0f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
+		float multiplier = /*arbitrary value that works - The date Quake was released, 22nd June 1996 ->*/
+				(1996.0622f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
 
         vec2_t v;
 		rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier, positionDeltaThisFrame[2] * multiplier,  -hmdorientation[YAW], v);
@@ -1582,7 +1594,7 @@ static void ovrApp_HandleInput( ovrApp * app )
 			handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_A, K_SPACE);
 		}
 
-		if (rightHanded) {
+		if (cl_righthanded.integer) {
 			//Fire
 			handleTrackedControllerButton(&rightTrackedRemoteState_new,
 										  &rightTrackedRemoteState_old,
@@ -1596,6 +1608,17 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 		//Next Weapon
 		handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_GripTrigger, '/');
+
+#ifndef NDEBUG
+
+        //Adjust Weapon Offset
+        if ((leftTrackedRemoteState_new.Buttons & ovrButton_B) && bigScreen == 0 &&
+            (leftTrackedRemoteState_new.Buttons & ovrButton_B) != (leftTrackedRemoteState_old.Buttons & ovrButton_B))
+        {
+            SCR_CenterPrint("Mmmm Sausage!");
+        }
+
+#endif
 
 		rightTrackedRemoteState_old = rightTrackedRemoteState_new;
 
@@ -1634,7 +1657,7 @@ static void ovrApp_HandleInput( ovrApp * app )
 		remote_movementSideways = v[0];
 		remote_movementForward = v[1];
 
-		if (rightHanded) {
+		if (cl_righthanded.integer) {
 			//Run
 			handleTrackedControllerButton(&leftTrackedRemoteState_new,
 										  &leftTrackedRemoteState_old,
@@ -1649,12 +1672,22 @@ static void ovrApp_HandleInput( ovrApp * app )
 		//Prev Weapon
 		handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old, ovrButton_GripTrigger, '#');
 
+#ifndef NDEBUG
+        //Give all weapons and all ammo and god mode
+        if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
+            (leftTrackedRemoteState_new.Buttons & ovrButton_X) != (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
+            Cbuf_InsertText("God\n");
+            Cbuf_InsertText("Impulse 9\n");
+        }
+
         //Change handedness - temporary for testing
         if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
             (leftTrackedRemoteState_new.Buttons & ovrButton_Y) != (leftTrackedRemoteState_old.Buttons & ovrButton_Y))
         {
-            rightHanded = !rightHanded;
+			Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
         }
+#endif
+
 
 		leftTrackedRemoteState_old = leftTrackedRemoteState_new;
 	}
@@ -1869,6 +1902,8 @@ typedef struct
 	ANativeWindow * NativeWindow;
 } ovrAppThread;
 
+long shutdownCountdown;
+
 void * AppThreadFunction( void * parm )
 {
 	ovrAppThread * appThread = (ovrAppThread *)parm;
@@ -1958,7 +1993,6 @@ void * AppThreadFunction( void * parm )
 						//Ensure game starts with credits active
 						MR_ToggleMenu(2);
 					}
-					returnvalue = -1;
 					break;
 				}
 				case MESSAGE_ON_RESUME:
@@ -1996,9 +2030,13 @@ void * AppThreadFunction( void * parm )
 			continue;
 		}
 
-		// Create the scene if not yet created.
+        // This is the only place the frame index is incremented, right before
+        // calling vrapi_GetPredictedDisplayTime().
+        appState.FrameIndex++;
+
+        // Create the scene if not yet created.
 		// The scene is created here to be able to show a loading icon.
-		if (!quake_initialised)
+		if (!quake_initialised || runStatus != -1)
 		{
 			// Show a loading icon.
 			int frameFlags = 0;
@@ -2027,51 +2065,75 @@ void * AppThreadFunction( void * parm )
 			vrapi_SubmitFrame2( appState.Ovr, &frameDesc );
 		}
 
-		// This is the only place the frame index is incremented, right before
-		// calling vrapi_GetPredictedDisplayTime().
-		appState.FrameIndex++;
+        if (runStatus == -1) {
+#ifndef NDEBUG
+            if (appState.FrameIndex > 10800)
+            {
+                //Trigger shutdown after a couple of minutes in debug mode
+                runStatus = 0;
+            }
+#endif
+            // Get the HMD pose, predicted for the middle of the time period during which
+            // the new eye images will be displayed. The number of frames predicted ahead
+            // depends on the pipeline depth of the engine and the synthesis rate.
+            // The better the prediction, the less black will be pulled in at the edges.
+            const double predictedDisplayTime = vrapi_GetPredictedDisplayTime(appState.Ovr,
+                                                                              appState.FrameIndex);
+            const ovrTracking2 tracking = vrapi_GetPredictedTracking2(appState.Ovr,
+                                                                      predictedDisplayTime);
 
-		// Get the HMD pose, predicted for the middle of the time period during which
-		// the new eye images will be displayed. The number of frames predicted ahead
-		// depends on the pipeline depth of the engine and the synthesis rate.
-		// The better the prediction, the less black will be pulled in at the edges.
-		const double predictedDisplayTime = vrapi_GetPredictedDisplayTime( appState.Ovr, appState.FrameIndex );
-		const ovrTracking2 tracking = vrapi_GetPredictedTracking2( appState.Ovr, predictedDisplayTime );
+            appState.DisplayTime = predictedDisplayTime;
 
-		appState.DisplayTime = predictedDisplayTime;
-
-		ovrApp_HandleInput( &appState );
+            ovrApp_HandleInput(&appState);
 
 
-		// Render eye images and setup the primary layer using ovrTracking2.
-		const ovrLayerProjection2 worldLayer = ovrRenderer_RenderFrame( &appState.Renderer, &appState.Java,
-																		&tracking, appState.Ovr );
+            // Render eye images and setup the primary layer using ovrTracking2.
+            const ovrLayerProjection2 worldLayer = ovrRenderer_RenderFrame(&appState.Renderer,
+                                                                           &appState.Java,
+                                                                           &tracking, appState.Ovr);
 
-		const ovrLayerHeader2 * layers[] =
+            const ovrLayerHeader2 *layers[] =
+                    {
+                            &worldLayer.Header
+                    };
+
+            ovrSubmitFrameDescription2 frameDesc = {};
+            frameDesc.Flags = 0;
+            frameDesc.SwapInterval = appState.SwapInterval;
+            frameDesc.FrameIndex = appState.FrameIndex;
+            frameDesc.DisplayTime = appState.DisplayTime;
+            frameDesc.LayerCount = 1;
+            frameDesc.Layers = layers;
+
+            // Hand over the eye images to the time warp.
+            vrapi_SubmitFrame2(appState.Ovr, &frameDesc);
+        }
+        else
 		{
-			&worldLayer.Header
-		};
-
-		ovrSubmitFrameDescription2 frameDesc = {};
-		frameDesc.Flags = 0;
-		frameDesc.SwapInterval = appState.SwapInterval;
-		frameDesc.FrameIndex = appState.FrameIndex;
-		frameDesc.DisplayTime = appState.DisplayTime;
-		frameDesc.LayerCount = 1;
-		frameDesc.Layers = layers;
-
-		// Hand over the eye images to the time warp.
-		vrapi_SubmitFrame2( appState.Ovr, &frameDesc );
-
-		if (returnvalue != -1)
-		{
-            Host_Shutdown();
-            jni_terminateAudio();
-            ovrRenderer_Destroy( &appState.Renderer );
-            ovrEgl_DestroyContext( &appState.Egl );
-            (*java.Vm)->DetachCurrentThread( java.Vm );
-            vrapi_Shutdown();
-            exit( 0 );
+		    //We are now shutting down
+		    if (runStatus == 0)
+            {
+                //Give us half a second (36 frames)
+                shutdownCountdown = 36;
+                runStatus++;
+            } else	if (runStatus == 1)
+            {
+                if (--shutdownCountdown == 0) {
+                    runStatus++;
+                }
+            } else	if (runStatus == 2)
+            {
+                Host_Shutdown();
+                jni_terminateAudio();
+                runStatus++;
+            } else if (runStatus == 3)
+            {
+                ovrRenderer_Destroy( &appState.Renderer );
+                ovrEgl_DestroyContext( &appState.Egl );
+                (*java.Vm)->DetachCurrentThread( java.Vm );
+                vrapi_Shutdown();
+                exit( 0 );
+            }
 		}
 	}
 
