@@ -438,7 +438,7 @@ cvar_t cl_movespeedkey = {CVAR_SAVE, "cl_movespeedkey","2.0","how much +speed mu
 cvar_t cl_movecliptokeyboard = {0, "cl_movecliptokeyboard", "0", "if set to 1, any move is clipped to the nine keyboard states; if set to 2, only the direction is clipped, not the amount"};
 
 cvar_t cl_yawmode = {CVAR_SAVE, "cl_yawmode","0","0 = swivel-chair, 1 = comfort, 2 = stick"};
-cvar_t cl_controllerstrafe = {CVAR_SAVE, "cl_controllerstrafe","1","0 = Disable GearVR Controller Strafing, 1 = Use GearVR Controller Mode 1, 2 = Use GearVR Controller Mode 2"};
+cvar_t cl_walkdirection = {CVAR_SAVE, "cl_walkdirection","1","0 - Walk in direction of off-hand controller, 1 - Walk in direction of HMD"};
 cvar_t cl_comfort = {CVAR_SAVE, "cl_comfort","45.0","angle by which comfort mode adjusts yaw"};
 cvar_t cl_yawspeed = {CVAR_SAVE, "cl_yawspeed","150","keyboard yaw turning speed"};
 cvar_t cl_pitchspeed = {CVAR_SAVE, "cl_pitchspeed","150","keyboard pitch turning speed"};
@@ -446,7 +446,9 @@ cvar_t cl_yawmult = {CVAR_SAVE, "cl_yawmult","1.0","Multiplier for yaw (leave at
 cvar_t cl_pitchmult = {CVAR_SAVE, "cl_pitchmult","1.0","Multiplier for yaw (leave at 1.0)"};
 cvar_t cl_controllerdeadzone = {0, "cl_controllerdeadzone","0.05","Amount of deadzone to prevent movement drift due to badly calibrated controller (0.0 to 1.0)"};
 cvar_t cl_righthanded = {CVAR_SAVE, "cl_righthanded","1","right-handed?"};
+cvar_t cl_weaponpitchadjust = {CVAR_SAVE, "cl_weaponpitchadjust","8.0","Weapon pitch adjustment"};
 
+cvar_t cl_weapon_offset_ud = {CVAR_SAVE, "cl_weapon_offset_ud","0.0","up/down weapon offset (+ve move up)"};
 cvar_t cl_weapon_offset_lr = {CVAR_SAVE, "cl_weapon_offset_lr","0.0","left/right weapon offset (+ve move right)"};
 cvar_t cl_weapon_offset_fb = {CVAR_SAVE, "cl_weapon_offset_fb","0.15","front/back weapon offset (+ve move back)"};
 
@@ -2259,15 +2261,17 @@ void CL_InitInput (void)
 	Cmd_AddCommand ("register_bestweapon", IN_BestWeapon_Register_f, "(for QC usage only) change weapon parameters to be used by bestweapon; stuffcmd this in ClientConnect");
 
 	Cvar_RegisterVariable(&cl_yawmode);
-	Cvar_RegisterVariable(&cl_controllerstrafe);
+	Cvar_RegisterVariable(&cl_walkdirection);
 	Cvar_RegisterVariable(&cl_comfort);
 	Cvar_RegisterVariable(&cl_yawspeed);
 	Cvar_RegisterVariable(&cl_pitchmult);
 	Cvar_RegisterVariable(&cl_yawmult);
 	Cvar_RegisterVariable(&cl_controllerdeadzone);
 	Cvar_RegisterVariable(&cl_righthanded);
+	Cvar_RegisterVariable(&cl_weapon_offset_ud);
 	Cvar_RegisterVariable(&cl_weapon_offset_lr);
 	Cvar_RegisterVariable(&cl_weapon_offset_fb);
+	Cvar_RegisterVariable(&cl_weaponpitchadjust);
 
 	Cvar_RegisterVariable(&cl_movecliptokeyboard);
 	Cvar_RegisterVariable(&cl_movement);

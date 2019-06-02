@@ -52,12 +52,9 @@ extern char *strGameFolder;
 extern cvar_t r_worldscale;
 extern cvar_t r_lasersight;
 extern cvar_t cl_righthanded;
+extern cvar_t cl_walkdirection;
 
 extern void BigScreenMode(int mode);
-extern void SwitchStereoMode(int mode);
-extern void ControllerStrafeMode(int mode);
-
-extern bool jni_isPositionTrackingSupported();
 
 //Record yaw at the moment the menu is invoked
 static float hmdYaw = 0;
@@ -77,7 +74,7 @@ void M_Menu_Main_f (void);
 		void M_Menu_Keys_f (void);
 		void M_Menu_Reset_f (void);
 		void M_Menu_Video_f (void);
-		void M_Menu_YawPitchControl_f (void);
+		void M_Menu_Controller_f (void);
 	void M_Menu_Help_f (void);
 	void M_Menu_Credits_f (void);
 	void M_Menu_Quit_f (void);
@@ -101,7 +98,7 @@ static void M_Main_Draw (void);
 		static void M_Keys_Draw (void);
 		static void M_Reset_Draw (void);
 		static void M_Video_Draw (void);
-		static void M_Menu_YawPitchControl_Draw (void);
+		static void M_Menu_Controller_Draw (void);
 	static void M_Help_Draw (void);
 	static void M_Credits_Draw (void);
 	static void M_Quit_Draw (void);
@@ -126,7 +123,7 @@ static void M_Main_Key (int key, int ascii);
 		static void M_Keys_Key (int key, int ascii);
 		static void M_Reset_Key (int key, int ascii);
 		static void M_Video_Key (int key, int ascii);
-		static void M_Menu_YawPitchControl_Key (int key, int ascii);
+		static void M_Menu_Controller_Key (int key, int ascii);
 	static void M_Help_Key (int key, int ascii);
 	static void M_Credits_Key (int key, int ascii);
 	static void M_Quit_Key (int key, int ascii);
@@ -1916,7 +1913,7 @@ static void M_Options_Key (int k, int ascii)
 		case 0:
 			break;
 		case 1:
-			M_Menu_YawPitchControl_f ();
+			M_Menu_Controller_f ();
 			break;
 		case 2:
 			m_state = m_none;
@@ -2996,14 +2993,14 @@ static void M_Reset_Draw (void)
 
 static int controllermode_cursor;
 
-void M_Menu_YawPitchControl_f (void)
+void M_Menu_Controller_f (void)
 {
 	key_dest = key_menu;
-	m_state = m_yawpitchcontrol;
+	m_state = m_controller;
 	m_entersound = true;
 }
 
-static void M_Menu_YawPitchControl_AdjustSliders (int dir)
+static void M_Menu_Controller_AdjustSliders (int dir)
 {
 	int optnum;
 	S_LocalSound ("sound/misc/menu3.wav");
@@ -3011,6 +3008,7 @@ static void M_Menu_YawPitchControl_AdjustSliders (int dir)
 	optnum = 0;
 
 	     if (controllermode_cursor == optnum++) ;
+	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++ && cl_yawmode.integer == 1)
 		{
@@ -3048,7 +3046,7 @@ static void M_Menu_YawPitchControl_AdjustSliders (int dir)
 		Cvar_SetValueQuick (&sensitivity, bound(1, (sensitivity.value + (dir * 0.25)), 10));
 }
 
-static void M_Menu_YawPitchControl_Key (int key, int ascii)
+static void M_Menu_Controller_Key (int key, int ascii)
 {
 	switch (key)
 	{
@@ -3073,9 +3071,13 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 	case K_LEFTARROW:
         if (controllermode_cursor == 0)
         {
-            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
+            Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
         }
         else if (controllermode_cursor == 1)
+        {
+            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
+        }
+        else if (controllermode_cursor == 2)
 		{
 			int newYawMode = cl_yawmode.integer;
 			if (--newYawMode < 0)
@@ -3084,16 +3086,20 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 			Cvar_SetValueQuick (&cl_yawmode, newYawMode);
 		}
 		else
-			M_Menu_YawPitchControl_AdjustSliders(-1);
+			M_Menu_Controller_AdjustSliders(-1);
 		break;
 
 	case 'd':
 	case K_RIGHTARROW:
         if (controllermode_cursor == 0)
         {
-            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
+            Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
         }
         else if (controllermode_cursor == 1)
+        {
+            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
+        }
+        else if (controllermode_cursor == 2)
 		{
 			int newYawMode = cl_yawmode.integer;
 			if (++newYawMode > 2)
@@ -3102,7 +3108,7 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 			Cvar_SetValueQuick (&cl_yawmode, newYawMode);
 		}
 		else
-			M_Menu_YawPitchControl_AdjustSliders(1);
+			M_Menu_Controller_AdjustSliders(1);
 		break;
 
 	default:
@@ -3110,7 +3116,7 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 	}
 }
 
-static void M_Menu_YawPitchControl_Draw (void)
+static void M_Menu_Controller_Draw (void)
 {
 	int visible;
 	cachepic_t	*p;
@@ -3126,9 +3132,15 @@ static void M_Menu_YawPitchControl_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, YAWCONTROL_ITEMS - visible)) * 8;
 
+
+    if (cl_walkdirection.integer == 0)
+        M_Options_PrintCommand("Heading Mode:     Off-hand Controller", true);
+    else
+        M_Options_PrintCommand("Heading Mode:     HMD", true);
+
     if (cl_righthanded.integer == 0)
         M_Options_PrintCommand("Controller:     Left Handed", true);
-    else if (cl_righthanded.integer == 1)
+    else
         M_Options_PrintCommand("Controller:     Right Handed", true);
 
 	if (cl_yawmode.integer == 0)
@@ -5177,7 +5189,7 @@ static void M_Init (void)
 	Cmd_AddCommand ("menu_keys", M_Menu_Keys_f, "open the key binding menu");
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f, "open the video options menu");
 	Cmd_AddCommand ("menu_reset", M_Menu_Reset_f, "open the reset to defaults menu");
-	Cmd_AddCommand ("menu_reset", M_Menu_YawPitchControl_f, "open the yaw/pitch control menu");
+	Cmd_AddCommand ("menu_reset", M_Menu_Controller_f, "open the yaw/pitch control menu");
 	Cmd_AddCommand ("menu_mods", M_Menu_ModList_f, "open the mods browser menu");
 	Cmd_AddCommand ("help", M_Menu_Help_f, "open the help menu");
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f, "open the quit menu");
@@ -5266,8 +5278,8 @@ void M_Draw (void)
 		M_Video_Draw ();
 		break;
 
-	case m_yawpitchcontrol:
-		M_Menu_YawPitchControl_Draw ();
+	case m_controller:
+		M_Menu_Controller_Draw ();
 		break;
 
 	case m_help:
@@ -5414,8 +5426,8 @@ void M_KeyEvent (int key, int ascii, qboolean downevent)
 		M_Video_Key (key, ascii);
 		return;
 
-	case m_yawpitchcontrol:
-		M_Menu_YawPitchControl_Key (key, ascii);
+	case m_controller:
+		M_Menu_Controller_Key (key, ascii);
 		return;
 
 	case m_help:

@@ -15,7 +15,7 @@
 
 cvar_t scr_viewsize = {CVAR_SAVE, "viewsize","100", "how large the view should be, 110 disables inventory bar, 120 disables status bar"};
 cvar_t scr_fov = {CVAR_SAVE, "fov","100", "field of vision, 1-170 degrees, default 110, some players use 110-130"};
-cvar_t scr_conalpha = {CVAR_SAVE, "scr_conalpha", "1", "opacity of console background gfx/conback"};
+cvar_t scr_conalpha = {CVAR_SAVE, "scr_conalpha", "0.85", "opacity of console background gfx/conback"};
 cvar_t scr_conalphafactor = {CVAR_SAVE, "scr_conalphafactor", "1", "opacity of console background gfx/conback relative to scr_conalpha; when 0, gfx/conback is not drawn"};
 cvar_t scr_conalpha2factor = {CVAR_SAVE, "scr_conalpha2factor", "0", "opacity of console background gfx/conback2 relative to scr_conalpha; when 0, gfx/conback2 is not drawn"};
 cvar_t scr_conalpha3factor = {CVAR_SAVE, "scr_conalpha3factor", "0", "opacity of console background gfx/conback3 relative to scr_conalpha; when 0, gfx/conback3 is not drawn"};
@@ -28,9 +28,9 @@ cvar_t scr_conscroll2_y = {CVAR_SAVE, "scr_conscroll2_y", "0", "scroll speed of 
 cvar_t scr_conscroll3_x = {CVAR_SAVE, "scr_conscroll3_x", "0", "scroll speed of gfx/conback3 in x direction"};
 cvar_t scr_conscroll3_y = {CVAR_SAVE, "scr_conscroll3_y", "0", "scroll speed of gfx/conback3 in y direction"};
 cvar_t scr_menuforcewhiledisconnected = {0, "scr_menuforcewhiledisconnected", "0", "forces menu while disconnected"};
-cvar_t scr_centertime = {0, "scr_centertime","3", "how long centerprint messages show"};
+cvar_t scr_centertime = {0, "scr_centertime","4", "how long centerprint messages show"};
 cvar_t scr_showram = {CVAR_SAVE, "showram","1", "show ram icon if low on surface cache memory (not used)"};
-cvar_t scr_showturtle = {CVAR_SAVE, "showturtle","0", "show turtle icon when framerate is too low"};
+cvar_t scr_showturtle = {CVAR_SAVE, "showturtle","1", "show turtle icon when framerate is too low"};
 cvar_t scr_showpause = {CVAR_SAVE, "showpause","1", "show pause icon when game is paused"};
 cvar_t scr_showbrand = {0, "showbrand","0", "shows gfx/brand.tga in a corner of the screen (different values select different positions, including centered)"};
 cvar_t scr_printspeed = {0, "scr_printspeed","0", "speed of intermission printing (episode end texts), a value of 0 disables the slow printing"};

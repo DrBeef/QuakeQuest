@@ -119,11 +119,13 @@ extern cvar_t r_worldscale;
 extern cvar_t r_lasersight;
 extern cvar_t cl_forwardspeed;
 extern cvar_t cl_postrackmultiplier;
-extern cvar_t cl_controllerstrafe;
+extern cvar_t cl_walkdirection;
 extern cvar_t cl_controllerdeadzone;
 extern cvar_t cl_righthanded;
+extern cvar_t cl_weapon_offset_ud;
 extern cvar_t cl_weapon_offset_lr;
 extern cvar_t cl_weapon_offset_fb;
+extern cvar_t cl_weaponpitchadjust;
 
 extern int			key_consoleactive;
 
@@ -1000,7 +1002,7 @@ static void ovrRenderer_Create( ovrRenderer * renderer, const ovrJava * java )
 
     modelScreen = ovrMatrix4f_CreateIdentity();
     rotation = ovrMatrix4f_CreateIdentity();
-    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -3.0f );
+    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -5.0f );
     modelScreen = ovrMatrix4f_Multiply( &modelScreen, &translation );
 
     horizFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X);
@@ -1440,6 +1442,15 @@ static void rotateAboutOrigin(float v1, float v2, float rotation, vec2_t out)
 }
 
 
+static void rotateAboutOrigin2(vec3_t in, float pitch, float yaw, vec3_t out)
+{
+    vec3_t v;
+    matrix4x4_t matrix;
+    Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, pitch, yaw, 0.0f, 1.0f);
+    Matrix4x4_Transform(&matrix, in, v);
+    Vector2Copy(out, v);
+}
+
 ovrInputStateTrackedRemote leftTrackedRemoteState_old;
 ovrInputStateTrackedRemote leftTrackedRemoteState_new;
 ovrTracking leftRemoteTracking;
@@ -1490,19 +1501,20 @@ static void ovrApp_HandleInput( ovrApp * app )
 		}
 	}
 
-    ovrInputStateTrackedRemote dominantTrackedRemoteState = cl_righthanded.integer ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
-    ovrInputStateTrackedRemote dominantTrackedRemoteStateOld = cl_righthanded.integer ? rightTrackedRemoteState_old : leftTrackedRemoteState_old;
-	ovrTracking dominantRemoteTracking = cl_righthanded.integer ? rightRemoteTracking : leftRemoteTracking;
-	ovrInputStateTrackedRemote offHandTrackedRemoteState = !cl_righthanded.integer ? rightTrackedRemoteState_new : leftTrackedRemoteState_new;
-	ovrTracking offHandRemoteTracking = !cl_righthanded.integer ? rightRemoteTracking : leftRemoteTracking;
+    ovrInputStateTrackedRemote *dominantTrackedRemoteState = cl_righthanded.integer ? &rightTrackedRemoteState_new : &leftTrackedRemoteState_new;
+    ovrInputStateTrackedRemote *dominantTrackedRemoteStateOld = cl_righthanded.integer ? &rightTrackedRemoteState_old : &leftTrackedRemoteState_old;
+	ovrTracking *dominantRemoteTracking = cl_righthanded.integer ? &rightRemoteTracking : &leftRemoteTracking;
+	ovrInputStateTrackedRemote *offHandTrackedRemoteState = !cl_righthanded.integer ? &rightTrackedRemoteState_new : &leftTrackedRemoteState_new;
+	ovrInputStateTrackedRemote *offHandTrackedRemoteStateOld = !cl_righthanded.integer ? &rightTrackedRemoteState_old : &leftTrackedRemoteState_old;
+	ovrTracking *offHandRemoteTracking = !cl_righthanded.integer ? &rightRemoteTracking : &leftRemoteTracking;
 
 	//dominant hand stuff first
 	{
-		weaponOffset[0] = dominantRemoteTracking.HeadPose.Pose.Position.x - hmdPosition[0];
-		weaponOffset[1] = dominantRemoteTracking.HeadPose.Pose.Position.y - hmdPosition[1];
-		weaponOffset[2] = dominantRemoteTracking.HeadPose.Pose.Position.z - hmdPosition[2];
+		weaponOffset[0] = dominantRemoteTracking->HeadPose.Pose.Position.x - hmdPosition[0];
+		weaponOffset[1] = dominantRemoteTracking->HeadPose.Pose.Position.y - hmdPosition[1];
+		weaponOffset[2] = dominantRemoteTracking->HeadPose.Pose.Position.z - hmdPosition[2];
 
-        setWorldPosition(dominantRemoteTracking.HeadPose.Pose.Position.x, dominantRemoteTracking.HeadPose.Pose.Position.y, dominantRemoteTracking.HeadPose.Pose.Position.z);
+        setWorldPosition(dominantRemoteTracking->HeadPose.Pose.Position.x, dominantRemoteTracking->HeadPose.Pose.Position.y, dominantRemoteTracking->HeadPose.Pose.Position.z);
 
 		///Weapon location relative to view
         vec2_t v;
@@ -1510,25 +1522,25 @@ static void ovrApp_HandleInput( ovrApp * app )
         weaponOffset[0] = v[0];
         weaponOffset[2] = v[1];
 
-        //Doesn't work - leaving out for now
- /*       // Adjust right (+ve), adjust Back (+ve)
-        rotateAboutOrigin(cl_weapon_offset_lr.value,  cl_weapon_offset_fb.value, -gunangles[YAW]-yawOffset, v);
+        //Set gun angles
+        const ovrQuatf quatRemote = dominantRemoteTracking->HeadPose.Pose.Orientation;
+        QuatToYawPitchRoll(quatRemote, gunangles);
+
+        //TODO: THIS NEEDS WORK!! - can't get it working and it is doing my head in!!
+/*        // Adjust right (+ve), adjust Back (+ve), up (+ve)
         vec3_t adjustment;
-        VectorSet(adjustment, v[0], 0.0f, v[1]);
-        VectorAdd(adjustment, weaponOffset, weaponOffset);
-*/
+        //VectorSet(adjustment, cl_weapon_offset_lr.value, cl_weapon_offset_ud.value, cl_weapon_offset_fb.value);
+        VectorSet(adjustment, 0.0f, 0.2f, 0.2f);
+        rotateAboutOrigin2(adjustment,  gunangles[PITCH], gunangles[YAW]-yawOffset, adjustment);
+        VectorAdd(adjustment, weaponOffset, weaponOffset);*/
 
-		//Set gun angles
-		const ovrQuatf quatRemote = dominantRemoteTracking.HeadPose.Pose.Orientation;
-		QuatToYawPitchRoll(quatRemote, gunangles);
-
-		//Adjust gun pitch down slightly
-		gunangles[PITCH] += 8.0f;
+		//Adjust gun pitch for user preference
+		gunangles[PITCH] += cl_weaponpitchadjust.value;
 		gunangles[YAW] += yawOffset;
 
         //Change laser sight on joystick click
-        if ((dominantTrackedRemoteState.Buttons & ovrButton_Joystick) &&
-            (dominantTrackedRemoteState.Buttons & ovrButton_Joystick) != (dominantTrackedRemoteStateOld.Buttons & ovrButton_Joystick))
+        if ((dominantTrackedRemoteState->Buttons & ovrButton_Joystick) &&
+            (dominantTrackedRemoteState->Buttons & ovrButton_Joystick) != (dominantTrackedRemoteStateOld->Buttons & ovrButton_Joystick))
         {
             Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
         }
@@ -1536,11 +1548,26 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 	//off-hand stuff
     float controllerYawHeading;
+    float hmdYawHeading;
 	{
-		QuatToYawPitchRoll(offHandRemoteTracking.HeadPose.Pose.Orientation,
+		QuatToYawPitchRoll(offHandRemoteTracking->HeadPose.Pose.Orientation,
 						   controllerAngles);
 
         controllerYawHeading = controllerAngles[YAW] - gunangles[YAW] + yawOffset;
+        hmdYawHeading = hmdorientation[YAW] - gunangles[YAW] + yawOffset;
+
+        //Change heading mode on click of off=hand joystick
+        if ((offHandTrackedRemoteState->Buttons & ovrButton_Joystick) && bigScreen == 0 &&
+            (offHandTrackedRemoteState->Buttons & ovrButton_Joystick) != (offHandTrackedRemoteStateOld->Buttons & ovrButton_Joystick))
+        {
+            Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
+            if (cl_walkdirection.integer == 1) {
+                SCR_CenterPrint("Heading Mode: Direction of HMD");
+            } else{
+                SCR_CenterPrint("Heading Mode: Direction of off-hand controller");
+            }
+        }
+
 	}
 
 	//Right-hand specific stuff
@@ -1549,8 +1576,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 		//This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
 		//player is facing for positional tracking
-		float multiplier = /*arbitrary value that works - The date Quake was released, 22nd June 1996 ->*/
-				(1996.0622f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
+		float multiplier = /*arbitrary value that works ->*/
+				(2500.0f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
 
         vec2_t v;
 		rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier, positionDeltaThisFrame[2] * multiplier,  -hmdorientation[YAW], v);
@@ -1609,16 +1636,18 @@ static void ovrApp_HandleInput( ovrApp * app )
 		//Next Weapon
 		handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_GripTrigger, '/');
 
-#ifndef NDEBUG
+        //Adjust weapon aim pitch
+        if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) &&
+            (rightTrackedRemoteState_new.Buttons & ovrButton_B) != (rightTrackedRemoteState_old.Buttons & ovrButton_B)) {
+            float newPitchAdjust = cl_weaponpitchadjust.value + 1.0f;
+            if (newPitchAdjust > 23.0f)
+            {
+                newPitchAdjust = -7.0f;
+            }
 
-        //Adjust Weapon Offset
-        if ((leftTrackedRemoteState_new.Buttons & ovrButton_B) && bigScreen == 0 &&
-            (leftTrackedRemoteState_new.Buttons & ovrButton_B) != (leftTrackedRemoteState_old.Buttons & ovrButton_B))
-        {
-            SCR_CenterPrint("Mmmm Sausage!");
+            Cvar_SetValueQuick(&cl_weaponpitchadjust, newPitchAdjust);
+            ALOGV("Pitch Adjust: %f", newPitchAdjust );
         }
-
-#endif
 
 		rightTrackedRemoteState_old = rightTrackedRemoteState_new;
 
@@ -1653,7 +1682,7 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 		//Adjust to be off-hand controller oriented
         vec2_t v;
-        rotateAboutOrigin(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y,  controllerYawHeading, v);
+        rotateAboutOrigin(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y,  cl_walkdirection.integer == 1 ? hmdYawHeading : controllerYawHeading, v);
 		remote_movementSideways = v[0];
 		remote_movementForward = v[1];
 
