@@ -11,7 +11,7 @@ Things to note / FAQs:
 ----------------------
 * You are the weapon.. to make it truly 6DoF the location of the weapon is what the engine understands to be the player. So you can peek round corners and enemies won't spot you, but if you poke the gun round to shoot, they'll see you.
 * Open the in-game menu with the left-controller menu button
-* The original soundtrack can work, you can find details here: 
+* The original soundtrack can work, you can find details here: https://www.reddit.com/r/quakegearvr/comments/7r9eri/got_the_musicsoundtrack_working/
 * You can change the right-thumbstick turn mode in the Options -> Controller menu, but be warned possible nausea awaits
 * You can change the laser-sight mode using the right-thumbstick click
 * The off-hand trigger will make you run
