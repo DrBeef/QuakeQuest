@@ -1725,6 +1725,7 @@ void CL_Beam_CalculatePositions(const beam_t *b, vec3_t start, vec3_t end)
 
 		//Use gun location as beam origin
         VectorCopy(gunorg, start);
+		start[2] -= 5.0f; // Hack to align lightning with gun
 
 		if (cl_beams_instantaimhack.integer)
 		{

@@ -1556,6 +1556,7 @@ static void ovrApp_HandleInput( ovrApp * app )
         controllerYawHeading = controllerAngles[YAW] - gunangles[YAW] + yawOffset;
         hmdYawHeading = hmdorientation[YAW] - gunangles[YAW] + yawOffset;
 
+#ifndef NDEBUG
         //Change heading mode on click of off=hand joystick
         if ((offHandTrackedRemoteState->Buttons & ovrButton_Joystick) && bigScreen == 0 &&
             (offHandTrackedRemoteState->Buttons & ovrButton_Joystick) != (offHandTrackedRemoteStateOld->Buttons & ovrButton_Joystick))
@@ -1567,7 +1568,7 @@ static void ovrApp_HandleInput( ovrApp * app )
                 SCR_CenterPrint("Heading Mode: Direction of off-hand controller");
             }
         }
-
+#endif
 	}
 
 	//Right-hand specific stuff
@@ -1577,7 +1578,7 @@ static void ovrApp_HandleInput( ovrApp * app )
 		//This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
 		//player is facing for positional tracking
 		float multiplier = /*arbitrary value that works ->*/
-				(2500.0f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
+				(2200.0f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
 
         vec2_t v;
 		rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier, positionDeltaThisFrame[2] * multiplier,  -hmdorientation[YAW], v);

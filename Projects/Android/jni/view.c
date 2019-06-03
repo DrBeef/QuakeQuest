@@ -75,7 +75,7 @@ cvar_t cl_followmodel_up_highpass1 = {CVAR_SAVE, "cl_followmodel_up_highpass1", 
 cvar_t cl_followmodel_up_highpass = {CVAR_SAVE, "cl_followmodel_up_highpass", "2", "gun following upward highpass in 1/s"};
 cvar_t cl_followmodel_up_lowpass = {CVAR_SAVE, "cl_followmodel_up_lowpass", "10", "gun following upward lowpass in 1/s"};
 
-cvar_t cl_viewmodel_scale = {0, "cl_viewmodel_scale", "0.65", "changes size of gun model, lower values prevent poking into walls but cause strange artifacts on lighting and especially r_stereo/vid_stereobuffer options where the size of the gun becomes visible"};
+cvar_t cl_viewmodel_scale = {0, "cl_viewmodel_scale", "0.45", "changes size of gun model, lower values prevent poking into walls but cause strange artifacts on lighting and especially r_stereo/vid_stereobuffer options where the size of the gun becomes visible"};
 
 cvar_t v_kicktime = {0, "v_kicktime", "0.0", "how long a view kick from damage lasts"};
 cvar_t v_kickroll = {0, "v_kickroll", "0.0", "how much a view kick from damage rolls your view"};
@@ -880,7 +880,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
         {
             vieworg[0] += (weaponOffset[2] * r_worldscale.value); // Forward/Back
             vieworg[1] += (weaponOffset[0] * r_worldscale.value); // Left/Right
-            vieworg[2] += (((hmdPosition[1] - playerHeight) + 0.4f) * r_worldscale.value); // Up/Down - Make played a bit taller
+            vieworg[2] += ((hmdPosition[1] - playerHeight) * r_worldscale.value); // Up/Down
         }
 
         Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2],
@@ -897,7 +897,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 		Matrix4x4_CreateFromQuakeEntity(&viewmodelmatrix_withbob, gunorg[0],
 										gunorg[1],
 										gunorg[2],
-                                        gunangles[0],
+                                        gunangles[0] - 3.0f,
                                         gunangles[1], 0.0f, cl_viewmodel_scale.value);
 
 

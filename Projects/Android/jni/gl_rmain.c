@@ -46,11 +46,11 @@ static qboolean r_loaddds;
 static qboolean r_savedds;
 static qboolean r_gpuskeletal;
 
-cvar_t r_worldscale = {CVAR_SAVE, "r_worldscale", "40", "World scale multiplier (default is 40)"};
+cvar_t r_worldscale = {CVAR_SAVE, "r_worldscale", "30", "World scale multiplier (default is 30)"};
 
 float GetStereoSeparation()
 {
-	return r_worldscale.value * 0.065;
+	return r_worldscale.value * 0.065f;
 }
 
 
