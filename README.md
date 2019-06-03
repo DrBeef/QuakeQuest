@@ -7,15 +7,28 @@ I am quite pleased with how this has turned out. Getting this to work as a 6DoF 
 
 This requires sideloading in order to play on your Oculus Quest.
 
+Controls:
+---------
+
+* Open the in-game menu with the left-controller menu button
+* Left Thumbstick - locomotion
+* Right Thumbstick - Turn (if configured to do so in the options)
+* A Button - Jump
+* B Button - Adjust pitch of weapon to your preference (saved in config)
+* Dominant Hand Controller - Weapon orientation
+* Dominant-Hand trigger - Fire
+* Off-Hand Controller - Direction of movement (if configured in settings, otherwise HMD direction is used by default)
+* Off-hand Trigger - Run
+* Grip Buttons - Switch next/previous weapon
+* Right-thumbstick click change the laser-sight mode 
+
+
 Things to note / FAQs:
 ----------------------
 * You are the weapon.. to make it truly 6DoF the location of the weapon is what the engine understands to be the player. So you can peek round corners and enemies won't spot you, but if you poke the gun round to shoot, they'll see you.
-* Open the in-game menu with the left-controller menu button
 * The original soundtrack can work, you can find details here: https://www.reddit.com/r/quakegearvr/comments/7r9eri/got_the_musicsoundtrack_working/
 * You can change the right-thumbstick turn mode in the Options -> Controller menu, but be warned possible nausea awaits
-* You can change the laser-sight mode using the right-thumbstick click
-* The off-hand trigger will make you run
-* Switch weapon next/prev using the controller grip buttons
+* You can change handed-ness (for you left handers) in the Controller settings menu
 * By default the direction of movement is where the HMD is facing, this can be changed in the menu to the direction the off-hand controller is facing (strafe-tastic)
 * You can change supersampling in the commandline.txt file, though by default it is already set to 1.3, you won't get much additional clarity increasing it more and may adversely affect performance
 * A number of the controller buttons are currently unmapped; future updates may give them function (see future to-dos on console commands for example)
