@@ -3573,16 +3573,16 @@ static int M_CreditsMessage(const char *line1, const char *line2,
 static void M_Credits_Draw (void)
 {
 	M_CreditsMessage(
-            "   QQQ QQQ           QQQ QQQ       ",
-			" QQQQ   QQQQ       QQQQ   QQQQ     ",
-			" QQQ     QQQ       QQQ     QQQ     ",
-			" QQQ     QQQ       QQQ     QQQ     ",
-			" QQQ  QQ QQQ       QQQ  QQ QQQ     ",
-			" QQQQ QQ QQQuake   QQQQ QQ QQQuest ",
-			"   QQQQQQQQ          QQQQQQQQ      ",
-			"     QQQ               QQQ         ",
-   			"      Q                 Q          ",
-	  		"      Q                 Q          ");
+            "   QQQ QQQ            QQQ QQQ       ",
+			" QQQQ   QQQQ        QQQQ   QQQQ     ",
+			" QQQ     QQQ        QQQ     QQQ     ",
+			" QQQ     QQQ        QQQ     QQQ     ",
+			" QQQ  QQ QQQ        QQQ  QQ QQQ     ",
+			" QQQQ QQ QQQuake    QQQQ QQ QQQuest ",
+			"   QQQQQQQQ           QQQQQQQQ      ",
+			"     QQQ                QQQ         ",
+   			"      Q                  Q          ",
+	  		"      Q                  Q    v1.0.0");
 
 	int i, l, linelength, firstline, lastline, lines;
 	for (i = 0, linelength = 0, firstline = 9999, lastline = -1;m_credits_message[i];i++)
