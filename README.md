@@ -5,7 +5,12 @@ Welcome to the first (and only I think!) 6DoF implementation of the Quake Engine
 
 I am quite pleased with how this has turned out. Getting this to work as a 6DoF game was a bit of a faff, and it isn't perfect (see known issues), but I think you'll agree it's good enough and also very good fun to play.
 
-This requires sideloading in order to play on your Oculus Quest.
+The easiest way to install this on your Quest is using SideQuest, a Desktop app designed to simplify sideloading apps and games ( even beat saber songs on quest ) on Standalone Android Headsets like Oculus Quest and Oculus Go. It supports drag and drop for installing APK files!
+
+Download SideQuest here:
+https://github.com/the-expanse/SideQuest/releases
+
+
 
 IMPORTANT NOTE:
 ---------------
