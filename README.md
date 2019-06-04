@@ -1,11 +1,17 @@
 QuakeQuest
 ==========
 
-Welcome to the first (and only I think!) 6DoF implementation of Quake, using the DarkPlaces Engine.
+Welcome to the first (and only I think!) 6DoF implementation of the Quake Engine, using DarkPlaces as a base for this port.
 
 I am quite pleased with how this has turned out. Getting this to work as a 6DoF game was a bit of a faff, and it isn't perfect (see known issues), but I think you'll agree it's good enough and also very good fun to play.
 
 This requires sideloading in order to play on your Oculus Quest.
+
+IMPORTANT NOTE:
+---------------
+
+This is just an engine port, the apk does contain the shareware version of Quake, not the full game. If you wish to play the full game you must purchase it yourself (https://store.steampowered.com/app/2310/QUAKE/) and copy the pak files to the QuakeQuest/id1 folder on your Oculus Quest.
+
 
 Controls:
 ---------
