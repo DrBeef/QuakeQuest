@@ -15,8 +15,12 @@ https://github.com/the-expanse/SideQuest/releases
 IMPORTANT NOTE:
 ---------------
 
-This is just an engine port, the apk does contain the shareware version of Quake, not the full game. If you wish to play the full game you must purchase it yourself (https://store.steampowered.com/app/2310/QUAKE/). 
-Copy the PAK files from the installed game folder on your PC to the QuakeQuest/id1 folder on your Oculus Quest when it is connected to the PC.
+This is just an engine port, the apk does contain the shareware version of Quake, not the full game. If you wish to play the full game you must purchase it yourself (https://store.steampowered.com/app/2310/QUAKE/).
+
+Copying the Full Game PAK files to your Oculus Quest
+----------------------------------------------------
+Copy the PAK files from the installed Quake game folder on your PC to the QuakeQuest/id1 folder on your Oculus Quest when it is connected to the PC. You have to have run QuakeQuest at least once for the folder to be created and if you don't see it when you connect your Quest to the PC you might have to restart the Quest.
+
 This DOES support mods
 
 
