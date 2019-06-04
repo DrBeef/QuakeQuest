@@ -21,7 +21,9 @@ Copying the Full Game PAK files to your Oculus Quest
 ----------------------------------------------------
 Copy the PAK files from the installed Quake game folder on your PC to the QuakeQuest/id1 folder on your Oculus Quest when it is connected to the PC. You have to have run QuakeQuest at least once for the folder to be created and if you don't see it when you connect your Quest to the PC you might have to restart the Quest.
 
-This DOES support mods
+This port DOES support mods, an excellent resource for finding out what you can do is here: https://www.reddit.com/r/quakegearvr/
+
+Bear in mind that the above sub-reddit is for the Gear VR version, which is not dramatically different, but the folder in which game data/saves etc resides is now QuakeQuest instead of QGVR.
 
 
 Controls:
