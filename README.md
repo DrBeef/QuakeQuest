@@ -51,6 +51,7 @@ Things to note / FAQs:
 * By default the direction of movement is where the HMD is facing, this can be changed in the menu to the direction the off-hand controller is facing (strafe-tastic)
 * You can change supersampling in the commandline.txt file, though by default it is already set to 1.3, you won't get much additional clarity increasing it more and may adversely affect performance
 * A number of the controller buttons are currently unmapped; future updates may give them function (see future to-dos on console commands for example)
+* You can now use text input - Please see V1.1.0 release notes for instructions
 
 Known Issues:
 -------------
@@ -58,13 +59,11 @@ Known Issues:
 * Some slight movement when moving weapon around (this is due to how I had to implement 6DoF) however you won't notice this in the heat of battle, only when you stand still marveling at the true 6DoF weapon in your hand
 * Orientation when headset looking near poles (north or south) doesn't work very well at all (Quaternion to Euler Angle issue) - if anyone knows what's going on there I'd appreciate some help!, it was like this on the GearVR and not many people complained about it, but it bothers me
 * Laser Sight out of alignment when very close to wall/object
-* No way to type in console commands at the moment (see future to-dos)
 * The axe and arm are way out of alignment with the controller (see future to-dos)
 
 Future To-Dos:
 --------------
 * Apply weapon transformation to line up weapons with controller better
-* Add a way to choose and run console commands from a file of them
 * Add an off-hand world entity - such as Flashlight or the HUD
 * Left-handed mode needs to have the axe model reflected and a mod created so it uses the left-hand model rather than the right
 
