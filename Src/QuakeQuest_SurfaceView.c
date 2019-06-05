@@ -964,10 +964,10 @@ static float uvs[8] = {
 };
 
 static float SCREEN_COORDS[12] = {
-		-3.0f, 2.0f, 0.0f,
-		-3.0f, -2.0f, 0.0f,
-		3.0f, -2.0f, 0.0f,
-		3.0f, 2.0f, 0.0f
+		-3.0f, 2.6f, 0.0f,
+		-3.0f, -2.6f, 0.0f,
+		3.0f, -2.6f, 0.0f,
+		3.0f, 2.6f, 0.0f
 };
 
 int vignetteTexture = 0;
@@ -1149,7 +1149,7 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
                                                                                  0.0f, 0.0f, 0.1f,
                                                                                  0.0f);
         } else{
-            projectionMatrix = ovrMatrix4f_CreateProjectionFov(90, 96,
+            projectionMatrix = ovrMatrix4f_CreateProjectionFov(horizFOV, vertFOV+4.0f,
                                                                                  0.0f, 0.0f, 0.1f,
                                                                                  0.0f);
 		}
@@ -1458,6 +1458,104 @@ ovrInputStateTrackedRemote rightTrackedRemoteState_old;
 ovrInputStateTrackedRemote rightTrackedRemoteState_new;
 ovrTracking rightRemoteTracking;
 
+//Text Input stuff
+bool textInput = false;
+int shift = 0;
+int left_grid = 0;
+char left_lower[3][10] = {"bcfihgdae", "klorqpmjn", "tuwzyxvs "};
+char left_shift[3][10] = {"BCFIHGDAE", "KLORQPMJN", "TUWZYXVS "};
+int right_grid = 0;
+char right_lower[2][10] = {"236987415", "+-)]&[(?#"};
+char right_shift[2][10] = {"\"*:|.~_/0", "%^}>,<{\\@"};
+
+char left_grid_map[2][3][3][8] = {
+    {
+        {
+                "a  b  c", "j  k  l", "s  t  u"
+        },
+        {
+                "d  e  f", "m  n  o", "v     w"
+        },
+        {
+                "g  h  i", "p  q  r", "x  y  z"
+        },
+    },
+    {
+        {
+                "A  B  C", "J  K  L", "S  T  U"
+        },
+        {
+                "D  E  F", "M  N  O", "V     W"
+        },
+        {
+                "G  H  I", "P  Q  R", "X  Y  Z"
+        },
+
+    }
+};
+
+
+char right_grid_map[2][3][2][8] = {
+        {
+                {
+                        "1  2  3",  "?  +  -"
+                },
+                {
+                        "4  5  6", "(  #  )"
+                },
+                {
+                        "7  8  9", "[  &  ]"
+                },
+        },
+        {
+                {
+                        "/  \"  *", "\\  %  ^"
+                },
+                {
+                        "_  0  :", "{  @  }"
+                },
+                {
+                        "~  .  |", "<  ,  >"
+                },
+        }
+};
+
+
+static int getCharacter(float x, float y)
+{
+    int c = 8;
+    if (x < -0.3f || x > 0.3f || y < -0.3f || y > 0.3f)
+    {
+        if (x == 0.0f)
+        {
+            if (y > 0.0f)
+            {
+                c = 0;
+            }
+            else
+            {
+                c = 4;
+            }
+        }
+        else
+        {
+            float angle = atanf(y / x) / ((float)M_PI / 180.0f);
+            if (x > 0.0f)
+            {
+                c = (int)(((90.0f - angle) + 22.5f) / 45.0f);
+            }
+            else
+            {
+                c = (int)(((90.0f - angle) + 22.5f) / 45.0f) + 4;
+                if (c == 8)
+                    c = 0;
+            }
+        }
+    }
+
+    return c;
+}
+
 static void ovrApp_HandleInput( ovrApp * app )
 {
     float remote_movementSideways = 0.0f;
@@ -1508,221 +1606,331 @@ static void ovrApp_HandleInput( ovrApp * app )
 	ovrInputStateTrackedRemote *offHandTrackedRemoteStateOld = !cl_righthanded.integer ? &rightTrackedRemoteState_old : &leftTrackedRemoteState_old;
 	ovrTracking *offHandRemoteTracking = !cl_righthanded.integer ? &rightRemoteTracking : &leftRemoteTracking;
 
-	//dominant hand stuff first
-	{
-		weaponOffset[0] = dominantRemoteTracking->HeadPose.Pose.Position.x - hmdPosition[0];
-		weaponOffset[1] = dominantRemoteTracking->HeadPose.Pose.Position.y - hmdPosition[1];
-		weaponOffset[2] = dominantRemoteTracking->HeadPose.Pose.Position.z - hmdPosition[2];
-
-        setWorldPosition(dominantRemoteTracking->HeadPose.Pose.Position.x, dominantRemoteTracking->HeadPose.Pose.Position.y, dominantRemoteTracking->HeadPose.Pose.Position.z);
-
-		///Weapon location relative to view
-        vec2_t v;
-        rotateAboutOrigin(weaponOffset[0], weaponOffset[2],  -yawOffset, v);
-        weaponOffset[0] = v[0];
-        weaponOffset[2] = v[1];
-
-        //Set gun angles
-        const ovrQuatf quatRemote = dominantRemoteTracking->HeadPose.Pose.Orientation;
-        QuatToYawPitchRoll(quatRemote, gunangles);
-
-        //TODO: THIS NEEDS WORK!! - can't get it working and it is doing my head in!!
-/*        // Adjust right (+ve), adjust Back (+ve), up (+ve)
-        vec3_t adjustment;
-        //VectorSet(adjustment, cl_weapon_offset_lr.value, cl_weapon_offset_ud.value, cl_weapon_offset_fb.value);
-        VectorSet(adjustment, 0.0f, 0.2f, 0.2f);
-        rotateAboutOrigin2(adjustment,  gunangles[PITCH], gunangles[YAW]-yawOffset, adjustment);
-        VectorAdd(adjustment, weaponOffset, weaponOffset);*/
-
-		//Adjust gun pitch for user preference
-		gunangles[PITCH] += cl_weaponpitchadjust.value;
-		gunangles[YAW] += yawOffset;
-
-        //Change laser sight on joystick click
-        if ((dominantTrackedRemoteState->Buttons & ovrButton_Joystick) &&
-            (dominantTrackedRemoteState->Buttons & ovrButton_Joystick) != (dominantTrackedRemoteStateOld->Buttons & ovrButton_Joystick))
-        {
-            Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
-        }
-	}
-
-	//off-hand stuff
-    float controllerYawHeading;
-    float hmdYawHeading;
-	{
-		QuatToYawPitchRoll(offHandRemoteTracking->HeadPose.Pose.Orientation,
-						   controllerAngles);
-
-        controllerYawHeading = controllerAngles[YAW] - gunangles[YAW] + yawOffset;
-        hmdYawHeading = hmdorientation[YAW] - gunangles[YAW] + yawOffset;
-
-#ifndef NDEBUG
-        //Change heading mode on click of off=hand joystick
-        if ((offHandTrackedRemoteState->Buttons & ovrButton_Joystick) && bigScreen == 0 &&
-            (offHandTrackedRemoteState->Buttons & ovrButton_Joystick) != (offHandTrackedRemoteStateOld->Buttons & ovrButton_Joystick))
-        {
-            Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
-            if (cl_walkdirection.integer == 1) {
-                SCR_CenterPrint("Heading Mode: Direction of HMD");
-            } else{
-                SCR_CenterPrint("Heading Mode: Direction of off-hand controller");
-            }
-        }
-#endif
-	}
-
-	//Right-hand specific stuff
-	{
-		ALOGE("        Right-Controller-Position: %f, %f, %f", rightRemoteTracking.HeadPose.Pose.Position.x, rightRemoteTracking.HeadPose.Pose.Position.y, rightRemoteTracking.HeadPose.Pose.Position.z);
-
-		//This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
-		//player is facing for positional tracking
-		float multiplier = /*arbitrary value that works ->*/
-				(2200.0f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
-
-        vec2_t v;
-		rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier, positionDeltaThisFrame[2] * multiplier,  -hmdorientation[YAW], v);
-		positional_movementSideways = v[0];
-		positional_movementForward = v[1];
-
-
-		long t = Sys_Milliseconds();
-		delta = t - oldtime;
-		oldtime = t;
-		if (delta > 1000)
-			delta = 1000;
-		QC_MotionEvent(delta, rightTrackedRemoteState_new.Joystick.x, rightTrackedRemoteState_new.Joystick.y);
-
-		if (bigScreen != 0) {
-
-			int rightJoyState = (rightTrackedRemoteState_new.Joystick.x > 0.7f ? 1 : 0);
-			if (rightJoyState != (rightTrackedRemoteState_old.Joystick.x > 0.7f ? 1 : 0)) {
-				QC_KeyEvent(rightJoyState, 'd', 0);
-			}
-			rightJoyState = (rightTrackedRemoteState_new.Joystick.x < -0.7f ? 1 : 0);
-			if (rightJoyState != (rightTrackedRemoteState_old.Joystick.x < -0.7f ? 1 : 0)) {
-				QC_KeyEvent(rightJoyState, 'a', 0);
-			}
-			rightJoyState = (rightTrackedRemoteState_new.Joystick.y < -0.7f ? 1 : 0);
-			if (rightJoyState != (rightTrackedRemoteState_old.Joystick.y < -0.7f ? 1 : 0)) {
-				QC_KeyEvent(rightJoyState, K_DOWNARROW, 0);
-			}
-			rightJoyState = (rightTrackedRemoteState_new.Joystick.y > 0.7f ? 1 : 0);
-			if (rightJoyState != (rightTrackedRemoteState_old.Joystick.y > 0.7f ? 1 : 0)) {
-				QC_KeyEvent(rightJoyState, K_UPARROW, 0);
-			}
-
-			//Click an option
-			handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_A, K_ENTER);
-
-			//Back button
-			handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_B, K_ESCAPE);
-		} else {
-			//Jump
-			handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_A, K_SPACE);
-		}
-
-		if (cl_righthanded.integer) {
-			//Fire
-			handleTrackedControllerButton(&rightTrackedRemoteState_new,
-										  &rightTrackedRemoteState_old,
-										  ovrButton_Trigger, K_MOUSE1);
-		} else{
-			//Run
-			handleTrackedControllerButton(&rightTrackedRemoteState_new,
-										  &rightTrackedRemoteState_old,
-										  ovrButton_Trigger, K_SHIFT);
-		}
-
-		//Next Weapon
-		handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old, ovrButton_GripTrigger, '/');
-
-        //Adjust weapon aim pitch
-        if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) &&
-            (rightTrackedRemoteState_new.Buttons & ovrButton_B) != (rightTrackedRemoteState_old.Buttons & ovrButton_B)) {
-            float newPitchAdjust = cl_weaponpitchadjust.value + 1.0f;
-            if (newPitchAdjust > 23.0f)
-            {
-                newPitchAdjust = -7.0f;
-            }
-
-            Cvar_SetValueQuick(&cl_weaponpitchadjust, newPitchAdjust);
-            ALOGV("Pitch Adjust: %f", newPitchAdjust );
-        }
-
-		rightTrackedRemoteState_old = rightTrackedRemoteState_new;
-
-	}
-
-	//Left-hand specific stuff
-	{
-		ALOGE("        Left-Controller-Position: %f, %f, %f", leftRemoteTracking.HeadPose.Pose.Position.x, leftRemoteTracking.HeadPose.Pose.Position.y, leftRemoteTracking.HeadPose.Pose.Position.z);
-
-		//Menu button
-		handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old, ovrButton_Enter, K_ESCAPE);
-
-		if (bigScreen != 0) {
-			int leftJoyState = (leftTrackedRemoteState_new.Joystick.x > 0.7f ? 1 : 0);
-			if (leftJoyState != (leftTrackedRemoteState_old.Joystick.x > 0.7f ? 1 : 0)) {
-				QC_KeyEvent(leftJoyState, 'd', 0);
-			}
-			leftJoyState = (leftTrackedRemoteState_new.Joystick.x < -0.7f ? 1 : 0);
-			if (leftJoyState != (leftTrackedRemoteState_old.Joystick.x < -0.7f ? 1 : 0)) {
-				QC_KeyEvent(leftJoyState, 'a', 0);
-			}
-			leftJoyState = (leftTrackedRemoteState_new.Joystick.y < -0.7f ? 1 : 0);
-			if (leftJoyState != (leftTrackedRemoteState_old.Joystick.y < -0.7f ? 1 : 0)) {
-				QC_KeyEvent(leftJoyState, K_DOWNARROW, 0);
-			}
-			leftJoyState = (leftTrackedRemoteState_new.Joystick.y > 0.7f ? 1 : 0);
-			if (leftJoyState != (leftTrackedRemoteState_old.Joystick.y > 0.7f ? 1 : 0)) {
-				QC_KeyEvent(leftJoyState, K_UPARROW, 0);
-			}
-		}
-
-
-		//Adjust to be off-hand controller oriented
-        vec2_t v;
-        rotateAboutOrigin(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y,  cl_walkdirection.integer == 1 ? hmdYawHeading : controllerYawHeading, v);
-		remote_movementSideways = v[0];
-		remote_movementForward = v[1];
-
-		if (cl_righthanded.integer) {
-			//Run
-			handleTrackedControllerButton(&leftTrackedRemoteState_new,
-										  &leftTrackedRemoteState_old,
-										  ovrButton_Trigger, K_SHIFT);
-		} else{
-			//Fire
-			handleTrackedControllerButton(&leftTrackedRemoteState_new,
-										  &leftTrackedRemoteState_old,
-										  ovrButton_Trigger, K_MOUSE1);
-		}
-
-		//Prev Weapon
-		handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old, ovrButton_GripTrigger, '#');
-
-#ifndef NDEBUG
-        //Give all weapons and all ammo and god mode
-        if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
-            (leftTrackedRemoteState_new.Buttons & ovrButton_X) != (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
-            Cbuf_InsertText("God\n");
-            Cbuf_InsertText("Impulse 9\n");
-        }
-
-        //Change handedness - temporary for testing
+	if (textInput)
+    {
+        //Toggle text input
         if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
-            (leftTrackedRemoteState_new.Buttons & ovrButton_Y) != (leftTrackedRemoteState_old.Buttons & ovrButton_Y))
-        {
-			Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
+            (leftTrackedRemoteState_new.Buttons & ovrButton_Y) !=
+            (leftTrackedRemoteState_old.Buttons & ovrButton_Y)) {
+            textInput = !textInput;
+            SCR_CenterPrint("Text Input: Disabled");
         }
+
+        int left_char_index = getCharacter(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y);
+        int right_char_index = getCharacter(rightTrackedRemoteState_new.Joystick.x, rightTrackedRemoteState_new.Joystick.y);
+
+        //Toggle Shift
+        if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
+            (leftTrackedRemoteState_new.Buttons & ovrButton_X) !=
+            (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
+            shift = 1 - shift;
+        }
+
+        //Cycle Left Grid
+        if ((leftTrackedRemoteState_new.Buttons & ovrButton_GripTrigger) &&
+            (leftTrackedRemoteState_new.Buttons & ovrButton_GripTrigger) !=
+            (leftTrackedRemoteState_old.Buttons & ovrButton_GripTrigger)) {
+            left_grid = (++left_grid) % 3;
+        }
+
+        //Cycle Right Grid
+        if ((rightTrackedRemoteState_new.Buttons & ovrButton_GripTrigger) &&
+            (rightTrackedRemoteState_new.Buttons & ovrButton_GripTrigger) !=
+            (rightTrackedRemoteState_old.Buttons & ovrButton_GripTrigger)) {
+            right_grid = (++right_grid) % 2;
+        }
+
+        char left_char;
+        char right_char;
+        if (shift)
+        {
+            left_char = left_shift[left_grid][left_char_index];
+            right_char = right_shift[right_grid][right_char_index];
+        } else{
+            left_char = left_lower[left_grid][left_char_index];
+            right_char = right_lower[right_grid][right_char_index];
+        }
+
+        //Enter
+        if ((rightTrackedRemoteState_new.Buttons & ovrButton_A) !=
+            (rightTrackedRemoteState_old.Buttons & ovrButton_A)) {
+            QC_KeyEvent((rightTrackedRemoteState_new.Buttons & ovrButton_A) > 0 ? 1 : 0, K_ENTER, 0);
+        }
+
+        //Delete
+        if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) !=
+            (rightTrackedRemoteState_old.Buttons & ovrButton_B)) {
+            QC_KeyEvent((rightTrackedRemoteState_new.Buttons & ovrButton_B) > 0 ? 1 : 0, K_BACKSPACE, 0);
+        }
+
+        //Use Left Character
+        if ((leftTrackedRemoteState_new.Buttons & ovrButton_Trigger) !=
+            (leftTrackedRemoteState_old.Buttons & ovrButton_Trigger)) {
+            QC_KeyEvent((leftTrackedRemoteState_new.Buttons & ovrButton_Trigger) > 0 ? 1 : 0, 0, left_char);
+        }
+
+        //Use Right Character
+        if ((rightTrackedRemoteState_new.Buttons & ovrButton_Trigger) !=
+            (rightTrackedRemoteState_old.Buttons & ovrButton_Trigger)) {
+            QC_KeyEvent((rightTrackedRemoteState_new.Buttons & ovrButton_Trigger) > 0 ? 1 : 0, 0, right_char);
+        }
+
+        if (textInput) {
+
+            //Draw grid maps to screen
+            char buffer[256];
+
+            //Give the user an idea of what the buttons are
+            dpsnprintf(buffer, 256, " %s       %s\n %s       %s\n %s       %s\n\nText Input:   %c    %c", left_grid_map[shift][0][left_grid], right_grid_map[shift][0][right_grid],
+                       left_grid_map[shift][1][left_grid], right_grid_map[shift][1][right_grid],
+                       left_grid_map[shift][2][left_grid], right_grid_map[shift][2][right_grid],
+                       left_char, right_char);
+            SCR_CenterPrint(buffer);
+        }
+
+        //Save state
+        leftTrackedRemoteState_old = leftTrackedRemoteState_new;
+        rightTrackedRemoteState_old = rightTrackedRemoteState_new;
+
+    } else {
+        //dominant hand stuff first
+        {
+            weaponOffset[0] = dominantRemoteTracking->HeadPose.Pose.Position.x - hmdPosition[0];
+            weaponOffset[1] = dominantRemoteTracking->HeadPose.Pose.Position.y - hmdPosition[1];
+            weaponOffset[2] = dominantRemoteTracking->HeadPose.Pose.Position.z - hmdPosition[2];
+
+            setWorldPosition(dominantRemoteTracking->HeadPose.Pose.Position.x,
+                             dominantRemoteTracking->HeadPose.Pose.Position.y,
+                             dominantRemoteTracking->HeadPose.Pose.Position.z);
+
+            ///Weapon location relative to view
+            vec2_t v;
+            rotateAboutOrigin(weaponOffset[0], weaponOffset[2], -yawOffset, v);
+            weaponOffset[0] = v[0];
+            weaponOffset[2] = v[1];
+
+            //Set gun angles
+            const ovrQuatf quatRemote = dominantRemoteTracking->HeadPose.Pose.Orientation;
+            QuatToYawPitchRoll(quatRemote, gunangles);
+
+            //TODO: THIS NEEDS WORK!! - can't get it working and it is doing my head in!!
+            /*        // Adjust right (+ve), adjust Back (+ve), up (+ve)
+                    vec3_t adjustment;
+                    //VectorSet(adjustment, cl_weapon_offset_lr.value, cl_weapon_offset_ud.value, cl_weapon_offset_fb.value);
+                    VectorSet(adjustment, 0.0f, 0.2f, 0.2f);
+                    rotateAboutOrigin2(adjustment,  gunangles[PITCH], gunangles[YAW]-yawOffset, adjustment);
+                    VectorAdd(adjustment, weaponOffset, weaponOffset);*/
+
+            //Adjust gun pitch for user preference
+            gunangles[PITCH] += cl_weaponpitchadjust.value;
+            gunangles[YAW] += yawOffset;
+
+            //Change laser sight on joystick click
+            if ((dominantTrackedRemoteState->Buttons & ovrButton_Joystick) &&
+                (dominantTrackedRemoteState->Buttons & ovrButton_Joystick) !=
+                (dominantTrackedRemoteStateOld->Buttons & ovrButton_Joystick)) {
+                Cvar_SetValueQuick(&r_lasersight, (r_lasersight.integer + 1) % 3);
+            }
+        }
+
+        //off-hand stuff
+        float controllerYawHeading;
+        float hmdYawHeading;
+        {
+            QuatToYawPitchRoll(offHandRemoteTracking->HeadPose.Pose.Orientation,
+                               controllerAngles);
+
+            controllerYawHeading = controllerAngles[YAW] - gunangles[YAW] + yawOffset;
+            hmdYawHeading = hmdorientation[YAW] - gunangles[YAW] + yawOffset;
+
+#ifndef NDEBUG
+            //Change heading mode on click of off=hand joystick
+            if ((offHandTrackedRemoteState->Buttons & ovrButton_Joystick) && bigScreen == 0 &&
+                (offHandTrackedRemoteState->Buttons & ovrButton_Joystick) !=
+                (offHandTrackedRemoteStateOld->Buttons & ovrButton_Joystick)) {
+                Cvar_SetValueQuick(&cl_walkdirection, 1 - cl_walkdirection.integer);
+                if (cl_walkdirection.integer == 1) {
+                    SCR_CenterPrint("Heading Mode: Direction of HMD");
+                } else {
+                    SCR_CenterPrint("Heading Mode: Direction of off-hand controller");
+                }
+            }
+#endif
+        }
+
+        //Right-hand specific stuff
+        {
+            ALOGE("        Right-Controller-Position: %f, %f, %f",
+                  rightRemoteTracking.HeadPose.Pose.Position.x,
+                  rightRemoteTracking.HeadPose.Pose.Position.y,
+                  rightRemoteTracking.HeadPose.Pose.Position.z);
+
+            //This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
+            //player is facing for positional tracking
+            float multiplier = /*arbitrary value that works ->*/
+                    (2200.0f * cl_postrackmultiplier.value) / cl_forwardspeed.value;
+
+            vec2_t v;
+            rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier,
+                              positionDeltaThisFrame[2] * multiplier, -hmdorientation[YAW], v);
+            positional_movementSideways = v[0];
+            positional_movementForward = v[1];
+
+
+            long t = Sys_Milliseconds();
+            delta = t - oldtime;
+            oldtime = t;
+            if (delta > 1000)
+                delta = 1000;
+            QC_MotionEvent(delta, rightTrackedRemoteState_new.Joystick.x,
+                           rightTrackedRemoteState_new.Joystick.y);
+
+            if (bigScreen != 0) {
+
+                int rightJoyState = (rightTrackedRemoteState_new.Joystick.x > 0.7f ? 1 : 0);
+                if (rightJoyState != (rightTrackedRemoteState_old.Joystick.x > 0.7f ? 1 : 0)) {
+                    QC_KeyEvent(rightJoyState, 'd', 0);
+                }
+                rightJoyState = (rightTrackedRemoteState_new.Joystick.x < -0.7f ? 1 : 0);
+                if (rightJoyState != (rightTrackedRemoteState_old.Joystick.x < -0.7f ? 1 : 0)) {
+                    QC_KeyEvent(rightJoyState, 'a', 0);
+                }
+                rightJoyState = (rightTrackedRemoteState_new.Joystick.y < -0.7f ? 1 : 0);
+                if (rightJoyState != (rightTrackedRemoteState_old.Joystick.y < -0.7f ? 1 : 0)) {
+                    QC_KeyEvent(rightJoyState, K_DOWNARROW, 0);
+                }
+                rightJoyState = (rightTrackedRemoteState_new.Joystick.y > 0.7f ? 1 : 0);
+                if (rightJoyState != (rightTrackedRemoteState_old.Joystick.y > 0.7f ? 1 : 0)) {
+                    QC_KeyEvent(rightJoyState, K_UPARROW, 0);
+                }
+
+                //Click an option
+                handleTrackedControllerButton(&rightTrackedRemoteState_new,
+                                              &rightTrackedRemoteState_old, ovrButton_A, K_ENTER);
+
+                //Back button
+                handleTrackedControllerButton(&rightTrackedRemoteState_new,
+                                              &rightTrackedRemoteState_old, ovrButton_B, K_ESCAPE);
+            } else {
+                //Jump
+                handleTrackedControllerButton(&rightTrackedRemoteState_new,
+                                              &rightTrackedRemoteState_old, ovrButton_A, K_SPACE);
+            }
+
+            if (cl_righthanded.integer) {
+                //Fire
+                handleTrackedControllerButton(&rightTrackedRemoteState_new,
+                                              &rightTrackedRemoteState_old,
+                                              ovrButton_Trigger, K_MOUSE1);
+            } else {
+                //Run
+                handleTrackedControllerButton(&rightTrackedRemoteState_new,
+                                              &rightTrackedRemoteState_old,
+                                              ovrButton_Trigger, K_SHIFT);
+            }
+
+            //Next Weapon
+            handleTrackedControllerButton(&rightTrackedRemoteState_new,
+                                          &rightTrackedRemoteState_old, ovrButton_GripTrigger, '/');
+
+            //Adjust weapon aim pitch
+            if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) &&
+                (rightTrackedRemoteState_new.Buttons & ovrButton_B) !=
+                (rightTrackedRemoteState_old.Buttons & ovrButton_B)) {
+                float newPitchAdjust = cl_weaponpitchadjust.value + 1.0f;
+                if (newPitchAdjust > 23.0f) {
+                    newPitchAdjust = -7.0f;
+                }
+
+                Cvar_SetValueQuick(&cl_weaponpitchadjust, newPitchAdjust);
+                ALOGV("Pitch Adjust: %f", newPitchAdjust);
+            }
+
+            rightTrackedRemoteState_old = rightTrackedRemoteState_new;
+
+        }
+
+        //Left-hand specific stuff
+        {
+            ALOGE("        Left-Controller-Position: %f, %f, %f",
+                  leftRemoteTracking.HeadPose.Pose.Position.x,
+                  leftRemoteTracking.HeadPose.Pose.Position.y,
+                  leftRemoteTracking.HeadPose.Pose.Position.z);
+
+            //Menu button
+            handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old,
+                                          ovrButton_Enter, K_ESCAPE);
+
+            if (bigScreen != 0) {
+                int leftJoyState = (leftTrackedRemoteState_new.Joystick.x > 0.7f ? 1 : 0);
+                if (leftJoyState != (leftTrackedRemoteState_old.Joystick.x > 0.7f ? 1 : 0)) {
+                    QC_KeyEvent(leftJoyState, 'd', 0);
+                }
+                leftJoyState = (leftTrackedRemoteState_new.Joystick.x < -0.7f ? 1 : 0);
+                if (leftJoyState != (leftTrackedRemoteState_old.Joystick.x < -0.7f ? 1 : 0)) {
+                    QC_KeyEvent(leftJoyState, 'a', 0);
+                }
+                leftJoyState = (leftTrackedRemoteState_new.Joystick.y < -0.7f ? 1 : 0);
+                if (leftJoyState != (leftTrackedRemoteState_old.Joystick.y < -0.7f ? 1 : 0)) {
+                    QC_KeyEvent(leftJoyState, K_DOWNARROW, 0);
+                }
+                leftJoyState = (leftTrackedRemoteState_new.Joystick.y > 0.7f ? 1 : 0);
+                if (leftJoyState != (leftTrackedRemoteState_old.Joystick.y > 0.7f ? 1 : 0)) {
+                    QC_KeyEvent(leftJoyState, K_UPARROW, 0);
+                }
+            }
+
+
+            //Adjust to be off-hand controller oriented
+            vec2_t v;
+            rotateAboutOrigin(leftTrackedRemoteState_new.Joystick.x,
+                              leftTrackedRemoteState_new.Joystick.y,
+                              cl_walkdirection.integer == 1 ? hmdYawHeading : controllerYawHeading,
+                              v);
+            remote_movementSideways = v[0];
+            remote_movementForward = v[1];
+
+            if (cl_righthanded.integer) {
+                //Run
+                handleTrackedControllerButton(&leftTrackedRemoteState_new,
+                                              &leftTrackedRemoteState_old,
+                                              ovrButton_Trigger, K_SHIFT);
+            } else {
+                //Fire
+                handleTrackedControllerButton(&leftTrackedRemoteState_new,
+                                              &leftTrackedRemoteState_old,
+                                              ovrButton_Trigger, K_MOUSE1);
+            }
+
+            //Prev Weapon
+            handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old,
+                                          ovrButton_GripTrigger, '#');
+
+#ifndef NDEBUG
+            //Give all weapons and all ammo and god mode
+            if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
+                (leftTrackedRemoteState_new.Buttons & ovrButton_X) !=
+                (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
+                Cbuf_InsertText("God\n");
+                Cbuf_InsertText("Impulse 9\n");
+            }
 #endif
 
+            //Toggle text input
+            if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
+                (leftTrackedRemoteState_new.Buttons & ovrButton_Y) !=
+                (leftTrackedRemoteState_old.Buttons & ovrButton_Y)) {
+                textInput = !textInput;
+                SCR_CenterPrint("Text Input: Enabled");
+            }
 
-		leftTrackedRemoteState_old = leftTrackedRemoteState_new;
-	}
 
-    QC_Analog(true, remote_movementSideways + positional_movementSideways, remote_movementForward + positional_movementForward);
+            leftTrackedRemoteState_old = leftTrackedRemoteState_new;
+        }
+
+        QC_Analog(true, remote_movementSideways + positional_movementSideways,
+                  remote_movementForward + positional_movementForward);
+    }
 }
 
 /*
@@ -2238,9 +2446,9 @@ JNIEXPORT jlong JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onCreate( JNIEnv 
 
 	(*env)->ReleaseStringUTFChars(env, commandLineParams, arg);
 
-	ALOGV("Command line %s", arg);
+	ALOGV("Command line %s", cmdLine);
 	argv = malloc(sizeof(char*) * 255);
-	argc = ParseCommandLine(strdup(arg), argv);
+	argc = ParseCommandLine(strdup(cmdLine), argv);
 
 	/* verify the argtable[] entries were allocated sucessfully */
 	if (arg_nullcheck(argtable) == 0) {

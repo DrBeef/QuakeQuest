@@ -14,12 +14,12 @@
 #include "snd_main.h"
 
 cvar_t scr_viewsize = {CVAR_SAVE, "viewsize","100", "how large the view should be, 110 disables inventory bar, 120 disables status bar"};
-cvar_t scr_fov = {CVAR_SAVE, "fov","100", "field of vision, 1-170 degrees, default 110, some players use 110-130"};
+cvar_t scr_fov = {CVAR_SAVE, "fov","112", "field of vision, 1-170 degrees, default 110, some players use 110-130"};
 cvar_t scr_conalpha = {CVAR_SAVE, "scr_conalpha", "0.85", "opacity of console background gfx/conback"};
 cvar_t scr_conalphafactor = {CVAR_SAVE, "scr_conalphafactor", "1", "opacity of console background gfx/conback relative to scr_conalpha; when 0, gfx/conback is not drawn"};
 cvar_t scr_conalpha2factor = {CVAR_SAVE, "scr_conalpha2factor", "0", "opacity of console background gfx/conback2 relative to scr_conalpha; when 0, gfx/conback2 is not drawn"};
 cvar_t scr_conalpha3factor = {CVAR_SAVE, "scr_conalpha3factor", "0", "opacity of console background gfx/conback3 relative to scr_conalpha; when 0, gfx/conback3 is not drawn"};
-cvar_t scr_conbrightness = {CVAR_SAVE, "scr_conbrightness", "1", "brightness of console background (0 = black, 1 = image)"};
+cvar_t scr_conbrightness = {CVAR_SAVE, "scr_conbrightness", "0", "brightness of console background (0 = black, 1 = image)"};
 cvar_t scr_conforcewhiledisconnected = {0, "scr_conforcewhiledisconnected", "1", "forces fullscreen console while disconnected"};
 cvar_t scr_conscroll_x = {CVAR_SAVE, "scr_conscroll_x", "0", "scroll speed of gfx/conback in x direction"};
 cvar_t scr_conscroll_y = {CVAR_SAVE, "scr_conscroll_y", "0", "scroll speed of gfx/conback in y direction"};

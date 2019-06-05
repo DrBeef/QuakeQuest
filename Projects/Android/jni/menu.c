@@ -2989,7 +2989,7 @@ static void M_Reset_Draw (void)
 	M_Print(8 + 4 * (linelength - 11), 16, "Press y / n");
 }
 
-#define	YAWCONTROL_ITEMS	4
+#define	YAWCONTROL_ITEMS	5
 
 static int controllermode_cursor;
 
@@ -3582,7 +3582,7 @@ static void M_Credits_Draw (void)
 			"   QQQQQQQQ           QQQQQQQQ      ",
 			"     QQQ                QQQ         ",
    			"      Q                  Q          ",
-	  		"      Q                  Q    v1.0.0");
+	  		"      Q                  Q   v1.1.0 ");
 
 	int i, l, linelength, firstline, lastline, lines;
 	for (i = 0, linelength = 0, firstline = 9999, lastline = -1;m_credits_message[i];i++)
