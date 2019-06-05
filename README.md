@@ -34,12 +34,23 @@ Controls:
 * Right Thumbstick - Turn (if configured to do so in the options)
 * A Button - Jump
 * B Button - Adjust pitch of weapon to your preference (saved in config)
+* Y Button - Bring up the text input "keyboard"
 * Dominant Hand Controller - Weapon orientation
 * Dominant-Hand trigger - Fire
 * Off-Hand Controller - Direction of movement (if configured in settings, otherwise HMD direction is used by default)
 * Off-hand Trigger - Run
 * Grip Buttons - Switch next/previous weapon
 * Right-thumbstick click change the laser-sight mode 
+
+Inputting Text:
+---------------
+
+- Press Y to bring up the "keyboard" and Y again to exit text entry mode
+- Push left or right thumbstick to select the character
+- Press Trigger on the appropriate controller to type the selected character (or center character if no thumbstick direction is pushed)
+- Press grip trigger on controller to cycle through the available characters for that controller
+- Press B to Delete characters
+- Press A for Enter/Return
 
 
 Things to note / FAQs:
