@@ -46,9 +46,10 @@ Inputting Text:
 ---------------
 
 - Press Y to bring up the "keyboard" and Y again to exit text entry mode
-- Push left or right thumbstick to select the character
-- Press Trigger on the appropriate controller to type the selected character (or center character if no thumbstick direction is pushed)
-- Press grip trigger on controller to cycle through the available characters for that controller
+- Push left or right thumbstick to select the character in that location in the little diagram, selected character is shown for left right controller below the character layout diagram
+- Press grip trigger on each controller to cycle through the available characters for that controller
+- Press X to toggle SHIFT on and off
+- Press Trigger on the appropriate controller to type the selected character (or select center character if no thumbstick direction is pushed)
 - Press B to Delete characters
 - Press A for Enter/Return
 
