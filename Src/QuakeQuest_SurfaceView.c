@@ -1465,8 +1465,8 @@ int left_grid = 0;
 char left_lower[3][10] = {"bcfihgdae", "klorqpmjn", "tuwzyxvs "};
 char left_shift[3][10] = {"BCFIHGDAE", "KLORQPMJN", "TUWZYXVS "};
 int right_grid = 0;
-char right_lower[2][10] = {"236987415", "+-)]&[(?#"};
-char right_shift[2][10] = {"\"*:|.~_/0", "%^}>,<{\\@"};
+char right_lower[2][10] = {"236987415", "+-)]&[(?0"};
+char right_shift[2][10] = {"\"*:|._~/#", "%^}>,<{\\@"};
 
 char left_grid_map[2][3][3][8] = {
     {
@@ -1498,10 +1498,10 @@ char left_grid_map[2][3][3][8] = {
 char right_grid_map[2][3][2][8] = {
         {
                 {
-                        "1  2  3",  "?  +  -"
+                        "1  2  3", "?  +  -"
                 },
                 {
-                        "4  5  6", "(  #  )"
+                        "4  5  6", "(  0  )"
                 },
                 {
                         "7  8  9", "[  &  ]"
@@ -1512,10 +1512,10 @@ char right_grid_map[2][3][2][8] = {
                         "/  \"  *", "\\  %  ^"
                 },
                 {
-                        "_  0  :", "{  @  }"
+                        "~  #  :", "{  @  }"
                 },
                 {
-                        "~  .  |", "<  ,  >"
+                        "_  .  |", "<  ,  >"
                 },
         }
 };
@@ -1666,13 +1666,15 @@ static void ovrApp_HandleInput( ovrApp * app )
         //Use Left Character
         if ((leftTrackedRemoteState_new.Buttons & ovrButton_Trigger) !=
             (leftTrackedRemoteState_old.Buttons & ovrButton_Trigger)) {
-            QC_KeyEvent((leftTrackedRemoteState_new.Buttons & ovrButton_Trigger) > 0 ? 1 : 0, 0, left_char);
+            QC_KeyEvent((leftTrackedRemoteState_new.Buttons & ovrButton_Trigger) > 0 ? 1 : 0,
+                        left_char, left_char);
         }
 
         //Use Right Character
         if ((rightTrackedRemoteState_new.Buttons & ovrButton_Trigger) !=
             (rightTrackedRemoteState_old.Buttons & ovrButton_Trigger)) {
-            QC_KeyEvent((rightTrackedRemoteState_new.Buttons & ovrButton_Trigger) > 0 ? 1 : 0, 0, right_char);
+            QC_KeyEvent((rightTrackedRemoteState_new.Buttons & ovrButton_Trigger) > 0 ? 1 : 0,
+                        right_char, right_char);
         }
 
         if (textInput) {
