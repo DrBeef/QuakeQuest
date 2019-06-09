@@ -57,8 +57,6 @@ cvar_t m_side = {CVAR_SAVE, "m_side","0.8","mouse side speed multiplier"};
 cvar_t freelook = {CVAR_SAVE, "freelook", "1","mouse controls pitch instead of forward/back"};
 
 cvar_t cl_nosplashscreen = {CVAR_SAVE, "cl_nosplashscreen", "0", "prevents the credits splashscreen from being displayed on game start" };
-cvar_t cl_positionaltrackingmode = {CVAR_SAVE, "cl_positionaltrackingmode", "2", "0 - Pos Tracking Disabled, 1 - Camera Translation, 2 - Player Movement"};
-cvar_t cl_postrackmultiplier = {CVAR_SAVE, "cl_postrackmultiplier", "1.0", "Multiplies movement by a factor"};
 
 cvar_t cl_autodemo = {CVAR_SAVE, "cl_autodemo", "0", "records every game played, using the date/time and map name to name the demo file" };
 cvar_t cl_autodemo_nameformat = {CVAR_SAVE, "cl_autodemo_nameformat", "autodemos/%Y-%m-%d_%H-%M", "The format of the cl_autodemo filename, followed by the map name (the date is encoded using strftime escapes)" };
@@ -2510,8 +2508,6 @@ void CL_Init (void)
 
 
 	Cvar_RegisterVariable (&cl_nosplashscreen);
-	Cvar_RegisterVariable (&cl_positionaltrackingmode);
-	Cvar_RegisterVariable (&cl_postrackmultiplier);
 
 	Cvar_RegisterVariable (&cl_autodemo);
 	Cvar_RegisterVariable (&cl_autodemo_nameformat);

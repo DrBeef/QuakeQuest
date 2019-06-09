@@ -31,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static cvar_t forceqmenu = { 0, "forceqmenu", "0", "enables the quake menu instead of the quakec menu.dat (if present)" };
 static cvar_t menu_progs = { 0, "menu_progs", "menu.dat", "name of quakec menu.dat file" };
-extern cvar_t cl_positionaltrackingmode;
 
 static int NehGameType;
 
@@ -53,6 +52,8 @@ extern cvar_t r_worldscale;
 extern cvar_t r_lasersight;
 extern cvar_t cl_righthanded;
 extern cvar_t cl_walkdirection;
+extern cvar_t cl_trackingmode;
+extern cvar_t bullettime;
 
 extern void BigScreenMode(int mode);
 
@@ -308,7 +309,6 @@ static void M_DrawTextBox(float x, float y, float width, float height)
 //int m_save_demonum;
 
 extern cvar_t cl_nosplashscreen;
-extern cvar_t cl_autocentreoffset;
 
 /*
 ================
@@ -1733,16 +1733,7 @@ static void M_Menu_Options_AdjustSliders (int dir)
 	{
 		Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
 	}
-    else if (options_cursor == optnum++)
-    {
-		int newMode = cl_positionaltrackingmode.integer + dir;
-		if (newMode == 3)
-			newMode = 0;
-		if (newMode == -1)
-			newMode = 2;
-
-		Cvar_SetValueQuick(&cl_positionaltrackingmode, newMode);
-    }
+    else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++)
 	{
 		cl_forwardspeed.value += dir * 10;
@@ -1849,7 +1840,7 @@ static void M_Options_Draw (void)
 	M_Options_PrintCommand( "   Controller Settings", true);
 	M_Options_PrintCommand( "    Open Quake Console", true);
 	M_Options_PrintCommand( "     Reset to defaults", true);
-	M_Options_PrintCommand( "                      ", false);
+	M_Options_PrintCheckbox("      BULLET-TIME Mode", true, bullettime.integer);
 	M_Options_PrintCommand( "   Key/Button Bindings", true);
 	switch (r_lasersight.integer)
 	{
@@ -1864,18 +1855,7 @@ static void M_Options_Draw (void)
             break;
 	}
 
-    switch (cl_positionaltrackingmode.integer)
-    {
-        case 0:
-            M_Options_PrintCommand( " Positional Tracking: Disabled", true);
-            break;
-        case 1:
-            M_Options_PrintCommand( " Positional Tracking: Camera Translate", true);
-            break;
-        case 2:
-            M_Options_PrintCommand( " Positional Tracking: Player Movement", true);
-            break;
-    }
+	M_Options_PrintCommand( " Positional Tracking: Enabled", false);
 
 	M_Options_PrintSlider(  " Player Movement Speed", true, cl_forwardspeed.value, 10, 500);
 	M_Options_PrintCheckbox("        Show Framerate", true, showfps.integer);
@@ -1923,19 +1903,9 @@ static void M_Options_Key (int k, int ascii)
 		case 3:
 			M_Menu_Reset_f ();
 			break;
-		case 4: {
-		        if (bufOption==0) {
-                    Cbuf_AddText("deathmatch 1;map dpdm1");
-                    bufOption++;
-                }
-                else if (bufOption==1) {
-                    Cbuf_AddText("bots 3");
-                    bufOption++;
-                }
-                if (bufOption==2) {
-                    Cbuf_AddText("bots 0");
-                    bufOption=0;
-                }
+		case 4:
+			{
+				Cvar_SetValueQuick (&bullettime, (1-bullettime.integer));
             }
 		    break;
 		case 5:
@@ -2211,7 +2181,7 @@ static void M_Menu_Options_Graphics_AdjustSliders (int dir)
 
 	optnum = 0;
 
-	if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&cl_autocentreoffset, bound(-200, cl_autocentreoffset.integer + dir * 5, 200));
+	if (options_graphics_cursor == optnum++) ;
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_coronas, bound(0, r_coronas.value + dir * 0.125, 4));
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&gl_flashblend, !gl_flashblend.integer);
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_shadow_gloss,							bound(0, r_shadow_gloss.integer + dir, 2));
@@ -2249,7 +2219,7 @@ static void M_Options_Graphics_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_GRAPHICS_ITEMS - visible)) * 8;
 
-	M_Options_PrintSlider(  "    Lens Centre Offset", true, cl_autocentreoffset.integer, -200, 200);
+	M_Options_PrintCommand(  "    ", false);
 	M_Options_PrintSlider(  "      Corona Intensity", true, r_coronas.value, 0, 4);
 	M_Options_PrintCheckbox("      Use Only Coronas", true, gl_flashblend.integer);
 	M_Options_PrintSlider(  "            Gloss Mode", true, r_shadow_gloss.integer, 0, 2);
@@ -2989,7 +2959,7 @@ static void M_Reset_Draw (void)
 	M_Print(8 + 4 * (linelength - 11), 16, "Press y / n");
 }
 
-#define	YAWCONTROL_ITEMS	5
+#define	YAWCONTROL_ITEMS	6
 
 static int controllermode_cursor;
 
@@ -3007,7 +2977,8 @@ static void M_Menu_Controller_AdjustSliders (int dir)
 
 	optnum = 0;
 
-	     if (controllermode_cursor == optnum++) ;
+	if (controllermode_cursor == optnum++) ;
+	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++ && cl_yawmode.integer == 1)
@@ -3069,15 +3040,19 @@ static void M_Menu_Controller_Key (int key, int ascii)
 
 	case 'a':
 	case K_LEFTARROW:
-        if (controllermode_cursor == 0)
+		if (controllermode_cursor == 0)
+		{
+			Cvar_SetValueQuick (&cl_trackingmode, 1 - cl_trackingmode.integer);
+		}
+		else if (controllermode_cursor == 1)
         {
             Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
         }
-        else if (controllermode_cursor == 1)
+        else if (controllermode_cursor == 2)
         {
             Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
         }
-        else if (controllermode_cursor == 2)
+        else if (controllermode_cursor == 3)
 		{
 			int newYawMode = cl_yawmode.integer;
 			if (--newYawMode < 0)
@@ -3091,15 +3066,19 @@ static void M_Menu_Controller_Key (int key, int ascii)
 
 	case 'd':
 	case K_RIGHTARROW:
-        if (controllermode_cursor == 0)
+		if (controllermode_cursor == 0)
+		{
+			Cvar_SetValueQuick (&cl_trackingmode, 1 - cl_trackingmode.integer);
+		}
+		else if (controllermode_cursor == 1)
         {
             Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
         }
-        else if (controllermode_cursor == 1)
+        else if (controllermode_cursor == 2)
         {
             Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
         }
-        else if (controllermode_cursor == 2)
+        else if (controllermode_cursor == 3)
 		{
 			int newYawMode = cl_yawmode.integer;
 			if (++newYawMode > 2)
@@ -3132,6 +3111,11 @@ static void M_Menu_Controller_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, YAWCONTROL_ITEMS - visible)) * 8;
 
+
+	if (cl_trackingmode.integer == 0)
+		M_Options_PrintCommand("Tracking Mode:     3DoF Weapon", true);
+	else
+		M_Options_PrintCommand("Tracking Mode:     6DoF Weapon", true);
 
     if (cl_walkdirection.integer == 0)
         M_Options_PrintCommand("Heading Mode:     Off-hand Controller", true);
@@ -3582,7 +3566,7 @@ static void M_Credits_Draw (void)
 			"   QQQQQQQQ           QQQQQQQQ      ",
 			"     QQQ                QQQ         ",
    			"      Q                  Q          ",
-	  		"      Q                  Q   v1.1.0 ");
+	  		"      Q                  Q   v1.2.0 ");
 
 	int i, l, linelength, firstline, lastline, lines;
 	for (i = 0, linelength = 0, firstline = 9999, lastline = -1;m_credits_message[i];i++)

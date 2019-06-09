@@ -48,6 +48,7 @@ cvar_t pr_checkextension = {CVAR_READONLY, "pr_checkextension", "1", "indicates 
 cvar_t samelevel = {CVAR_NOTIFY, "samelevel","0", "repeats same level if level ends (due to timelimit or someone hitting an exit)"};
 cvar_t skill = {0, "skill","1", "difficulty level of game, affects monster layouts in levels, 0 = easy, 1 = normal, 2 = hard, 3 = nightmare (same layout as hard but monsters fire twice)"};
 cvar_t slowmo = {0, "slowmo", "1.0", "controls game speed, 0.5 is half speed, 2 is double speed"};
+cvar_t bullettime = {0, "bullettime", "0", "Whether bullet-time mode is enabled"};
 
 cvar_t sv_accelerate = {0, "sv_accelerate", "1000", "rate at which a player accelerates to sv_maxspeed"};
 cvar_t sv_aim = {CVAR_SAVE, "sv_aim", "2", "maximum cosine angle for quake's vertical autoaim, a value above 1 completely disables the autoaim, quake used 0.93"};
@@ -458,6 +459,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&samelevel);
 	Cvar_RegisterVariable (&skill);
 	Cvar_RegisterVariable (&slowmo);
+	Cvar_RegisterVariable (&bullettime);
 	Cvar_RegisterVariable (&sv_accelerate);
 	Cvar_RegisterVariable (&sv_aim);
 	Cvar_RegisterVariable (&sv_airaccel_qw);

@@ -32,8 +32,6 @@ when crossing a water boudnary.
 
 */
 
-cvar_t cl_autocentreoffset = {CVAR_SAVE, "cl_autocentreoffset", "0", "Additional lens offset (for difficult headets) from the centre to get images converging ok"};
-
 cvar_t cl_rollspeed = {0, "cl_rollspeed", "200", "how much strafing is necessary to tilt the view"};
 cvar_t cl_rollangle = {0, "cl_rollangle", "0.0", "how much to tilt the view when strafing"};
 
@@ -109,6 +107,8 @@ cvar_t chase_stevie = {0, "chase_stevie", "0", "(GOODVSBAD2 only) chase cam view
 cvar_t v_deathtilt = {0, "v_deathtilt", "1", "whether to use sideways view when dead"};
 cvar_t v_deathtiltangle = {0, "v_deathtiltangle", "0", "what roll angle to use when tilting the view while dead"};
 
+cvar_t cl_weaponoffset = {CVAR_SAVE, "cl_weaponoffset", "0.15", "gun handedness offset"};
+
 // Prophecy camera pitchangle by Alexander "motorsep" Zubov
 cvar_t chase_pitchangle = {CVAR_SAVE, "chase_pitchangle", "55", "chase cam pitch angle"};
 
@@ -122,7 +122,8 @@ extern float hmdPosition[3];
 extern float playerHeight;
 
 extern cvar_t r_worldscale;
-extern cvar_t cl_positionaltrackingmode;
+extern cvar_t cl_trackingmode;
+extern cvar_t cl_righthanded;
 
 
 /*
@@ -569,12 +570,6 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
         viewheightavg = viewheightavg * (1 - viewheight) + clstatsviewheight * viewheight;
         vieworg[2] += viewheightavg;
 
-        //OLD not required
-/*        if (cl_positionaltrackingmode.integer == 2) {
-            //Modify view origin with our positional offsets (multiplied by our world scale
-            vieworg[2] += (worldPosition[1] * r_worldscale.value); // Up/Down
-        }
-*/
 
         if (chase_active.value) {
             // observing entity from third person. Added "campitch" by Alexander "motorsep" Zubov
@@ -711,8 +706,8 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
                 VectorCopy(viewangles, cl.gunangles_prev);
                 VectorSubtract(cl.gunangles_highpass, cl.gunangles_prev, cl.gunangles_highpass);
 
-                // 3. calculate the RAW adjustment vectors
-               /* gunorg[0] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
+                // 3calculate the RAW adjustment vectors
+                gunorg[0] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
                 gunorg[1] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
                 gunorg[2] *= (cl_followmodel.value ? -cl_followmodel_up_speed.value : 0);
 
@@ -731,13 +726,13 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 
 
                 // 5. use the adjusted vectors
-                VectorAdd(vieworg, gunorg, gunorg);*/
+                VectorAdd(vieworg, gunorg, gunorg);
 
                 // bounded XY speed, used by several effects below
                 xyspeed = bound (0, sqrt(clvelocity[0] * clvelocity[0] +
                                          clvelocity[1] * clvelocity[1]), 400);
 
-            /*    // vertical view bobbing code
+               // vertical view bobbing code
                 if (cl_bob.value && cl_bobcycle.value) {
                     // LordHavoc: this code is *weird*, but not replacable (I think it
                     // should be done in QC on the server, but oh well, quake is quake)
@@ -863,7 +858,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
                     VectorMA (gunorg, bob, right, gunorg);
                     bob = bspeed * cl_bobmodel_up.value * cl_viewmodel_scale.value * cos(s * 2) * t;
                     VectorMA (gunorg, bob, up, gunorg);
-                }*/
+                }
             }
         }
         // calculate a view matrix for rendering the scene
@@ -875,24 +870,6 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
             viewangles[2] +=
                     v_idlescale.value * sin(cl.time * v_iroll_cycle.value) * v_iroll_level.value;
         }
-
-        //Offset the camera
-        {
-            vieworg[0] += (weaponOffset[2] * r_worldscale.value); // Forward/Back
-            vieworg[1] += (weaponOffset[0] * r_worldscale.value); // Left/Right
-            vieworg[2] += ((hmdPosition[1] - playerHeight) * r_worldscale.value); // Up/Down
-        }
-
-        Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2],
-                                        viewangles[0], viewangles[1], viewangles[2], 1);
-
-        // calculate a viewmodel matrix for use in view-attached entities
-        Matrix4x4_Copy(&viewmodelmatrix_nobob, &r_refdef.view.matrix);
-        Matrix4x4_ConcatScale(&viewmodelmatrix_nobob, cl_viewmodel_scale.value);
-
-        VectorSet(gunorg, vieworg[0] - weaponOffset[2] * r_worldscale.value,
-                  vieworg[1] - weaponOffset[0] * r_worldscale.value,
-                  vieworg[2] + weaponOffset[1] * r_worldscale.value);
 
         //Custom scaling required
         float weaponScale = cl_viewmodel_scale.value;
@@ -914,12 +891,57 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
             weaponScale = 0.5f;
         }
 
-		Matrix4x4_CreateFromQuakeEntity(&viewmodelmatrix_withbob, gunorg[0],
-										gunorg[1],
-										gunorg[2],
+        if (cl_trackingmode.integer == 0) //3DoF
+        {
+            {
+                //Move gun to left or right depending on handedness
+                vec3_t temp;
+                vec3_t v;
+                temp[0] = -0.3f * r_worldscale.value;
+                temp[1] = ((cl_righthanded.integer ? 1.0f : -1.0f) * cl_weaponoffset.value * r_worldscale.value);
+                temp[2] = 0.3f * r_worldscale.value;
+
+                matrix4x4_t matrix;
+                Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, viewangles[1], 0.0f, 1.0f);
+                Matrix4x4_Transform(&matrix, temp, v);
+
+                vieworg[0] += v[0];
+                vieworg[1] += v[1];
+                vieworg[2] += v[2];
+            }
+
+            Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2], viewangles[0], viewangles[1], viewangles[2], 1);
+
+            // calculate a viewmodel matrix for use in view-attached entities
+            Matrix4x4_Copy(&viewmodelmatrix_nobob, &r_refdef.view.matrix);
+            Matrix4x4_ConcatScale(&viewmodelmatrix_nobob, cl_viewmodel_scale.value);
+        }
+        else //6DoF
+        {
+			//Offset the camera
+			{
+				vieworg[0] += (weaponOffset[2] * r_worldscale.value); // Forward/Back
+				vieworg[1] += (weaponOffset[0] * r_worldscale.value); // Left/Right
+				vieworg[2] += ((hmdPosition[1] - playerHeight) * r_worldscale.value); // Up/Down
+			}
+
+			Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2],
+                                            viewangles[0], viewangles[1], viewangles[2], 1);
+
+            // calculate a viewmodel matrix for use in view-attached entities
+            Matrix4x4_Copy(&viewmodelmatrix_nobob, &r_refdef.view.matrix);
+            Matrix4x4_ConcatScale(&viewmodelmatrix_nobob, cl_viewmodel_scale.value);
+
+            VectorSet(gunorg, vieworg[0] - weaponOffset[2] * r_worldscale.value,
+                      vieworg[1] - weaponOffset[0] * r_worldscale.value,
+                      vieworg[2] + weaponOffset[1] * r_worldscale.value);
+        }
+
+        Matrix4x4_CreateFromQuakeEntity(&viewmodelmatrix_withbob, gunorg[0],
+                                        gunorg[1],
+                                        gunorg[2],
                                         gunangles[0] - 3.0f,
                                         gunangles[1], 0.0f, weaponScale);
-
 
 		VectorCopy(vieworg, cl.csqc_vieworiginfromengine);
 		VectorCopy(viewangles, cl.csqc_viewanglesfromengine);
@@ -1140,8 +1162,6 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_idlescale);
 	Cvar_RegisterVariable (&crosshair);
 
-	Cvar_RegisterVariable (&cl_autocentreoffset);
-
 	Cvar_RegisterVariable (&cl_rollspeed);
 	Cvar_RegisterVariable (&cl_rollangle);
 	Cvar_RegisterVariable (&cl_bob);
@@ -1198,6 +1218,8 @@ void V_Init (void)
 	Cvar_RegisterVariable (&chase_overhead);
 	Cvar_RegisterVariable (&chase_pitchangle);
 	Cvar_RegisterVariable (&chase_stevie);
+
+	Cvar_RegisterVariable (&cl_weaponoffset);
 
 	Cvar_RegisterVariable (&v_deathtilt);
 	Cvar_RegisterVariable (&v_deathtiltangle);
