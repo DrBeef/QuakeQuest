@@ -880,7 +880,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 		}
 		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_SUPER_SHOTGUN)
 		{
-			weaponScale = 1.0f;
+			weaponScale = 0.8f;
 		}
 		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_SUPER_NAILGUN)
         {

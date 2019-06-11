@@ -1946,8 +1946,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 	    if (bullettime.integer)
         {
-            float speed = sqrtf(powf(leftTrackedRemoteState_new.Joystick.x, 2) + powf(leftTrackedRemoteState_new.Joystick.y, 2));
-            float movement = sqrtf(powf(positionDeltaThisFrame[0] * 50.0f, 2) + powf(positionDeltaThisFrame[2] * 50.0f, 2));
+            float speed = powf(sqrtf(powf(leftTrackedRemoteState_new.Joystick.x, 2) + powf(leftTrackedRemoteState_new.Joystick.y, 2)), 1.1f);
+            float movement = sqrtf(powf(positionDeltaThisFrame[0] * 40.0f, 2) + powf(positionDeltaThisFrame[1] * 40.0f, 2) + powf(positionDeltaThisFrame[2] * 40.0f, 2));
             speed = bound(0.04f, (speed > movement) ? speed : movement, 1.0f);
             Cvar_SetValueQuick(&slowmo, speed);
         }
