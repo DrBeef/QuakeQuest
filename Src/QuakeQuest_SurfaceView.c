@@ -966,10 +966,10 @@ static float uvs[8] = {
 };
 
 static float SCREEN_COORDS[12] = {
-		-3.0f, 2.6f, 0.0f,
-		-3.0f, -2.6f, 0.0f,
-		3.0f, -2.6f, 0.0f,
-		3.0f, 2.6f, 0.0f
+		-1.0f, 0.75f, 0.0f,
+		-1.0f, -0.75f, 0.0f,
+		1.0f, -0.75f, 0.0f,
+		1.0f, 0.75f, 0.0f
 };
 
 int vignetteTexture = 0;
@@ -1004,7 +1004,7 @@ static void ovrRenderer_Create( ovrRenderer * renderer, const ovrJava * java )
 
     modelScreen = ovrMatrix4f_CreateIdentity();
     rotation = ovrMatrix4f_CreateIdentity();
-    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -5.0f );
+    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -2.0f );
     modelScreen = ovrMatrix4f_Multiply( &modelScreen, &translation );
 
     horizFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X);
@@ -1120,8 +1120,8 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
 		setWorldPosition(positionHmd.x, positionHmd.y, positionHmd.z);
 	}
 
-    ALOGE("        HMD-Yaw: %f", hmdorientation[YAW]);
-    ALOGE("        HMD-Position: %f, %f, %f", positionHmd.x, positionHmd.y, positionHmd.z);
+    ALOGV("        HMD-Yaw: %f", hmdorientation[YAW]);
+    ALOGV("        HMD-Position: %f, %f, %f", positionHmd.x, positionHmd.y, positionHmd.z);
 
     //Set move information - if showing menu, don't pass head orientation through
     if (m_state == m_none)
@@ -1684,13 +1684,19 @@ static void ovrApp_HandleInput( ovrApp * app )
                         right_char, right_char);
         }
 
-        if (textInput) {
+        //Menu button
+        handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old,
+                                      ovrButton_Enter, K_ESCAPE);
 
+
+        if (textInput) {
             //Draw grid maps to screen
             char buffer[256];
 
             //Give the user an idea of what the buttons are
-            dpsnprintf(buffer, 256, " %s       %s\n %s       %s\n %s       %s\n\nText Input:   %c    %c", left_grid_map[shift][0][left_grid], right_grid_map[shift][0][right_grid],
+            dpsnprintf(buffer, 256,
+                       " %s       %s\n %s       %s\n %s       %s\n\nText Input:   %c    %c",
+                       left_grid_map[shift][0][left_grid], right_grid_map[shift][0][right_grid],
                        left_grid_map[shift][1][left_grid], right_grid_map[shift][1][right_grid],
                        left_grid_map[shift][2][left_grid], right_grid_map[shift][2][right_grid],
                        left_char, right_char);
@@ -1933,7 +1939,6 @@ static void ovrApp_HandleInput( ovrApp * app )
                 (leftTrackedRemoteState_new.Buttons & ovrButton_Y) !=
                 (leftTrackedRemoteState_old.Buttons & ovrButton_Y)) {
                 textInput = !textInput;
-                SCR_CenterPrint("Text Input: Enabled");
             }
 
 
