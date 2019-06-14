@@ -1004,7 +1004,7 @@ static void ovrRenderer_Create( ovrRenderer * renderer, const ovrJava * java )
 
     modelScreen = ovrMatrix4f_CreateIdentity();
     rotation = ovrMatrix4f_CreateIdentity();
-    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -2.0f );
+    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -1.5f );
     modelScreen = ovrMatrix4f_Multiply( &modelScreen, &translation );
 
     horizFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X);
@@ -1952,8 +1952,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 	    if (bullettime.integer)
         {
             float speed = powf(sqrtf(powf(leftTrackedRemoteState_new.Joystick.x, 2) + powf(leftTrackedRemoteState_new.Joystick.y, 2)), 1.1f);
-            float movement = sqrtf(powf(positionDeltaThisFrame[0] * 40.0f, 2) + powf(positionDeltaThisFrame[1] * 40.0f, 2) + powf(positionDeltaThisFrame[2] * 40.0f, 2));
-            speed = bound(0.04f, (speed > movement) ? speed : movement, 1.0f);
+            float movement = sqrtf(powf(positionDeltaThisFrame[0] * 30.0f, 2) + powf(positionDeltaThisFrame[1] * 30.0f, 2) + powf(positionDeltaThisFrame[2] * 30.0f, 2));
+            speed = bound(0.12f, (speed > movement) ? speed : movement, 1.0f);
             Cvar_SetValueQuick(&slowmo, speed);
         }
     }
