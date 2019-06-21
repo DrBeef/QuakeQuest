@@ -39,8 +39,6 @@ Projects/Android/.gradle/4.4/fileHashes/fileHashes.lock
 *.ser
 Projects/Android/.idea/codeStyles/Project.xml
 *.xml
-Projects/Android/gradle/wrapper/gradle-wrapper.jar
-*.properties
 Projects/Android/.externalNativeBuild/ndkBuild/debug/armeabi-v7a/ndkBuild_build_command.txt
 Projects/Android/.externalNativeBuild/ndkBuild/release/armeabi-v7a/ndkBuild_build_command.txt
 Projects/Android/.externalNativeBuild/ndkBuild/debug/armeabi-v7a/ndkBuild_build_output.txt
