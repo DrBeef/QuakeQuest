@@ -69,7 +69,6 @@ Known Issues:
 -------------
 * If you use dpmod, you know that it applies an extra weapon offset (to the right); I've tried and failed to correct it, so for now the weapon doesn't line up with the controller at all, though the laser sight is correct
 * Some slight movement when moving weapon around (this is due to how I had to implement 6DoF) however you won't notice this in the heat of battle, only when you stand still marveling at the true 6DoF weapon in your hand
-* Orientation when headset looking near poles (north or south) doesn't work very well at all (Quaternion to Euler Angle issue) - if anyone knows what's going on there I'd appreciate some help!, it was like this on the GearVR and not many people complained about it, but it bothers me
 * Laser Sight out of alignment when very close to wall/object
 * The axe and arm are way out of alignment with the controller (see future to-dos)
 
