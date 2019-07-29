@@ -81,8 +81,16 @@ Future To-Dos:
 Building:
 ---------
 
-I will add details on how to build in a future update. For a start you need:
+You need the following:
 
 * Android Developer Studio
-* Oculus Mobile SDK 1.23.0
-* The QuakeQuest folder should be below VrSamples in the extracted SDK
+* Android SDK API level 24
+* Latest Android Native Development Kit
+* Oculus Mobile SDK 1.24.0
+* The QuakeQuest folder cloned from GitHub should be below VrSamples in the extracted SDK
+* Create a local.properties file in the root of the extracted Oculus Mobile SDK that contains the ndk.dir and sdk.dir properties for where your SDK/NDK are located (see Gradle documentation regarding this)
+* To build debug you will need a _android.debug.keystore_ file placed in the following folder:
+_oculus_sdk_dir_/VrSamples/QuakeQuest/Projects/Android
+
+Alternatively you can use the docker image created by BrainSlugs83 which can be found here: https://github.com/BrainSlugs83/DockerOvrSdk
+
