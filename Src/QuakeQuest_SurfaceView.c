@@ -294,8 +294,9 @@ vec3_t hmdorientation;
 extern float gunangles[3];
 float weaponOffset[3];
 
-float horizFOV;
-float vertFOV;
+float vrFOV;
+float vrWidth;
+float vrHeight;
 
 int bigScreen = 1;
 ovrMatrix4f modelScreen;
@@ -719,8 +720,8 @@ static bool ovrFramebuffer_Create( ovrFramebuffer * frameBuffer, const GLenum co
 	PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC glFramebufferTextureMultisampleMultiviewOVR =
 		(PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC) eglGetProcAddress( "glFramebufferTextureMultisampleMultiviewOVR" );
 
-	frameBuffer->Width = width * SS_MULTIPLIER;
-	frameBuffer->Height = height * SS_MULTIPLIER;
+	frameBuffer->Width = width;
+	frameBuffer->Height = height;
 	frameBuffer->Multisamples = multisamples;
 
 	frameBuffer->ColorTextureSwapChain = vrapi_CreateTextureSwapChain3( VRAPI_TEXTURE_TYPE_2D, colorFormat, frameBuffer->Width, frameBuffer->Height, 1, 3 );
@@ -1007,29 +1008,28 @@ static void ovrRenderer_Create( ovrRenderer * renderer, const ovrJava * java )
     ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -1.5f );
     modelScreen = ovrMatrix4f_Multiply( &modelScreen, &translation );
 
-    horizFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X);
-    vertFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_Y);
+    vrFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X);
 
 	// Create the render Textures.
 	for ( int eye = 0; eye < VRAPI_FRAME_LAYER_EYE_MAX; eye++ )
 	{
 		ovrFramebuffer_Create( &renderer->FrameBuffer[eye],
 							   GL_RGBA8,
-							   vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ),
-							   vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT ),
+                (int)vrWidth,
+                               (int)vrHeight,
 							   NUM_MULTI_SAMPLES );
 	}
 
 	ovrFramebuffer_Create( &renderer->QuakeFrameBuffer,
 						   GL_RGBA8,
-						   vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ),
-						   vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT ),
+                           (int)vrWidth,
+                           (int)vrHeight,
 						   NUM_MULTI_SAMPLES );
 
 	// Setup the projection matrix.
 	renderer->ProjectionMatrix = ovrMatrix4f_CreateProjectionFov(
-			vrapi_GetSystemPropertyFloat( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X ),
-			vrapi_GetSystemPropertyFloat( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_Y ),
+			vrFOV,
+			vrFOV,
 			0.0f, 0.0f, 1.0f, 0.0f );
 
 }
@@ -1208,35 +1208,19 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
     QC_BeginFrame(/* true to stop time if needed in future */ false);
 
 
-	ovrMatrix4f eyeViewMatrixTransposed[2];
-	eyeViewMatrixTransposed[0] = ovrMatrix4f_Transpose( &updatedTracking.Eye[0].ViewMatrix );
-	eyeViewMatrixTransposed[1] = ovrMatrix4f_Transpose( &updatedTracking.Eye[1].ViewMatrix );
-
-	ovrMatrix4f projectionMatrixTransposed[2];
-	projectionMatrixTransposed[0] = ovrMatrix4f_Transpose( &updatedTracking.Eye[0].ProjectionMatrix );
-	projectionMatrixTransposed[1] = ovrMatrix4f_Transpose( &updatedTracking.Eye[1].ProjectionMatrix );
-
-
 	ovrLayerProjection2 layer = vrapi_DefaultLayerProjection2();
 	layer.HeadPose = updatedTracking.HeadPose;
 	for ( int eye = 0; eye < VRAPI_FRAME_LAYER_EYE_MAX; eye++ )
 	{
 		ovrFramebuffer * frameBuffer = &renderer->FrameBuffer[renderer->NumBuffers == 1 ? 0 : eye];
-		layer.Textures[eye].ColorSwapChain = frameBuffer->ColorTextureSwapChain;
-		layer.Textures[eye].SwapChainIndex = frameBuffer->TextureSwapChainIndex;
+        layer.Textures[eye].ColorSwapChain = frameBuffer->ColorTextureSwapChain;
+        layer.Textures[eye].SwapChainIndex = frameBuffer->TextureSwapChainIndex;
 
         ovrMatrix4f projectionMatrix;
-		if (bigScreen) {
-            projectionMatrix = ovrMatrix4f_CreateProjectionFov(horizFOV, vertFOV,
-                                                                                 0.0f, 0.0f, 0.1f,
-                                                                                 0.0f);
-        } else{
-            projectionMatrix = ovrMatrix4f_CreateProjectionFov(horizFOV, vertFOV+4.0f,
-                                                                                 0.0f, 0.0f, 0.1f,
-                                                                                 0.0f);
-		}
-        layer.Textures[eye].TexCoordsFromTanAngles = ovrMatrix4f_TanAngleMatrixFromProjection(
-                &projectionMatrix);
+        projectionMatrix = ovrMatrix4f_CreateProjectionFov(vrFOV, vrFOV,
+                                                           0.0f, 0.0f, 0.1f, 0.0f);
+
+        layer.Textures[eye].TexCoordsFromTanAngles = ovrMatrix4f_TanAngleMatrixFromProjection(&projectionMatrix);
 
         layer.Textures[eye].TextureRect.x = 0;
         layer.Textures[eye].TextureRect.y = 0;
@@ -2270,6 +2254,11 @@ void * AppThreadFunction( void * parm )
 	// This app will handle android gamepad events itself.
 	vrapi_SetPropertyInt( &appState.Java, VRAPI_EAT_NATIVE_GAMEPAD_EVENTS, 0 );
 
+    //Using a symmetrical render target
+    vrWidth=vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ) * SS_MULTIPLIER;
+    vrHeight=vrWidth;
+
+
 	ovrEgl_CreateContext( &appState.Egl, NULL );
 
 	EglInitExtensions();
@@ -2306,24 +2295,17 @@ void * AppThreadFunction( void * parm )
 				{
 					if (!quake_initialised)
 					{
-						char *arg = (char*)ovrMessage_GetPointerParm( &message, 0 );
-
 						ALOGV( "    Initialising Quake Engine" );
 
-						if (arg)
-						{
-							QC_SetResolution(vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ) * SS_MULTIPLIER,
-											 vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT ) * SS_MULTIPLIER);
+                        QC_SetResolution((int)vrWidth, (int)vrHeight);
 
+						if (argc != 0)
+						{
 							main(argc, argv);
 						}
 						else
 						{
 							int argc = 1; char *argv[] = { "quake" };
-
-							QC_SetResolution(vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ) * SS_MULTIPLIER,
-											 vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT ) * SS_MULTIPLIER);
-
 							main(argc, argv);
 						}
 
