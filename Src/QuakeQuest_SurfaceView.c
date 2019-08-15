@@ -1123,9 +1123,16 @@ void GetAnglesFromVectors(const ovrVector3f forward, const ovrVector3f right, co
 	NormalizeAngles(angles);
 }
 
-void QuatToYawPitchRoll(ovrQuatf q, vec3_t out) {
+void QuatToYawPitchRoll(ovrQuatf q, float pitchAdjust, vec3_t out) {
 
     ovrMatrix4f mat = ovrMatrix4f_CreateFromQuaternion( &q );
+
+    if (pitchAdjust != 0.0f)
+    {
+        ovrMatrix4f rot = ovrMatrix4f_CreateRotation(radians(pitchAdjust), 0.0f, 0.0f);
+        mat = ovrMatrix4f_Multiply(&mat, &rot);
+    }
+
     ovrVector4f v1 = {0, 0, -1, 0};
     ovrVector4f v2 = {1, 0, 0, 0};
     ovrVector4f v3 = {0, 1, 0, 0};
@@ -1187,7 +1194,7 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
     // to allow "additional" yaw manipulation with mouse/controller.
     const ovrQuatf quatHmd = tracking->HeadPose.Pose.Orientation;
     const ovrVector3f positionHmd = tracking->HeadPose.Pose.Position;
-    QuatToYawPitchRoll(quatHmd, hmdorientation);
+    QuatToYawPitchRoll(quatHmd, 0.0f, hmdorientation);
     setHMDPosition(positionHmd.x, positionHmd.y, positionHmd.z);
 
 	if (cl_trackingmode.integer == 0) {
@@ -1788,18 +1795,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 
             //Set gun angles
             const ovrQuatf quatRemote = dominantRemoteTracking->HeadPose.Pose.Orientation;
-            QuatToYawPitchRoll(quatRemote, gunangles);
+            QuatToYawPitchRoll(quatRemote, -cl_weaponpitchadjust.value, gunangles);
 
-            //TODO: THIS NEEDS WORK!! - can't get it working and it is doing my head in!!
-            /*        // Adjust right (+ve), adjust Back (+ve), up (+ve)
-                    vec3_t adjustment;
-                    //VectorSet(adjustment, cl_weapon_offset_lr.value, cl_weapon_offset_ud.value, cl_weapon_offset_fb.value);
-                    VectorSet(adjustment, 0.0f, 0.2f, 0.2f);
-                    rotateAboutOrigin2(adjustment,  gunangles[PITCH], gunangles[YAW]-yawOffset, adjustment);
-                    VectorAdd(adjustment, weaponOffset, weaponOffset);*/
-
-            //Adjust gun pitch for user preference
-            gunangles[PITCH] += cl_weaponpitchadjust.value;
             gunangles[YAW] += yawOffset;
 
             //Change laser sight on joystick click
@@ -1814,7 +1811,7 @@ static void ovrApp_HandleInput( ovrApp * app )
         float controllerYawHeading;
         float hmdYawHeading;
         {
-            QuatToYawPitchRoll(offHandRemoteTracking->HeadPose.Pose.Orientation,
+            QuatToYawPitchRoll(offHandRemoteTracking->HeadPose.Pose.Orientation, 0.0f,
                                controllerAngles);
 
             controllerYawHeading = controllerAngles[YAW] - gunangles[YAW] + yawOffset;
