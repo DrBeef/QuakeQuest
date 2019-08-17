@@ -121,7 +121,7 @@ static void Sbar_FinaleOverlay (void);
 
 extern qboolean vrMode;
 extern vec3_t hmdorientation;
-extern cvar_t r_worldscale;
+extern cvar_t vr_worldscale;
 
 //Calculate the y-offset of the status bar dependent on where the user is looking
 int Sbar_GetYOffset()
@@ -1744,8 +1744,8 @@ void Sbar_Draw (void)
 	if (cl.csqc_vidvars.drawcrosshair && crosshair.integer >= 1 && !cl.intermission && !r_letterbox.value)
 	{
 		pic = Draw_CachePic (va(vabuf, sizeof(vabuf), "gfx/crosshair%i", crosshair.integer));
-		int stereoOffset = r_worldscale.value > 200.0f ? 12 : 5;
-		int yOffset = (r_worldscale.value > 200.0f ? 20 : 5);
+		int stereoOffset = vr_worldscale.value > 200.0f ? 12 : 5;
+		int yOffset = (vr_worldscale.value > 200.0f ? 20 : 5);
 		DrawQ_Pic((vid_conwidth.integer - pic->width * crosshair_size.value) * 0.5f + (r_stereo_side ? -stereoOffset : stereoOffset),
 				  (vid_conheight.integer - pic->height * crosshair_size.value) * 0.5f + yOffset,
 				  pic, pic->width * crosshair_size.value, pic->height * crosshair_size.value,

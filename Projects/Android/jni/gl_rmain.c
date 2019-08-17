@@ -46,11 +46,14 @@ static qboolean r_loaddds;
 static qboolean r_savedds;
 static qboolean r_gpuskeletal;
 
-cvar_t r_worldscale = {CVAR_SAVE, "r_worldscale", "30", "World scale multiplier (default is 30)"};
+// Wolfenstein 3D, DOOM and QUAKE use the same coordinate/unit system:
+// 8 foot (96 inch) height wall == 64 units, 1.5 inches per pixel unit
+// 1.0 pixel unit / 1.5 inch == 0.666666 pixel units per inch
+cvar_t vr_worldscale = {CVAR_SAVE, "vr_worldscale", "26.2467", "VR World scale multiplier"};
 
 float GetStereoSeparation()
 {
-	return r_worldscale.value * 0.065f;
+	return vr_worldscale.value * 0.065f;
 }
 
 
@@ -4213,7 +4216,7 @@ void GL_Main_Init(void)
 		Cvar_RegisterVariable (&gl_fogend);
 		Cvar_RegisterVariable (&gl_skyclip);
 	}
-	Cvar_RegisterVariable(&r_worldscale);
+	Cvar_RegisterVariable(&vr_worldscale);
 	Cvar_RegisterVariable(&r_motionblur);
 	Cvar_RegisterVariable(&r_damageblur);
 	Cvar_RegisterVariable(&r_motionblur_averaging);

@@ -115,15 +115,12 @@ float hmdPosition[3];
 float playerHeight;
 float positionDeltaThisFrame[3];
 
-extern cvar_t r_worldscale;
+extern cvar_t vr_worldscale;
 extern cvar_t r_lasersight;
 extern cvar_t cl_forwardspeed;
 extern cvar_t cl_walkdirection;
 extern cvar_t cl_controllerdeadzone;
 extern cvar_t cl_righthanded;
-extern cvar_t cl_weapon_offset_ud;
-extern cvar_t cl_weapon_offset_lr;
-extern cvar_t cl_weapon_offset_fb;
 extern cvar_t cl_weaponpitchadjust;
 extern cvar_t slowmo;
 extern cvar_t bullettime;
@@ -1197,10 +1194,8 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
     QuatToYawPitchRoll(quatHmd, 0.0f, hmdorientation);
     setHMDPosition(positionHmd.x, positionHmd.y, positionHmd.z);
 
-	if (cl_trackingmode.integer == 0) {
-		//Use hmd position for world position
-		setWorldPosition(positionHmd.x, positionHmd.y, positionHmd.z);
-	}
+    //Use hmd position for world position
+    setWorldPosition(positionHmd.x, positionHmd.y, positionHmd.z);
 
     ALOGV("        HMD-Yaw: %f", hmdorientation[YAW]);
     ALOGV("        HMD-Position: %f, %f, %f", positionHmd.x, positionHmd.y, positionHmd.z);
@@ -1629,6 +1624,8 @@ static int getCharacter(float x, float y)
     return c;
 }
 
+int breakHere = 0;
+
 static void ovrApp_HandleInput( ovrApp * app )
 {
     float remote_movementSideways = 0.0f;
@@ -1780,13 +1777,6 @@ static void ovrApp_HandleInput( ovrApp * app )
             weaponOffset[1] = dominantRemoteTracking->HeadPose.Pose.Position.y - hmdPosition[1];
             weaponOffset[2] = dominantRemoteTracking->HeadPose.Pose.Position.z - hmdPosition[2];
 
-            if (cl_trackingmode.integer == 1) {
-				//Use controller position for world position
-				setWorldPosition(dominantRemoteTracking->HeadPose.Pose.Position.x,
-								 dominantRemoteTracking->HeadPose.Pose.Position.y,
-								 dominantRemoteTracking->HeadPose.Pose.Position.z);
-			}
-
             ///Weapon location relative to view
             vec2_t v;
             rotateAboutOrigin(weaponOffset[0], weaponOffset[2], -yawOffset, v);
@@ -1842,11 +1832,11 @@ static void ovrApp_HandleInput( ovrApp * app )
             //This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
             //player is facing for positional tracking
             float multiplier = /*arbitrary value that works ->*/
-                    2200.0f / cl_forwardspeed.value;
+                    2200.0f / (cl_forwardspeed.value * ((offHandTrackedRemoteState->Buttons & ovrButton_Trigger) ? cl_movespeedkey.value : 1.0f));
 
             vec2_t v;
             rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier,
-                              positionDeltaThisFrame[2] * multiplier, -hmdorientation[YAW], v);
+                              positionDeltaThisFrame[2] * multiplier, yawOffset - gunangles[YAW], v);
             positional_movementSideways = v[0];
             positional_movementForward = v[1];
 
@@ -1987,6 +1977,7 @@ static void ovrApp_HandleInput( ovrApp * app )
                 (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
                 Cbuf_InsertText("God\n");
                 Cbuf_InsertText("Impulse 9\n");
+                breakHere = 1;
             }
 #endif
 

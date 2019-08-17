@@ -2953,6 +2953,8 @@ static void SV_Physics_Entity (prvm_edict_t *ent)
 	}
 }
 
+extern float gunorg[3];
+
 void SV_Physics_ClientMove(void)
 {
 	prvm_prog_t *prog = SVVM_prog;
@@ -2980,8 +2982,16 @@ void SV_Physics_ClientMove(void)
 	PRVM_serverglobalfloat(time) = sv.time;
 	PRVM_serverglobalfloat(frametime) = 0;
 	PRVM_serverglobaledict(self) = PRVM_EDICT_TO_PROG(ent);
+
+	vec3_t backup;
+	VectorCopy(PRVM_serveredictvector(ent, origin), backup);
+	VectorCopy(gunorg, PRVM_serveredictvector(ent, origin));
+    PRVM_serveredictvector(ent, origin)[2] -= 20.0f;
+
 	prog->ExecuteProgram(prog, PRVM_serverfunction(PlayerPostThink), "QC function PlayerPostThink is missing");
+
 	PRVM_serverglobalfloat(frametime) = sv.frametime;
+	VectorCopy(backup, PRVM_serveredictvector(ent, origin));
 
 	if(PRVM_serveredictfloat(ent, fixangle))
 	{
@@ -2993,6 +3003,35 @@ void SV_Physics_ClientMove(void)
 		// and clear fixangle for the next frame
 		PRVM_serveredictfloat(ent, fixangle) = 0;
 	}
+}
+
+vec3_t origin_b, oldorigin_b;
+extern cvar_t cl_trackingmode;
+
+static void SV_SetWeapon_ClientOrigin(prvm_edict_t *ent)
+{
+    prvm_prog_t *prog = SVVM_prog;
+    VectorCopy(PRVM_serveredictvector(ent, origin), origin_b);
+    VectorCopy(PRVM_serveredictvector(ent, oldorigin), oldorigin_b);
+
+    VectorCopy(gunorg, PRVM_serveredictvector(ent, origin));
+    VectorCopy(gunorg, PRVM_serveredictvector(ent, oldorigin));
+
+    if (cl_trackingmode.integer != 0) //6DoF
+    {
+        PRVM_serveredictvector(ent, origin)[2] -= 16.0f;
+        PRVM_serveredictvector(ent, oldorigin)[2] -= 16.0f;
+    } else { //3DoF
+        PRVM_serveredictvector(ent, origin)[2] -= 23.0f;
+        PRVM_serveredictvector(ent, oldorigin)[2] -= 23.0f;
+    }
+}
+
+static void SV_Restore_ClientOrigin(prvm_edict_t *ent)
+{
+    prvm_prog_t *prog = SVVM_prog;
+    VectorCopy(origin_b, PRVM_serveredictvector(ent, origin));
+    VectorCopy(oldorigin_b, PRVM_serveredictvector(ent, oldorigin));
 }
 
 static void SV_Physics_ClientEntity_PreThink(prvm_edict_t *ent)
@@ -3015,14 +3054,20 @@ static void SV_Physics_ClientEntity_PreThink(prvm_edict_t *ent)
 	// make sure the velocity is still sane (not a NaN)
 	SV_CheckVelocity(ent);
 
-	// call standard client pre-think
+    SV_SetWeapon_ClientOrigin(ent);
+
+    // call standard client pre-think
 	PRVM_serverglobalfloat(time) = sv.time;
 	PRVM_serverglobaledict(self) = PRVM_EDICT_TO_PROG(ent);
 	prog->ExecuteProgram(prog, PRVM_serverfunction(PlayerPreThink), "QC function PlayerPreThink is missing");
 
+    SV_Restore_ClientOrigin(ent);
+
 	// make sure the velocity is still sane (not a NaN)
 	SV_CheckVelocity(ent);
 }
+
+extern int breakHere;
 
 static void SV_Physics_ClientEntity_PostThink(prvm_edict_t *ent)
 {
@@ -3034,10 +3079,14 @@ static void SV_Physics_ClientEntity_PostThink(prvm_edict_t *ent)
 	// make sure the velocity is sane (not a NaN)
 	SV_CheckVelocity(ent);
 
-	// call standard player post-think
+    SV_SetWeapon_ClientOrigin(ent);
+
+    // call standard player post-think
 	PRVM_serverglobalfloat(time) = sv.time;
 	PRVM_serverglobaledict(self) = PRVM_EDICT_TO_PROG(ent);
 	prog->ExecuteProgram(prog, PRVM_serverfunction(PlayerPostThink), "QC function PlayerPostThink is missing");
+
+    SV_Restore_ClientOrigin(ent);
 
 	// make sure the velocity is still sane (not a NaN)
 	SV_CheckVelocity(ent);
@@ -3091,14 +3140,17 @@ static void SV_Physics_ClientEntity(prvm_edict_t *ent)
 	case MOVETYPE_NOCLIP:
 		SV_RunThink(ent);
 		SV_CheckWater(ent);
-		VectorMA(PRVM_serveredictvector(ent, origin), sv.frametime, PRVM_serveredictvector(ent, velocity), PRVM_serveredictvector(ent, origin));
+        VectorMA(PRVM_serveredictvector(ent, origin), sv.frametime, PRVM_serveredictvector(ent, velocity), PRVM_serveredictvector(ent, origin));
 		VectorMA(PRVM_serveredictvector(ent, angles), sv.frametime, PRVM_serveredictvector(ent, avelocity), PRVM_serveredictvector(ent, angles));
 		break;
 	case MOVETYPE_STEP:
 		SV_Physics_Step (ent);
 		break;
 	case MOVETYPE_WALK:
+	    //Need to do this for the nail gun nails!
+        SV_SetWeapon_ClientOrigin(ent);
 		SV_RunThink (ent);
+        SV_Restore_ClientOrigin(ent);
 		// don't run physics here if running asynchronously
 		if (host_client->clmovement_inputtimeout <= 0)
 			SV_WalkMove (ent);

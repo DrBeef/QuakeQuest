@@ -48,7 +48,7 @@ char m_return_reason[128];
 extern vec3_t hmdorientation;
 extern char *strGameFolder;
 
-extern cvar_t r_worldscale;
+extern cvar_t vr_worldscale;
 extern cvar_t r_lasersight;
 extern cvar_t cl_righthanded;
 extern cvar_t cl_walkdirection;
@@ -1765,14 +1765,14 @@ static void M_Menu_Options_AdjustSliders (int dir)
 	else if (options_cursor == optnum++) Cvar_SetValueQuick(&v_gamma, bound(0.5, v_gamma.value + dir * 0.0625, 3));
 	else if (options_cursor == optnum++)
 	{
-		if (r_worldscale.value < 200.0f)
+		if (vr_worldscale.value < 200.0f)
 		{
-			Cvar_SetValueQuick (&r_worldscale, 400.0f);
+			Cvar_SetValueQuick (&vr_worldscale, 400.0f);
 			Cvar_SetValueQuick (&chase_active, 1);
 		}
 		else
 		{
-			Cvar_SetValueQuick (&r_worldscale, 30.0f);
+			Cvar_SetValueQuick (&vr_worldscale, 30.0f);
 			Cvar_SetValueQuick (&chase_active, 0);
 		}
 	}
@@ -1877,6 +1877,7 @@ static void M_Options_Draw (void)
 }
 
 int bufOption = 0;
+extern cvar_t gl_lightmaps;
 static void M_Options_Key (int k, int ascii)
 {
 	switch (k)
@@ -1909,6 +1910,11 @@ static void M_Options_Key (int k, int ascii)
 				if (bullettime.integer == 0)
                 {
                     Cvar_SetValueQuick(&slowmo, 1.0f);
+                    Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
+                }
+                else
+                {
+                    Cvar_SetValueQuick(&gl_lightmaps, 2.0f);
                 }
             }
 		    break;
@@ -3570,7 +3576,7 @@ static void M_Credits_Draw (void)
 			"   QQQQQQQQ           QQQQQQQQ      ",
 			"     QQQ                QQQ         ",
    			"      Q                  Q          ",
-	  		"      Q                  Q   v1.3.1 ");
+	  		"      Q                  Q   v1.4.0 ");
 
 	int i, l, linelength, firstline, lastline, lines;
 	for (i = 0, linelength = 0, firstline = 9999, lastline = -1;m_credits_message[i];i++)

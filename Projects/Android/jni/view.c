@@ -107,7 +107,7 @@ cvar_t chase_stevie = {0, "chase_stevie", "0", "(GOODVSBAD2 only) chase cam view
 cvar_t v_deathtilt = {0, "v_deathtilt", "1", "whether to use sideways view when dead"};
 cvar_t v_deathtiltangle = {0, "v_deathtiltangle", "0", "what roll angle to use when tilting the view while dead"};
 
-cvar_t cl_weaponoffset = {CVAR_SAVE, "cl_weaponoffset", "0.15", "gun handedness offset"};
+cvar_t cl_weaponoffset = {CVAR_SAVE, "cl_weaponoffset", "0.4", "gun handedness offset"};
 
 // Prophecy camera pitchangle by Alexander "motorsep" Zubov
 cvar_t chase_pitchangle = {CVAR_SAVE, "chase_pitchangle", "55", "chase cam pitch angle"};
@@ -121,7 +121,7 @@ extern float weaponOffset[3];
 extern float hmdPosition[3];
 extern float playerHeight;
 
-extern cvar_t r_worldscale;
+extern cvar_t vr_worldscale;
 extern cvar_t cl_trackingmode;
 extern cvar_t cl_righthanded;
 
@@ -872,43 +872,79 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
         }
 
         //Custom scaling required
+        matrix4x4_t weapon_position_adjust;
+		Matrix4x4_CreateTranslate(&weapon_position_adjust, -6.0f, 0.0f, 7.0f);
         float weaponScale = cl_viewmodel_scale.value;
-        if (cl.stats[STAT_ACTIVEWEAPON] == IT_ROCKET_LAUNCHER ||
-            cl.stats[STAT_ACTIVEWEAPON] == IT_AXE)
+
+        // fb / lr / ud
+        if (cl.stats[STAT_ACTIVEWEAPON] == IT_ROCKET_LAUNCHER)
 		{
+            Matrix4x4_CreateTranslate(&weapon_position_adjust, -16.0f, 0.0f, 11.0f);
 			weaponScale = 0.45f;
+		}
+		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_GRENADE_LAUNCHER)
+		{
+			Matrix4x4_CreateTranslate(&weapon_position_adjust, -8.0f, 0.0f, 10.0f);
+		}
+		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_AXE)
+		{
+			Matrix4x4_CreateTranslate(&weapon_position_adjust, -22.0f, 12.0f, 28.0f);
+			weaponScale = 0.5f;
 		}
 		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_SUPER_SHOTGUN)
 		{
-			weaponScale = 0.8f;
+            Matrix4x4_CreateTranslate(&weapon_position_adjust, -7.0f, 0.0f, 8.0f);
+			weaponScale = 0.9f;
 		}
 		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_SUPER_NAILGUN)
         {
+            Matrix4x4_CreateTranslate(&weapon_position_adjust, -16.0f, 0.0f, 16.0f);
             weaponScale = 0.4f;
         }
         else if (cl.stats[STAT_ACTIVEWEAPON] == IT_NAILGUN)
         {
+            Matrix4x4_CreateTranslate(&weapon_position_adjust, -12.0f, 0.0f, 14.0f);
             weaponScale = 0.5f;
+        }
+        else if (cl.stats[STAT_ACTIVEWEAPON] == IT_LIGHTNING)
+        {
+            Matrix4x4_CreateTranslate(&weapon_position_adjust, -8.0f, 0.0f, 9.0f);
+        }
+        else if (cl.stats[STAT_ACTIVEWEAPON] == IT_SUPER_LIGHTNING)
+        {
+            Matrix4x4_CreateTranslate(&weapon_position_adjust, -8.0f, 0.0f, 9.0f);
+        }
+
+        {
+            vieworg[2] += ((hmdPosition[1] - playerHeight) * vr_worldscale.value); // Up/Down
         }
 
         if (cl_trackingmode.integer == 0) //3DoF
         {
+            VectorCopy(vieworg, gunorg);
+
             {
                 //Move gun to left or right depending on handedness
-                vec3_t temp;
-                vec3_t v;
-                temp[0] = -0.3f * r_worldscale.value;
-                temp[1] = ((cl_righthanded.integer ? 1.0f : -1.0f) * cl_weaponoffset.value * r_worldscale.value);
-                temp[2] = 0.3f * r_worldscale.value;
-
-                matrix4x4_t matrix;
-                Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, viewangles[1], 0.0f, 1.0f);
-                Matrix4x4_Transform(&matrix, temp, v);
-
-                vieworg[0] += v[0];
-                vieworg[1] += v[1];
-                vieworg[2] += v[2];
+                matrix4x4_t temp;
+                Matrix4x4_CreateTranslate(&temp, 10.0f, ((cl_righthanded.integer ? -1.0f : 1.0f) * cl_weaponoffset.value * vr_worldscale.value), -10.0f);
+                matrix4x4_t temp2;
+                Matrix4x4_Concat(&temp2, &weapon_position_adjust, &temp);
+                Matrix4x4_Copy(&weapon_position_adjust, &temp2);
             }
+
+			//viewmodelmatrix_withbob
+			matrix4x4_t temp;
+			Matrix4x4_CreateFromQuakeEntity(&temp, vieworg[0],
+                                            vieworg[1],
+                                            vieworg[2],
+											gunangles[0],
+											gunangles[1],
+											//No roll
+											0.0f, weaponScale);
+			Matrix4x4_Concat(&viewmodelmatrix_withbob, &temp, &weapon_position_adjust);
+
+			//Now set the gun origin from the matrix for use later
+            Matrix4x4_OriginFromMatrix(&viewmodelmatrix_withbob, gunorg);
 
             Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2], viewangles[0], viewangles[1], viewangles[2], 1);
 
@@ -917,31 +953,29 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
             Matrix4x4_ConcatScale(&viewmodelmatrix_nobob, cl_viewmodel_scale.value);
         }
         else //6DoF
-        {
-			//Offset the camera
-			{
-				vieworg[0] += (weaponOffset[2] * r_worldscale.value); // Forward/Back
-				vieworg[1] += (weaponOffset[0] * r_worldscale.value); // Left/Right
-				vieworg[2] += ((hmdPosition[1] - playerHeight) * r_worldscale.value); // Up/Down
-			}
+		{
+			Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1],
+											vieworg[2],
+											viewangles[0], viewangles[1], viewangles[2], 1);
 
-			Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2],
-                                            viewangles[0], viewangles[1], viewangles[2], 1);
+			// calculate a viewmodel matrix for use in view-attached entities
+			Matrix4x4_Copy(&viewmodelmatrix_nobob, &r_refdef.view.matrix);
+			Matrix4x4_ConcatScale(&viewmodelmatrix_nobob, cl_viewmodel_scale.value);
 
-            // calculate a viewmodel matrix for use in view-attached entities
-            Matrix4x4_Copy(&viewmodelmatrix_nobob, &r_refdef.view.matrix);
-            Matrix4x4_ConcatScale(&viewmodelmatrix_nobob, cl_viewmodel_scale.value);
+			VectorSet(gunorg, vieworg[0] - weaponOffset[2] * vr_worldscale.value,
+					  vieworg[1] - weaponOffset[0] * vr_worldscale.value,
+					  vieworg[2] + weaponOffset[1] * vr_worldscale.value);
 
-            VectorSet(gunorg, vieworg[0] - weaponOffset[2] * r_worldscale.value,
-                      vieworg[1] - weaponOffset[0] * r_worldscale.value,
-                      vieworg[2] + weaponOffset[1] * r_worldscale.value);
-        }
-
-        Matrix4x4_CreateFromQuakeEntity(&viewmodelmatrix_withbob, gunorg[0],
-                                        gunorg[1],
-                                        gunorg[2],
-                                        gunangles[0] - 3.0f,
-                                        gunangles[1], 0.0f, weaponScale);
+			//viewmodelmatrix_withbob
+			matrix4x4_t temp;
+			Matrix4x4_CreateFromQuakeEntity(&temp, gunorg[0],
+											gunorg[1],
+											gunorg[2],
+											gunangles[0],
+											gunangles[1],
+											gunangles[2], weaponScale);
+			Matrix4x4_Concat(&viewmodelmatrix_withbob, &temp, &weapon_position_adjust);
+		}
 
 		VectorCopy(vieworg, cl.csqc_vieworiginfromengine);
 		VectorCopy(viewangles, cl.csqc_viewanglesfromengine);

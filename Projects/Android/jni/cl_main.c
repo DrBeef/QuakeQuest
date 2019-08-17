@@ -1699,8 +1699,8 @@ static void CL_RelinkEffects(void)
 extern float gunangles[3];
 extern float gunorg[3];
 extern float vieworg[3];
-extern cvar_t r_worldscale;
-
+extern cvar_t vr_worldscale;
+extern cvar_t cl_trackingmode;
 
 void CL_Beam_CalculatePositions(const beam_t *b, vec3_t start, vec3_t end)
 {
@@ -1723,7 +1723,11 @@ void CL_Beam_CalculatePositions(const beam_t *b, vec3_t start, vec3_t end)
 
 		//Use gun location as beam origin
         VectorCopy(gunorg, start);
-		start[2] -= 5.0f; // Hack to align lightning with gun
+
+        if (cl_trackingmode.integer == 0) //3DoF
+        {
+            start[2] -= 5.0f; // Hack to align lightning with gun
+        }
 
 		if (cl_beams_instantaimhack.integer)
 		{
@@ -1757,7 +1761,6 @@ void CL_LaserSight_CalculatePositions(vec3_t start, vec3_t end)
 
     VectorCopy(trace.endpos, end);
     VectorCopy(gunorg, start);
-    start[2] -= 7.0f;
 }
 
 extern cvar_t r_lasersight;

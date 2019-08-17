@@ -430,9 +430,9 @@ float CL_KeyState (kbutton_t *key)
 //==========================================================================
 
 cvar_t cl_upspeed = {CVAR_SAVE, "cl_upspeed","400","vertical movement speed (while swimming or flying)"};
-cvar_t cl_forwardspeed = {CVAR_SAVE, "cl_forwardspeed","200","forward movement speed"};
-cvar_t cl_backspeed = {CVAR_SAVE, "cl_backspeed","200","backward movement speed"};
-cvar_t cl_sidespeed = {CVAR_SAVE, "cl_sidespeed","200","strafe movement speed"};
+cvar_t cl_forwardspeed = {CVAR_SAVE, "cl_forwardspeed","150","forward movement speed"};
+cvar_t cl_backspeed = {CVAR_SAVE, "cl_backspeed","150","backward movement speed"};
+cvar_t cl_sidespeed = {CVAR_SAVE, "cl_sidespeed","150","strafe movement speed"};
 
 cvar_t cl_movespeedkey = {CVAR_SAVE, "cl_movespeedkey","2.0","how much +speed multiplies keyboard movement speed"};
 cvar_t cl_movecliptokeyboard = {0, "cl_movecliptokeyboard", "0", "if set to 1, any move is clipped to the nine keyboard states; if set to 2, only the direction is clipped, not the amount"};
@@ -448,10 +448,6 @@ cvar_t cl_controllerdeadzone = {0, "cl_controllerdeadzone","0.05","Amount of dea
 cvar_t cl_righthanded = {CVAR_SAVE, "cl_righthanded","1","right-handed?"};
 cvar_t cl_weaponpitchadjust = {CVAR_SAVE, "cl_weaponpitchadjust","8.0","Weapon pitch adjustment"};
 cvar_t cl_trackingmode = {CVAR_SAVE, "cl_trackingmode","1","Tracking Mode:- 1 - 6DoF or 0 - 3DoF"};
-
-cvar_t cl_weapon_offset_ud = {CVAR_SAVE, "cl_weapon_offset_ud","0.0","up/down weapon offset (+ve move up)"};
-cvar_t cl_weapon_offset_lr = {CVAR_SAVE, "cl_weapon_offset_lr","0.0","left/right weapon offset (+ve move right)"};
-cvar_t cl_weapon_offset_fb = {CVAR_SAVE, "cl_weapon_offset_fb","0.15","front/back weapon offset (+ve move back)"};
 
 
 cvar_t cl_anglespeedkey = {CVAR_SAVE, "cl_anglespeedkey","1.5","how much +speed multiplies keyboard turning speed"};
@@ -2269,9 +2265,6 @@ void CL_InitInput (void)
 	Cvar_RegisterVariable(&cl_yawmult);
 	Cvar_RegisterVariable(&cl_controllerdeadzone);
 	Cvar_RegisterVariable(&cl_righthanded);
-	Cvar_RegisterVariable(&cl_weapon_offset_ud);
-	Cvar_RegisterVariable(&cl_weapon_offset_lr);
-	Cvar_RegisterVariable(&cl_weapon_offset_fb);
 	Cvar_RegisterVariable(&cl_weaponpitchadjust);
 	Cvar_RegisterVariable(&cl_trackingmode);
 
