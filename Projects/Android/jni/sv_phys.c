@@ -2983,15 +2983,9 @@ void SV_Physics_ClientMove(void)
 	PRVM_serverglobalfloat(frametime) = 0;
 	PRVM_serverglobaledict(self) = PRVM_EDICT_TO_PROG(ent);
 
-	vec3_t backup;
-	VectorCopy(PRVM_serveredictvector(ent, origin), backup);
-	VectorCopy(gunorg, PRVM_serveredictvector(ent, origin));
-    PRVM_serveredictvector(ent, origin)[2] -= 20.0f;
-
 	prog->ExecuteProgram(prog, PRVM_serverfunction(PlayerPostThink), "QC function PlayerPostThink is missing");
 
 	PRVM_serverglobalfloat(frametime) = sv.frametime;
-	VectorCopy(backup, PRVM_serveredictvector(ent, origin));
 
 	if(PRVM_serveredictfloat(ent, fixangle))
 	{
@@ -3054,14 +3048,10 @@ static void SV_Physics_ClientEntity_PreThink(prvm_edict_t *ent)
 	// make sure the velocity is still sane (not a NaN)
 	SV_CheckVelocity(ent);
 
-    SV_SetWeapon_ClientOrigin(ent);
-
     // call standard client pre-think
 	PRVM_serverglobalfloat(time) = sv.time;
 	PRVM_serverglobaledict(self) = PRVM_EDICT_TO_PROG(ent);
 	prog->ExecuteProgram(prog, PRVM_serverfunction(PlayerPreThink), "QC function PlayerPreThink is missing");
-
-    SV_Restore_ClientOrigin(ent);
 
 	// make sure the velocity is still sane (not a NaN)
 	SV_CheckVelocity(ent);
