@@ -1715,6 +1715,7 @@ extern dllhandle_t jpeg_dll;
 extern cvar_t gl_texture_anisotropy;
 extern cvar_t r_textshadow;
 extern cvar_t r_hdr_scenebrightness;
+extern cvar_t gl_lightmaps;
 
 static void M_Menu_Options_AdjustSliders (int dir)
 {
@@ -1727,7 +1728,26 @@ static void M_Menu_Options_AdjustSliders (int dir)
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
-	else if (options_cursor == optnum++) ;
+	else if (options_cursor == optnum++)
+	{
+		int b = bullettime.integer + dir;
+		if (b < 0) b = 2;
+		if (b > 2) b = 0;
+		Cvar_SetValueQuick (&bullettime, b);
+		if (bullettime.integer == 0)
+		{
+			Cvar_SetValueQuick(&slowmo, 1.0f);
+			Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
+		}
+		else if (bullettime.integer == 1)
+		{
+			Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
+		}
+		else if (bullettime.integer == 2)
+		{
+			Cvar_SetValueQuick(&gl_lightmaps, 2.0f);
+		}
+	}
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++)
 	{
@@ -1836,11 +1856,22 @@ static void M_Options_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_ITEMS - visible)) * 8;
 
-    M_Options_PrintCommand( "                      ", false);
+    M_Options_PrintCommand( "    --QUAKE QUEST--   ", false);
 	M_Options_PrintCommand( "   Controller Settings", true);
 	M_Options_PrintCommand( "    Open Quake Console", true);
 	M_Options_PrintCommand( "     Reset to defaults", true);
-	M_Options_PrintCheckbox("      BULLET-TIME Mode", true, bullettime.integer);
+	switch (bullettime.integer)
+	{
+		case 0:
+			M_Options_PrintCommand( "     BULLET-TIME Mode: Off", true);
+			break;
+		case 1:
+			M_Options_PrintCommand( "     BULLET-TIME Mode: On", true);
+			break;
+		case 2:
+			M_Options_PrintCommand( "     BULLET-TIME Mode: SUPER", true);
+			break;
+	}
 	M_Options_PrintCommand( "   Key/Button Bindings", true);
 	switch (r_lasersight.integer)
 	{
@@ -1877,7 +1908,6 @@ static void M_Options_Draw (void)
 }
 
 int bufOption = 0;
-extern cvar_t gl_lightmaps;
 static void M_Options_Key (int k, int ascii)
 {
 	switch (k)
@@ -1906,13 +1936,18 @@ static void M_Options_Key (int k, int ascii)
 			break;
 		case 4:
 			{
-				Cvar_SetValueQuick (&bullettime, (1-bullettime.integer));
+			    int b = bullettime.integer + 1;
+				Cvar_SetValueQuick (&bullettime, b % 3);
 				if (bullettime.integer == 0)
                 {
                     Cvar_SetValueQuick(&slowmo, 1.0f);
                     Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
                 }
-                else
+                else if (bullettime.integer == 1)
+                {
+                    Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
+                }
+                else if (bullettime.integer == 2)
                 {
                     Cvar_SetValueQuick(&gl_lightmaps, 2.0f);
                 }

@@ -1753,7 +1753,7 @@ void CL_LaserSight_CalculatePositions(vec3_t start, vec3_t end)
     Matrix4x4_OriginFromMatrix(&cl.entities[cl.viewentity].render.matrix, start);
 
     matrix4x4_t gunOrientationMatrix;
-    Matrix4x4_CreateFromQuakeEntity(&gunOrientationMatrix, gunorg[0], gunorg[1], gunorg[2], gunangles[0], gunangles[1], 0.0f, 1.0f);
+    Matrix4x4_CreateFromQuakeEntity(&gunOrientationMatrix, gunorg[0], gunorg[1], gunorg[2], gunangles[0], gunangles[1], gunangles[2], 1.0f);
 
     VectorSet(temp, 65536, 0, 0);
     Matrix4x4_Transform(&gunOrientationMatrix, temp, end);

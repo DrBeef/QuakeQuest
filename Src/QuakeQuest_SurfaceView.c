@@ -290,6 +290,7 @@ void QC_exit(int exitCode)
 vec3_t hmdorientation;
 extern float gunangles[3];
 float weaponOffset[3];
+float weaponVelocity[3];
 
 float vrFOV;
 float vrWidth;
@@ -1777,6 +1778,10 @@ static void ovrApp_HandleInput( ovrApp * app )
             weaponOffset[1] = dominantRemoteTracking->HeadPose.Pose.Position.y - hmdPosition[1];
             weaponOffset[2] = dominantRemoteTracking->HeadPose.Pose.Position.z - hmdPosition[2];
 
+            weaponVelocity[0] = dominantRemoteTracking->HeadPose.LinearVelocity.x;
+            weaponVelocity[1] = dominantRemoteTracking->HeadPose.LinearVelocity.y;
+            weaponVelocity[2] = dominantRemoteTracking->HeadPose.LinearVelocity.z;
+
             ///Weapon location relative to view
             vec2_t v;
             rotateAboutOrigin(weaponOffset[0], weaponOffset[2], -yawOffset, v);
@@ -1832,7 +1837,7 @@ static void ovrApp_HandleInput( ovrApp * app )
             //This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
             //player is facing for positional tracking
             float multiplier = /*arbitrary value that works ->*/
-                    2200.0f / (cl_forwardspeed.value * ((offHandTrackedRemoteState->Buttons & ovrButton_Trigger) ? cl_movespeedkey.value : 1.0f));
+                    2300.0f / (cl_forwardspeed.value * ((offHandTrackedRemoteState->Buttons & ovrButton_Trigger) ? cl_movespeedkey.value : 1.0f));
 
             vec2_t v;
             rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier,
@@ -1999,8 +2004,12 @@ static void ovrApp_HandleInput( ovrApp * app )
 	    if (bullettime.integer)
         {
             float speed = powf(sqrtf(powf(leftTrackedRemoteState_new.Joystick.x, 2) + powf(leftTrackedRemoteState_new.Joystick.y, 2)), 1.1f);
-            float movement = sqrtf(powf(positionDeltaThisFrame[0] * 30.0f, 2) + powf(positionDeltaThisFrame[1] * 30.0f, 2) + powf(positionDeltaThisFrame[2] * 30.0f, 2));
-            speed = bound(0.12f, (speed > movement) ? speed : movement, 1.0f);
+            float movement = sqrtf(powf(positionDeltaThisFrame[0] * 80.0f, 2) + powf(positionDeltaThisFrame[1] * 80.0f, 2) + powf(positionDeltaThisFrame[2] * 80.0f, 2));
+            float weaponMovement = sqrtf(powf(weaponVelocity[0], 2) + powf(weaponVelocity[1], 2) + powf(weaponVelocity[2], 2));
+
+            float maximum = max(max(speed, movement), weaponMovement);
+
+            speed = bound(0.12f, maximum, 1.0f);
             Cvar_SetValueQuick(&slowmo, speed);
         }
     }
@@ -2214,6 +2223,24 @@ typedef struct
 } ovrAppThread;
 
 long shutdownCountdown;
+
+
+float CalcFov( float fov_x, float width, float height )
+{
+    float a;
+    float x;
+
+    if( fov_x < 1 || fov_x > 179 )
+        fov_x = 90;	// error, set to 90
+
+    x = width / tan( fov_x / 360 * M_PI );
+
+    a = atan ( height / x );
+
+    a = a * 360 / M_PI;
+
+    return a;
+}
 
 void * AppThreadFunction( void * parm )
 {

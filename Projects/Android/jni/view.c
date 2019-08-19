@@ -876,10 +876,14 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 		Matrix4x4_CreateTranslate(&weapon_position_adjust, -6.0f, 0.0f, 7.0f);
         float weaponScale = cl_viewmodel_scale.value;
 
+		matrix4x4_t weapon_pitch_adjust; // small adjustment to the pitch for the model
+		Matrix4x4_CreateFromQuakeEntity(&weapon_pitch_adjust, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+
         // fb / lr / ud
         if (cl.stats[STAT_ACTIVEWEAPON] == IT_ROCKET_LAUNCHER)
 		{
             Matrix4x4_CreateTranslate(&weapon_position_adjust, -16.0f, 0.0f, 11.0f);
+			Matrix4x4_CreateFromQuakeEntity(&weapon_pitch_adjust, 0.0f, 0.0f, 0.0f, -5.0f, 0.0f, 0.0f, 1.0f);
 			weaponScale = 0.45f;
 		}
 		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_GRENADE_LAUNCHER)
@@ -891,6 +895,12 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 			Matrix4x4_CreateTranslate(&weapon_position_adjust, -22.0f, 12.0f, 28.0f);
 			weaponScale = 0.5f;
 		}
+        else if (cl.stats[STAT_ACTIVEWEAPON] == IT_SHOTGUN)
+        {
+            Matrix4x4_CreateTranslate(&weapon_position_adjust, -6.0f, 0.0f, 7.0f);
+            Matrix4x4_CreateFromQuakeEntity(&weapon_pitch_adjust, 0.0f, 0.0f, 0.0f, -5.0f, 0.0f, 0.0f, 1.0f);
+            weaponScale = 0.65f;
+        }
 		else if (cl.stats[STAT_ACTIVEWEAPON] == IT_SUPER_SHOTGUN)
 		{
             Matrix4x4_CreateTranslate(&weapon_position_adjust, -7.0f, 0.0f, 8.0f);
@@ -974,7 +984,10 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 											gunangles[0],
 											gunangles[1],
 											gunangles[2], weaponScale);
-			Matrix4x4_Concat(&viewmodelmatrix_withbob, &temp, &weapon_position_adjust);
+			matrix4x4_t temp2;
+			Matrix4x4_Concat(&temp2, &weapon_position_adjust, &weapon_pitch_adjust);
+
+			Matrix4x4_Concat(&viewmodelmatrix_withbob, &temp, &temp2);
 		}
 
 		VectorCopy(vieworg, cl.csqc_vieworiginfromengine);
