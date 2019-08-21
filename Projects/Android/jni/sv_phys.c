@@ -2999,33 +2999,47 @@ void SV_Physics_ClientMove(void)
 	}
 }
 
-vec3_t origin_b, oldorigin_b;
+vec3_t origin_b;
 extern cvar_t cl_trackingmode;
 
 static void SV_SetWeapon_ClientOrigin(prvm_edict_t *ent)
 {
     prvm_prog_t *prog = SVVM_prog;
+
+    //Backup origin
     VectorCopy(PRVM_serveredictvector(ent, origin), origin_b);
-    VectorCopy(PRVM_serveredictvector(ent, oldorigin), oldorigin_b);
 
-    VectorCopy(gunorg, PRVM_serveredictvector(ent, origin));
-    VectorCopy(gunorg, PRVM_serveredictvector(ent, oldorigin));
-
-    if (cl_trackingmode.integer != 0) //6DoF
+    //Check gun origin validity
+    for (int i = 0; i < 3; ++i)
     {
-        PRVM_serveredictvector(ent, origin)[2] -= 16.0f;
-        PRVM_serveredictvector(ent, oldorigin)[2] -= 16.0f;
-    } else { //3DoF
-        PRVM_serveredictvector(ent, origin)[2] -= 23.0f;
-        PRVM_serveredictvector(ent, oldorigin)[2] -= 23.0f;
+        //Check for valid number
+        if (PRVM_IS_NAN(gunorg[i]) || (fabsf(gunorg[i]) > 1000000.0f)) {
+            Con_Printf("Got a NaN origin for weapon on entity #%i (%s)\n", PRVM_NUM_FOR_EDICT(ent),
+                       PRVM_GetString(prog, PRVM_serveredictstring(ent, classname)));
+
+            //Just drop out, normal origin will be used in this case
+            return;
+        }
     }
+
+    vec3_t temp_gun_org;
+    VectorCopy(gunorg, temp_gun_org);
+    if (cl_trackingmode.integer != 0)
+    { //6DoF
+        temp_gun_org[2] -= 16.0f;
+    }
+    else
+    { //3DoF
+        temp_gun_org[2] -= 23.0f;
+    }
+
+    VectorCopy(temp_gun_org, PRVM_serveredictvector(ent, origin));
 }
 
 static void SV_Restore_ClientOrigin(prvm_edict_t *ent)
 {
     prvm_prog_t *prog = SVVM_prog;
     VectorCopy(origin_b, PRVM_serveredictvector(ent, origin));
-    VectorCopy(oldorigin_b, PRVM_serveredictvector(ent, oldorigin));
 }
 
 static void SV_Physics_ClientEntity_PreThink(prvm_edict_t *ent)
