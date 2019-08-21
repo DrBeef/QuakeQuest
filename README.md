@@ -68,13 +68,10 @@ Things to note / FAQs:
 Known Issues:
 -------------
 * If you use dpmod, you know that it applies an extra weapon offset (to the right); I've tried and failed to correct it, so for now the weapon doesn't line up with the controller at all, though the laser sight is correct
-* Some slight movement when moving weapon around (this is due to how I had to implement 6DoF) however you won't notice this in the heat of battle, only when you stand still marveling at the true 6DoF weapon in your hand
 * Laser Sight out of alignment when very close to wall/object
-* The axe and arm are way out of alignment with the controller (see future to-dos)
 
 Future To-Dos:
 --------------
-* Apply weapon transformation to line up weapons with controller better
 * Add an off-hand world entity - such as Flashlight or the HUD
 * Left-handed mode needs to have the axe model reflected and a mod created so it uses the left-hand model rather than the right
 
