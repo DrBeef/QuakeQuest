@@ -1750,14 +1750,12 @@ void CL_LaserSight_CalculatePositions(vec3_t start, vec3_t end)
     vec3_t temp;
     trace_t trace;
 
-    Matrix4x4_OriginFromMatrix(&cl.entities[cl.viewentity].render.matrix, start);
-
     matrix4x4_t gunOrientationMatrix;
     Matrix4x4_CreateFromQuakeEntity(&gunOrientationMatrix, gunorg[0], gunorg[1], gunorg[2], gunangles[0], gunangles[1], gunangles[2], 1.0f);
 
     VectorSet(temp, 65536, 0, 0);
     Matrix4x4_Transform(&gunOrientationMatrix, temp, end);
-    trace = CL_TraceLine(start, end, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, true, false, NULL, true, true);
+    trace = CL_TraceLine(gunorg, end, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, true, false, NULL, true, true);
 
     VectorCopy(trace.endpos, end);
     VectorCopy(gunorg, start);
