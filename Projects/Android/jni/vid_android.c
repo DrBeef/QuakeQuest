@@ -485,14 +485,14 @@ void QC_MotionEvent(float delta, float dx, float dy)
 	static bool canAdjust = true;
 
 	//If not in vr mode, then always use yaw stick control
-	if (cl_yawmode.integer == 2)
+	if (vr_yawmode.integer == 2)
 	{
 		in_mouse_x+=(dx*delta);
 		in_windowmouse_x += (dx*delta);
 		if (in_windowmouse_x<0) in_windowmouse_x=0;
 		if (in_windowmouse_x>andrw-1) in_windowmouse_x=andrw-1;
 	}
-	else if (cl_yawmode.integer == 1) {
+	else if (vr_yawmode.integer == 1) {
 		if (fabs(dx) > 0.4 && canAdjust && delta != -1.0f) {
 			if (dx > 0.0)
 				cl.comfortInc--;
@@ -523,9 +523,9 @@ void IN_Move(void)
 {
 	cl.viewangles[PITCH] = move_event.pitch;
 
-	if (cl_yawmode.integer == 0) {
+	if (vr_yawmode.integer == 0) {
 		cl.viewangles[YAW] = move_event.yaw;
-	} else if (cl_yawmode.integer == 1) {
+	} else if (vr_yawmode.integer == 1) {
 		cl.viewangles[YAW] += move_event.yaw;
 	} else
 	{

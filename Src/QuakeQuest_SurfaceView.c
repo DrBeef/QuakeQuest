@@ -121,7 +121,7 @@ extern cvar_t cl_forwardspeed;
 extern cvar_t cl_walkdirection;
 extern cvar_t cl_controllerdeadzone;
 extern cvar_t cl_righthanded;
-extern cvar_t cl_weaponpitchadjust;
+extern cvar_t vr_weaponpitchadjust;
 extern cvar_t slowmo;
 extern cvar_t bullettime;
 extern cvar_t cl_trackingmode;
@@ -1627,6 +1627,37 @@ static int getCharacter(float x, float y)
 
 int breakHere = 0;
 
+
+#define NLF_DEADZONE 0.1
+#define NLF_POWER 2.2
+
+float nonLinearFilter(float in)
+{
+	float val = 0.0f;
+	if (in > NLF_DEADZONE)
+	{
+		val = in;
+		val -= NLF_DEADZONE;
+		val /= (1.0f - NLF_DEADZONE);
+		val = powf(val, NLF_POWER);
+	}
+	else if (in < -NLF_DEADZONE)
+	{
+		val = in;
+		val += NLF_DEADZONE;
+		val /= (1.0f - NLF_DEADZONE);
+		val = -powf(fabsf(val), NLF_POWER);
+	}
+
+	return val;
+}
+
+
+float length(float x, float y)
+{
+	return sqrtf(powf(x, 2.0f) + powf(y, 2.0f));
+}
+
 static void ovrApp_HandleInput( ovrApp * app )
 {
     float remote_movementSideways = 0.0f;
@@ -1790,7 +1821,7 @@ static void ovrApp_HandleInput( ovrApp * app )
 
             //Set gun angles
             const ovrQuatf quatRemote = dominantRemoteTracking->HeadPose.Pose.Orientation;
-            QuatToYawPitchRoll(quatRemote, -cl_weaponpitchadjust.value, gunangles);
+            QuatToYawPitchRoll(quatRemote, vr_weaponpitchadjust.value, gunangles);
 
             gunangles[YAW] += yawOffset;
 
@@ -1884,6 +1915,19 @@ static void ovrApp_HandleInput( ovrApp * app )
                 //Jump
                 handleTrackedControllerButton(&rightTrackedRemoteState_new,
                                               &rightTrackedRemoteState_old, ovrButton_A, K_SPACE);
+
+				//Adjust weapon aim pitch
+				if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) &&
+					(rightTrackedRemoteState_new.Buttons & ovrButton_B) !=
+					(rightTrackedRemoteState_old.Buttons & ovrButton_B)) {
+					float newPitchAdjust = vr_weaponpitchadjust.value + 5.0f;
+					if (newPitchAdjust > 10.0f) {
+						newPitchAdjust = -40.0f;
+					}
+
+					Cvar_SetValueQuick(&vr_weaponpitchadjust, newPitchAdjust);
+					ALOGV("Pitch Adjust: %f", newPitchAdjust);
+				}
             }
 
             if (cl_righthanded.integer) {
@@ -1901,19 +1945,6 @@ static void ovrApp_HandleInput( ovrApp * app )
             //Next Weapon
             handleTrackedControllerButton(&rightTrackedRemoteState_new,
                                           &rightTrackedRemoteState_old, ovrButton_GripTrigger, '/');
-
-            //Adjust weapon aim pitch
-            if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) &&
-                (rightTrackedRemoteState_new.Buttons & ovrButton_B) !=
-                (rightTrackedRemoteState_old.Buttons & ovrButton_B)) {
-                float newPitchAdjust = cl_weaponpitchadjust.value + 1.0f;
-                if (newPitchAdjust > 23.0f) {
-                    newPitchAdjust = -7.0f;
-                }
-
-                Cvar_SetValueQuick(&cl_weaponpitchadjust, newPitchAdjust);
-                ALOGV("Pitch Adjust: %f", newPitchAdjust);
-            }
 
             rightTrackedRemoteState_old = rightTrackedRemoteState_new;
 
@@ -1950,10 +1981,17 @@ static void ovrApp_HandleInput( ovrApp * app )
             }
 
 
+			//Apply a filter and quadratic scaler so small movements are easier to make
+			//and we don't get movement jitter when the joystick doesn't quite center properly
+			float dist = length(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y);
+			float nlf = nonLinearFilter(dist);
+			float x = nlf * leftTrackedRemoteState_new.Joystick.x;
+			float y = nlf * leftTrackedRemoteState_new.Joystick.y;
+
             //Adjust to be off-hand controller oriented
             vec2_t v;
-            rotateAboutOrigin(leftTrackedRemoteState_new.Joystick.x,
-                              leftTrackedRemoteState_new.Joystick.y,
+            rotateAboutOrigin(x,
+                              y,
                               cl_walkdirection.integer == 1 ? hmdYawHeading : controllerYawHeading,
                               v);
             remote_movementSideways = v[0];
@@ -2224,23 +2262,6 @@ typedef struct
 
 long shutdownCountdown;
 
-
-float CalcFov( float fov_x, float width, float height )
-{
-    float a;
-    float x;
-
-    if( fov_x < 1 || fov_x > 179 )
-        fov_x = 90;	// error, set to 90
-
-    x = width / tan( fov_x / 360 * M_PI );
-
-    a = atan ( height / x );
-
-    a = a * 360 / M_PI;
-
-    return a;
-}
 
 void * AppThreadFunction( void * parm )
 {

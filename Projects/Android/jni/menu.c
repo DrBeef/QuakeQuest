@@ -3026,7 +3026,7 @@ static void M_Menu_Controller_AdjustSliders (int dir)
 	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++) ;
 	else if (controllermode_cursor == optnum++) ;
-	else if (controllermode_cursor == optnum++ && cl_yawmode.integer == 1)
+	else if (controllermode_cursor == optnum++ && vr_yawmode.integer == 1)
 		{
 			float value = 45.0f;
 			if (dir == 1)
@@ -3058,7 +3058,7 @@ static void M_Menu_Controller_AdjustSliders (int dir)
 
 			Cvar_SetValueQuick (&cl_comfort, value);
 		}
-	else if (controllermode_cursor == optnum++  && cl_yawmode.integer == 2)
+	else if (controllermode_cursor == optnum++  && vr_yawmode.integer == 2)
 		Cvar_SetValueQuick (&sensitivity, bound(1, (sensitivity.value + (dir * 0.25)), 10));
 }
 
@@ -3099,11 +3099,11 @@ static void M_Menu_Controller_Key (int key, int ascii)
         }
         else if (controllermode_cursor == 3)
 		{
-			int newYawMode = cl_yawmode.integer;
+			int newYawMode = vr_yawmode.integer;
 			if (--newYawMode < 0)
 				newYawMode = 2;
 
-			Cvar_SetValueQuick (&cl_yawmode, newYawMode);
+			Cvar_SetValueQuick (&vr_yawmode, newYawMode);
 		}
 		else
 			M_Menu_Controller_AdjustSliders(-1);
@@ -3125,11 +3125,11 @@ static void M_Menu_Controller_Key (int key, int ascii)
         }
         else if (controllermode_cursor == 3)
 		{
-			int newYawMode = cl_yawmode.integer;
+			int newYawMode = vr_yawmode.integer;
 			if (++newYawMode > 2)
 				newYawMode = 0;
 
-			Cvar_SetValueQuick (&cl_yawmode, newYawMode);
+			Cvar_SetValueQuick (&vr_yawmode, newYawMode);
 		}
 		else
 			M_Menu_Controller_AdjustSliders(1);
@@ -3172,16 +3172,16 @@ static void M_Menu_Controller_Draw (void)
     else
         M_Options_PrintCommand("Controller:     Right Handed", true);
 
-	if (cl_yawmode.integer == 0)
+	if (vr_yawmode.integer == 0)
 		M_Options_PrintCommand(" Turn Mode:     Swivel-Chair (default)", true);
-	else if (cl_yawmode.integer == 1)
+	else if (vr_yawmode.integer == 1)
 		M_Options_PrintCommand(" Turn Mode:     Snap-turn", true);
 	else
 		M_Options_PrintCommand(" Turn Mode:     Smooth Turn", true);
 
-	M_Options_PrintSlider(  "        Snap Turn Angle", (cl_yawmode.integer == 1), cl_comfort.value, 30, 180);
-	M_Options_PrintSlider(  "      Smooth Turn Speed", (cl_yawmode.integer == 2), sensitivity.value, 1, 10);
-	if (cl_yawmode.integer >= 2)
+	M_Options_PrintSlider(  "        Snap Turn Angle", (vr_yawmode.integer == 1), cl_comfort.value, 30, 180);
+	M_Options_PrintSlider(  "      Smooth Turn Speed", (vr_yawmode.integer == 2), sensitivity.value, 1, 10);
+	if (vr_yawmode.integer >= 2)
 	{
 		M_Options_PrintCommand(" ", true);
 		M_Options_PrintCommand(" ", true);
@@ -3611,7 +3611,7 @@ static void M_Credits_Draw (void)
 			"   QQQQQQQQ           QQQQQQQQ      ",
 			"     QQQ                QQQ         ",
    			"      Q                  Q          ",
-	  		"      Q                  Q   v1.4.2 ");
+	  		"      Q                  Q   v1.4.4 ");
 
 	int i, l, linelength, firstline, lastline, lines;
 	for (i = 0, linelength = 0, firstline = 9999, lastline = -1;m_credits_message[i];i++)

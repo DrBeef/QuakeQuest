@@ -437,7 +437,7 @@ cvar_t cl_sidespeed = {CVAR_SAVE, "cl_sidespeed","150","strafe movement speed"};
 cvar_t cl_movespeedkey = {CVAR_SAVE, "cl_movespeedkey","2.0","how much +speed multiplies keyboard movement speed"};
 cvar_t cl_movecliptokeyboard = {0, "cl_movecliptokeyboard", "0", "if set to 1, any move is clipped to the nine keyboard states; if set to 2, only the direction is clipped, not the amount"};
 
-cvar_t cl_yawmode = {CVAR_SAVE, "cl_yawmode","0","0 = swivel-chair, 1 = comfort, 2 = stick"};
+cvar_t vr_yawmode = {CVAR_SAVE, "vr_yawmode","1","0 = swivel-chair, 1 = snap, 2 = stick"};
 cvar_t cl_walkdirection = {CVAR_SAVE, "cl_walkdirection","1","0 - Walk in direction of off-hand controller, 1 - Walk in direction of HMD"};
 cvar_t cl_comfort = {CVAR_SAVE, "cl_comfort","45.0","angle by which comfort mode adjusts yaw"};
 cvar_t cl_yawspeed = {CVAR_SAVE, "cl_yawspeed","150","keyboard yaw turning speed"};
@@ -446,7 +446,7 @@ cvar_t cl_yawmult = {CVAR_SAVE, "cl_yawmult","1.0","Multiplier for yaw (leave at
 cvar_t cl_pitchmult = {CVAR_SAVE, "cl_pitchmult","1.0","Multiplier for yaw (leave at 1.0)"};
 cvar_t cl_controllerdeadzone = {0, "cl_controllerdeadzone","0.05","Amount of deadzone to prevent movement drift due to badly calibrated controller (0.0 to 1.0)"};
 cvar_t cl_righthanded = {CVAR_SAVE, "cl_righthanded","1","right-handed?"};
-cvar_t cl_weaponpitchadjust = {CVAR_SAVE, "cl_weaponpitchadjust","8.0","Weapon pitch adjustment"};
+cvar_t vr_weaponpitchadjust = {CVAR_SAVE, "vr_weaponpitchadjust","-30.0","Weapon pitch adjustment"};
 cvar_t cl_trackingmode = {CVAR_SAVE, "cl_trackingmode","1","Tracking Mode:- 1 - 6DoF or 0 - 3DoF"};
 
 
@@ -513,12 +513,12 @@ static void CL_AdjustAngles (qboolean firstCall)
 	if (!(in_strafe.state & 1))
 	{
 		//Comfort mode
-		if ((cl_yawmode.integer == 1) && firstCall)
+		if ((vr_yawmode.integer == 1) && firstCall)
 		{
 			cl.viewangles[YAW] = (float)(cl.comfortInc) * cl_comfort.value;
 		}
 		//Stick control mode
-		if (cl_yawmode.integer == 2)
+		if (vr_yawmode.integer == 2)
 		{
 			cl.viewangles[YAW] -= speed*cl_yawspeed.value*CL_KeyState (&in_right);
 			cl.viewangles[YAW] += speed*cl_yawspeed.value*CL_KeyState (&in_left);
@@ -2257,7 +2257,7 @@ void CL_InitInput (void)
 #endif
 	Cmd_AddCommand ("register_bestweapon", IN_BestWeapon_Register_f, "(for QC usage only) change weapon parameters to be used by bestweapon; stuffcmd this in ClientConnect");
 
-	Cvar_RegisterVariable(&cl_yawmode);
+	Cvar_RegisterVariable(&vr_yawmode);
 	Cvar_RegisterVariable(&cl_walkdirection);
 	Cvar_RegisterVariable(&cl_comfort);
 	Cvar_RegisterVariable(&cl_yawspeed);
@@ -2265,7 +2265,7 @@ void CL_InitInput (void)
 	Cvar_RegisterVariable(&cl_yawmult);
 	Cvar_RegisterVariable(&cl_controllerdeadzone);
 	Cvar_RegisterVariable(&cl_righthanded);
-	Cvar_RegisterVariable(&cl_weaponpitchadjust);
+	Cvar_RegisterVariable(&vr_weaponpitchadjust);
 	Cvar_RegisterVariable(&cl_trackingmode);
 
 	Cvar_RegisterVariable(&cl_movecliptokeyboard);

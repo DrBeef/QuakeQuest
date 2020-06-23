@@ -14,7 +14,7 @@
 #include "snd_main.h"
 
 cvar_t scr_viewsize = {CVAR_SAVE, "viewsize","100", "how large the view should be, 110 disables inventory bar, 120 disables status bar"};
-cvar_t scr_fov = {CVAR_SAVE, "vr_fov","106", "field of vision for VR - defaulted to 106"};
+cvar_t scr_fov = {CVAR_SAVE, "vr_fov_fixed","104", "field of vision for VR - defaulted to 104"};
 cvar_t scr_conalpha = {CVAR_SAVE, "scr_conalpha", "0.85", "opacity of console background gfx/conback"};
 cvar_t scr_conalphafactor = {CVAR_SAVE, "scr_conalphafactor", "1", "opacity of console background gfx/conback relative to scr_conalpha; when 0, gfx/conback is not drawn"};
 cvar_t scr_conalpha2factor = {CVAR_SAVE, "scr_conalpha2factor", "0", "opacity of console background gfx/conback2 relative to scr_conalpha; when 0, gfx/conback2 is not drawn"};
@@ -2718,8 +2718,8 @@ void CL_BeginUpdateScreen()
 	// bound field of view
 	if (scr_fov.value < 1)
 		Cvar_Set ("fov","1");
-	if (scr_fov.value > 170)
-		Cvar_Set ("fov","170");
+	if (scr_fov.value > 104)
+		Cvar_Set ("fov","104");
 
 	// intermission is always full screen
 	if (cl.intermission)

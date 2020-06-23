@@ -126,7 +126,7 @@ cvar_t r_fakelight_intensity = {0, "r_fakelight_intensity","0.75", "fakelight in
 
 cvar_t r_lasersight = {CVAR_SAVE, "r_lasersight", "0","Whether laser sight aim is used"};
 
-cvar_t r_wateralpha = {CVAR_SAVE, "r_wateralpha","1", "opacity of water polygons"};
+cvar_t r_wateralpha = {CVAR_SAVE, "r_wateralpha","0.7", "opacity of water polygons"};
 cvar_t r_dynamic = {CVAR_SAVE, "r_dynamic","1", "enables dynamic lights (rocket glow and such)"};
 cvar_t r_fullbrights = {CVAR_SAVE, "r_fullbrights", "1", "enables glowing pixels in quake textures (changes need r_restart to take effect)"};
 cvar_t r_shadows = {CVAR_SAVE, "r_shadows", "0", "casts fake stencil shadows from models onto the world (rtlights are unaffected by this); when set to 2, always cast the shadows in the direction set by r_shadows_throwdirection, otherwise use the model lighting."};
@@ -199,7 +199,7 @@ cvar_t r_glsl_postprocess_uservec2_enable = {CVAR_SAVE, "r_glsl_postprocess_user
 cvar_t r_glsl_postprocess_uservec3_enable = {CVAR_SAVE, "r_glsl_postprocess_uservec3_enable", "1", "enables postprocessing uservec3 usage, creates USERVEC1 define (only useful if default.glsl has been customized)"};
 cvar_t r_glsl_postprocess_uservec4_enable = {CVAR_SAVE, "r_glsl_postprocess_uservec4_enable", "1", "enables postprocessing uservec4 usage, creates USERVEC1 define (only useful if default.glsl has been customized)"};
 
-cvar_t r_water = {CVAR_SAVE, "r_water", "0", "whether to use reflections and refraction on water surfaces (note: r_wateralpha must be set below 1)"};
+cvar_t r_water = {CVAR_SAVE, "r_water", "1", "whether to use reflections and refraction on water surfaces (note: r_wateralpha must be set below 1)"};
 cvar_t r_water_clippingplanebias = {CVAR_SAVE, "r_water_clippingplanebias", "1", "a rather technical setting which avoids black pixels around water edges"};
 cvar_t r_water_resolutionmultiplier = {CVAR_SAVE, "r_water_resolutionmultiplier", "0.5", "multiplier for screen resolution when rendering refracted/reflected scenes, 1 is full quality, lower values are faster"};
 cvar_t r_water_refractdistort = {CVAR_SAVE, "r_water_refractdistort", "0.01", "how much water refractions shimmer"};
@@ -211,7 +211,7 @@ cvar_t r_water_fbo = {CVAR_SAVE, "r_water_fbo", "1", "enables use of render to t
 
 cvar_t r_lerpsprites = {CVAR_SAVE, "r_lerpsprites", "0", "enables animation smoothing on sprites"};
 cvar_t r_lerpmodels = {CVAR_SAVE, "r_lerpmodels", "1", "enables animation smoothing on models"};
-cvar_t r_lerplightstyles = {CVAR_SAVE, "r_lerplightstyles", "0", "enable animation smoothing on flickering lights"};
+cvar_t r_lerplightstyles = {CVAR_SAVE, "r_lerplightstyles", "1", "enable animation smoothing on flickering lights"};
 cvar_t r_waterscroll = {CVAR_SAVE, "r_waterscroll", "1", "makes water scroll around, value controls how much"};
 
 cvar_t r_bloom = {CVAR_SAVE, "r_bloom", "0", "enables bloom effect (makes bright pixels affect neighboring pixels)"};
