@@ -43,7 +43,6 @@ extern float scr_con_current; // current height of displayed console
 extern int sb_lines;
 
 extern cvar_t scr_viewsize;
-extern cvar_t scr_fov;
 extern cvar_t showfps;
 extern cvar_t showtime;
 extern cvar_t showdate;

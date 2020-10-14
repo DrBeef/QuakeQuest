@@ -2261,13 +2261,17 @@ typedef struct
 } ovrAppThread;
 
 long shutdownCountdown;
+static ovrJava java;
 
+float GetFOV()
+{
+    return vrapi_GetSystemPropertyFloat( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X );
+}
 
 void * AppThreadFunction( void * parm )
 {
 	ovrAppThread * appThread = (ovrAppThread *)parm;
 
-	ovrJava java;
 	java.Vm = appThread->JavaVm;
 	(*java.Vm)->AttachCurrentThread( java.Vm, &java.Env, NULL );
 	java.ActivityObject = appThread->ActivityObject;

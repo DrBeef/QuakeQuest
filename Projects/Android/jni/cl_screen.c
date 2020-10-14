@@ -14,7 +14,6 @@
 #include "snd_main.h"
 
 cvar_t scr_viewsize = {CVAR_SAVE, "viewsize","100", "how large the view should be, 110 disables inventory bar, 120 disables status bar"};
-cvar_t scr_fov = {CVAR_SAVE, "vr_fov_fixed","104", "field of vision for VR - defaulted to 104"};
 cvar_t scr_conalpha = {CVAR_SAVE, "scr_conalpha", "0.85", "opacity of console background gfx/conback"};
 cvar_t scr_conalphafactor = {CVAR_SAVE, "scr_conalphafactor", "1", "opacity of console background gfx/conback relative to scr_conalpha; when 0, gfx/conback is not drawn"};
 cvar_t scr_conalpha2factor = {CVAR_SAVE, "scr_conalpha2factor", "0", "opacity of console background gfx/conback2 relative to scr_conalpha; when 0, gfx/conback2 is not drawn"};
@@ -1304,7 +1303,6 @@ void CL_Screen_Shutdown(void)
 void CL_Screen_Init(void)
 {
 	int i;
-	Cvar_RegisterVariable (&scr_fov);
 	Cvar_RegisterVariable (&scr_viewsize);
 	Cvar_RegisterVariable (&scr_conalpha);
 	Cvar_RegisterVariable (&scr_conalphafactor);
@@ -2075,6 +2073,8 @@ void R_ClearScreen(qboolean fogcolor)
 
 extern int r_stereo_side;
 
+float GetFOV();
+
 /*static*/ void SCR_DrawScreen (int x, int y)
 {
 	Draw_Frame();
@@ -2108,7 +2108,7 @@ extern int r_stereo_side;
 		// for a 4x3 display, if the ratio is not 4x3 this makes the fov
 		// higher/lower according to the ratio
 		r_refdef.view.useperspective = true;
-		r_refdef.view.frustum_y = tan(scr_fov.value * M_PI / 360.0) * /*(3.0/4.0) * */ cl.viewzoom;
+		r_refdef.view.frustum_y = tan(GetFOV() * M_PI / 360.0) * /*(3.0/4.0) * */ cl.viewzoom;
 		r_refdef.view.frustum_x = r_refdef.view.frustum_y * (float)r_refdef.view.width / (float)r_refdef.view.height / vid_pixelheight.value;
 
 		r_refdef.view.frustum_x *= r_refdef.frustumscale_x;
@@ -2715,11 +2715,6 @@ void CL_BeginUpdateScreen()
 	if (scr_viewsize.value > 120)
 		Cvar_Set ("viewsize","120");
 
-	// bound field of view
-	if (scr_fov.value < 1)
-		Cvar_Set ("fov","1");
-	if (scr_fov.value > 104)
-		Cvar_Set ("fov","104");
 
 	// intermission is always full screen
 	if (cl.intermission)
