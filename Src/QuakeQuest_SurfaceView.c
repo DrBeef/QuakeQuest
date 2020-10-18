@@ -2265,7 +2265,7 @@ static ovrJava java;
 
 float GetFOV()
 {
-    return vrapi_GetSystemPropertyFloat( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X );
+    return vrapi_GetSystemPropertyFloat( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_Y );
 }
 
 void * AppThreadFunction( void * parm )
