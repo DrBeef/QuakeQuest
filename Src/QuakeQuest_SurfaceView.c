@@ -1006,7 +1006,7 @@ static void ovrRenderer_Create( ovrRenderer * renderer, const ovrJava * java )
     ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -1.5f );
     modelScreen = ovrMatrix4f_Multiply( &modelScreen, &translation );
 
-    vrFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_X);
+    vrFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_Y);
 
 	// Create the render Textures.
 	for ( int eye = 0; eye < VRAPI_FRAME_LAYER_EYE_MAX; eye++ )
