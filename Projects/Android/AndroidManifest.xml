@@ -18,6 +18,7 @@
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 	<application android:allowBackup="false" android:icon="@drawable/ic_qquest" android:label="@string/quakequest">
 		<meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only"/>
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest|quest2"/>
 		<!-- The activity is the built-in NativeActivity framework class. -->
 		<!-- launchMode is set to singleTask because there should never be multiple copies of the app running. -->
 		<!-- Theme.Black.NoTitleBar.Fullscreen gives solid black instead of a (bad stereoscopic) gradient on app transition. -->
