@@ -2275,6 +2275,11 @@ float GetFOV()
     return vrapi_GetSystemPropertyFloat( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_Y );
 }
 
+float GetSysTicrate()
+{
+    return 1.0F / (float)(vrapi_GetSystemPropertyInt(&java, VRAPI_SYS_PROP_DISPLAY_REFRESH_RATE));
+}
+
 void * AppThreadFunction( void * parm )
 {
 	ovrAppThread * appThread = (ovrAppThread *)parm;

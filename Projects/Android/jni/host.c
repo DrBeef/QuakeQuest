@@ -662,6 +662,8 @@ Runs all active servers
 */
 static void Host_Init(void);
 
+float GetSysTicrate();
+
 double time1 = 0;
 double time2 = 0;
 double time3 = 0;
@@ -842,7 +844,7 @@ void Host_BeginFrame(bool stopTime)
 			// don't allow simulation to run too fast or too slow or logic glitches can occur
 
 			// stop running server frames if the wall time reaches this value
-			if (sys_ticrate.value <= 0)
+			if (GetSysTicrate() <= 0)
 				advancetime = sv_timer;
 			else if (cl.islocalgame && !sv_fixedframeratesingleplayer.integer)
 			{
@@ -851,7 +853,7 @@ void Host_BeginFrame(bool stopTime)
 			}
 			else
 			{
-				advancetime = sys_ticrate.value;
+				advancetime = GetSysTicrate();
 				// listen servers can run multiple server frames per client frame
 				framelimit = cl_maxphysicsframesperserverframe.integer;
 				aborttime = Sys_DirtyTime() + 0.1;

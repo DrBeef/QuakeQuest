@@ -493,7 +493,6 @@ extern cvar_t sv_wallfriction;
 extern cvar_t sv_wateraccelerate;
 extern cvar_t sv_waterfriction;
 extern cvar_t sv_areadebug;
-extern cvar_t sys_ticrate;
 extern cvar_t teamplay;
 extern cvar_t temp1;
 extern cvar_t timelimit;

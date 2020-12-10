@@ -519,7 +519,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 0\n"
 "sv_gameplayfix_swiminbmodels 0\n"
 "sv_gameplayfix_downtracesupportsongroundflag 0\n"
-"sys_ticrate 0.0138889\n"
 "r_shadow_gloss 1\n"
 "r_shadow_bumpscale_basetexture 0\n"
 				);
@@ -543,7 +542,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 0\n"
 "sv_gameplayfix_swiminbmodels 0\n"
 "sv_gameplayfix_downtracesupportsongroundflag 0\n"
-"sys_ticrate 0.0138889\n"
 "r_shadow_gloss 1\n"
 "r_shadow_bumpscale_basetexture 0\n"
 				);
@@ -571,7 +569,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 0\n"
 "sv_gameplayfix_swiminbmodels 0\n"
 "sv_gameplayfix_downtracesupportsongroundflag 0\n"
-"sys_ticrate 0.0138889\n"
 "r_shadow_gloss 1\n"
 "r_shadow_bumpscale_basetexture 0\n"
 				);
@@ -596,7 +593,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 0\n"
 "sv_gameplayfix_swiminbmodels 0\n"
 "sv_gameplayfix_downtracesupportsongroundflag 0\n"
-"sys_ticrate 0.0138889\n"
 "r_shadow_gloss 1\n"
 "r_shadow_bumpscale_basetexture 0\n"
 				);
@@ -620,7 +616,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 0\n"
 "sv_gameplayfix_swiminbmodels 0\n"
 "sv_gameplayfix_downtracesupportsongroundflag 0\n"
-"sys_ticrate 0.0138889\n"
 "r_shadow_gloss 2\n"
 "r_shadow_bumpscale_basetexture 4\n"
 				);
@@ -644,7 +639,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 1\n"
 "sv_gameplayfix_swiminbmodels 1\n"
 "sv_gameplayfix_downtracesupportsongroundflag 1\n"
-"sys_ticrate 0.0138889\n"
 "sv_gameplayfix_q2airaccelerate 1\n"
 "sv_gameplayfix_stepmultipletimes 1\n"
 				);
@@ -669,7 +663,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 1\n"
 "sv_gameplayfix_swiminbmodels 1\n"
 "sv_gameplayfix_downtracesupportsongroundflag 1\n"
-"sys_ticrate 0.0138889\n"
 "cl_csqc_generatemousemoveevents 0\n"
 				);
 			break;
@@ -692,7 +685,6 @@ static void Cmd_Exec(const char *filename)
 "sv_gameplayfix_q1bsptracelinereportstexture 1\n"
 "sv_gameplayfix_swiminbmodels 1\n"
 "sv_gameplayfix_downtracesupportsongroundflag 1\n"
-"sys_ticrate 0.0138889\n"
 				);
 			break;
 		}

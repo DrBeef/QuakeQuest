@@ -3010,6 +3010,8 @@ static void nearCallback (void *data, dGeomID o1, dGeomID o2)
 }
 #endif
 
+float GetSysTicrate();
+
 void World_Physics_Frame(world_t *world, double frametime, double gravity)
 {
 	prvm_prog_t *prog = world->prog;
@@ -3034,7 +3036,7 @@ void World_Physics_Frame(world_t *world, double frametime, double gravity)
 			if (physics_ode_constantstep.value > 0 && physics_ode_constantstep.value < 1)
 				world->physics.ode_step = physics_ode_constantstep.value;
 			else
-				world->physics.ode_step = sys_ticrate.value;
+				world->physics.ode_step = GetSysTicrate();
 			if (world->physics.ode_time > 0.2f)
 				world->physics.ode_time = world->physics.ode_step;
 			// set number of iterations to process

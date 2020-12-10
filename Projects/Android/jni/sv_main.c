@@ -151,7 +151,6 @@ cvar_t sv_warsowbunny_turnaccel = {0, "sv_warsowbunny_turnaccel", "0", "max shar
 cvar_t sv_warsowbunny_backtosideratio = {0, "sv_warsowbunny_backtosideratio", "0.8", "lower values make it easier to change direction without losing speed; the drawback is \"understeering\" in sharp turns"};
 cvar_t sv_onlycsqcnetworking = {0, "sv_onlycsqcnetworking", "0", "disables legacy entity networking code for higher performance (except on clients, which can still be legacy)"};
 cvar_t sv_areadebug = {0, "sv_areadebug", "0", "disables physics culling for debugging purposes (only for development)"};
-cvar_t sys_ticrate = {CVAR_SAVE, "sys_ticrate","0.0138889", "how long a server frame is in seconds, 0.05 is 20fps server rate, 0.1 is 10fps (can not be set higher than 0.1), 0 runs as many server frames as possible (makes games against bots a little smoother, overwhelms network players), 0.0138889 matches QuakeWorld physics"};
 cvar_t teamplay = {CVAR_NOTIFY, "teamplay","0", "teamplay mode, values depend on mod but typically 0 = no teams, 1 = no team damage no self damage, 2 = team damage and self damage, some mods support 3 = no team damage but can damage self"};
 cvar_t timelimit = {CVAR_NOTIFY, "timelimit","0", "ends level at this time (in minutes)"};
 cvar_t sv_threaded = {0, "sv_threaded", "0", "enables a separate thread for server code, improving performance, especially when hosting a game while playing, EXPERIMENTAL, may be crashy"};
@@ -561,7 +560,6 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_warsowbunny_backtosideratio);
 	Cvar_RegisterVariable (&sv_onlycsqcnetworking);
 	Cvar_RegisterVariable (&sv_areadebug);
-	Cvar_RegisterVariable (&sys_ticrate);
 	Cvar_RegisterVariable (&teamplay);
 	Cvar_RegisterVariable (&timelimit);
 	Cvar_RegisterVariable (&sv_threaded);
@@ -1958,6 +1956,8 @@ SV_WriteClientdataToMessage
 
 ==================
 */
+float GetSysTicrate();
+
 void SV_WriteClientdataToMessage (client_t *client, prvm_edict_t *ent, sizebuf_t *msg, int *stats)
 {
 	prvm_prog_t *prog = SVVM_prog;
@@ -2082,7 +2082,7 @@ void SV_WriteClientdataToMessage (client_t *client, prvm_edict_t *ent, sizebuf_t
 		| (sv_gameplayfix_nogravityonground.integer ? MOVEFLAG_NOGRAVITYONGROUND : 0)
 		| (sv_gameplayfix_gravityunaffectedbyticrate.integer ? MOVEFLAG_GRAVITYUNAFFECTEDBYTICRATE : 0)
 	;
-	statsf[STAT_MOVEVARS_TICRATE] = sys_ticrate.value;
+	statsf[STAT_MOVEVARS_TICRATE] = GetSysTicrate();
 	statsf[STAT_MOVEVARS_TIMESCALE] = slowmo.value;
 	statsf[STAT_MOVEVARS_GRAVITY] = sv_gravity.value;
 	statsf[STAT_MOVEVARS_STOPSPEED] = sv_stopspeed.value;
@@ -2340,7 +2340,7 @@ static void SV_SendClientDatagram (client_t *client)
 		//
 		// at very low rates (or very small sys_ticrate) the packet size is
 		// not reduced below 128, but packets may be sent less often
-		maxsize = (int)(clientrate * sys_ticrate.value);
+		maxsize = (int)(clientrate * GetSysTicrate());
 		maxsize = bound(128, maxsize, 1400);
 		maxsize2 = 1400;
 		// csqc entities can easily exceed 128 bytes, so disable throttling in
@@ -3957,10 +3957,10 @@ static int SV_ThreadFunc(void *voiddata)
 			double advancetime;
 			float offset;
 
-			if (sys_ticrate.value <= 0)
+			if (GetSysTicrate() <= 0)
 				advancetime = min(sv_timer, 0.1); // don't step more than 100ms
 			else
-				advancetime = sys_ticrate.value;
+				advancetime = GetSysTicrate();
 
 			if(advancetime > 0)
 			{
