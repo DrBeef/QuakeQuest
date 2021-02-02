@@ -31,9 +31,10 @@ Copyright	:	Copyright 2015 Oculus VR, LLC. All Rights reserved.
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 
-#include <qtypes.h>
-#include <quakedef.h>
-#include <menu.h>
+#include "../darkplaces/qtypes.h"
+#include "../darkplaces/quakedef.h"
+#include "../darkplaces/menu.h"
+
 #include <VrApi_Types.h>
 
 #if !defined( EGL_OPENGL_ES3_BIT_KHR )

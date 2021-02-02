@@ -8,113 +8,126 @@ include $(CLEAR_VARS)
 
 LOCAL_CFLAGS			:= -std=c99
 LOCAL_MODULE			:= quakequest
-LOCAL_SRC_FILES			:= ../../../Src/QuakeQuest_SurfaceView.c
 LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL		# include default libraries
+
+LOCAL_C_INCLUDES := ../QuakeQuestSrc/ ../darkplaces/
 
 LOCAL_SHARED_LIBRARIES	:= vrapi
 
-# CD objects
-SRC_NOCD=cd_null.c
-
-SRC_SND_COMMON=snd_main.c snd_mem.c snd_mix.c snd_ogg.c snd_wav.c snd_modplug.c
-
+SRC_SND_COMMON := \
+	darkplaces/snd_main.c \
+	darkplaces/snd_mem.c \
+	darkplaces/snd_mix.c \
+	darkplaces/snd_ogg.c \
+	darkplaces/snd_wav.c \
+	darkplaces/snd_modplug.c
 
 
 ###### Common objects and flags #####
 
 # Common objects
-SRC_COMMON= \
-	argtable3.c \
-	bih.c \
-	cap_avi.c \
-	cap_ogg.c \
-	cd_shared.c \
-	crypto.c \
-	cl_collision.c \
-	cl_demo.c \
-	cl_dyntexture.c \
-	cl_input.c \
-	cl_main.c \
-	cl_parse.c \
-	cl_particles.c \
-	cl_screen.c \
-	cl_video.c \
-	clvm_cmds.c \
-	cmd.c \
-	collision.c \
-	common.c \
-	console.c \
-	csprogs.c \
-	curves.c \
-	cvar.c \
-	dpsoftrast.c \
-	dpvsimpledecode.c \
-	filematch.c \
-	fractalnoise.c \
-	fs.c \
-	ft2.c \
-	utf8lib.c \
-	gl_backend.c \
-	gl_draw.c \
-	gl_rmain.c \
-	gl_rsurf.c \
-	gl_textures.c \
-	hmac.c \
-	host.c \
-	host_cmd.c \
-	image.c \
-	image_png.c \
-	jpeg.c \
-	keys.c \
-	lhnet.c \
-	libcurl.c \
-	mathlib.c \
-	matrixlib.c \
-	mdfour.c \
-	menu.c \
-	meshqueue.c \
-	mod_skeletal_animatevertices_sse.c \
-	mod_skeletal_animatevertices_generic.c \
-	model_alias.c \
-	model_brush.c \
-	model_shared.c \
-	model_sprite.c \
-	mvm_cmds.c \
-	netconn.c \
-	palette.c \
-	polygon.c \
-	portals.c \
-	protocol.c \
-	prvm_cmds.c \
-	prvm_edict.c \
-	prvm_exec.c \
-	r_explosion.c \
-	r_lerpanim.c \
-	r_lightning.c \
-	r_lasersight.c \
-	r_modules.c \
-	r_shadow.c \
-	r_sky.c \
-	r_sprites.c \
-	sbar.c \
-	snprintf.c \
-	sv_demo.c \
-	sv_main.c \
-	sv_move.c \
-	sv_phys.c \
-	sv_user.c \
-	svbsp.c \
-	svvm_cmds.c \
-	sys_shared.c \
-	vid_shared.c \
-	view.c \
-	wad.c \
-	world.c \
-	zone.c
+SRC_COMMON := \
+	darkplaces/cd_null.c \
+	darkplaces/bih.c \
+	darkplaces/cap_avi.c \
+	darkplaces/cap_ogg.c \
+	darkplaces/cd_shared.c \
+	darkplaces/crypto.c \
+	darkplaces/cl_collision.c \
+	darkplaces/cl_demo.c \
+	darkplaces/cl_dyntexture.c \
+	darkplaces/cl_input.c \
+	darkplaces/cl_main.c \
+	darkplaces/cl_parse.c \
+	darkplaces/cl_particles.c \
+	darkplaces/cl_screen.c \
+	darkplaces/cl_video.c \
+	darkplaces/clvm_cmds.c \
+	darkplaces/cmd.c \
+	darkplaces/collision.c \
+	darkplaces/common.c \
+	darkplaces/console.c \
+	darkplaces/csprogs.c \
+	darkplaces/curves.c \
+	darkplaces/cvar.c \
+	darkplaces/dpsoftrast.c \
+	darkplaces/dpvsimpledecode.c \
+	darkplaces/filematch.c \
+	darkplaces/fractalnoise.c \
+	darkplaces/fs.c \
+	darkplaces/ft2.c \
+	darkplaces/utf8lib.c \
+	darkplaces/gl_backend.c \
+	darkplaces/gl_draw.c \
+	darkplaces/gl_rmain.c \
+	darkplaces/gl_rsurf.c \
+	darkplaces/gl_textures.c \
+	darkplaces/hmac.c \
+	darkplaces/host.c \
+	darkplaces/host_cmd.c \
+	darkplaces/image.c \
+	darkplaces/image_png.c \
+	darkplaces/jpeg.c \
+	darkplaces/keys.c \
+	darkplaces/lhnet.c \
+	darkplaces/libcurl.c \
+	darkplaces/mathlib.c \
+	darkplaces/matrixlib.c \
+	darkplaces/mdfour.c \
+	darkplaces/menu.c \
+	darkplaces/meshqueue.c \
+	darkplaces/mod_skeletal_animatevertices_sse.c \
+	darkplaces/mod_skeletal_animatevertices_generic.c \
+	darkplaces/model_alias.c \
+	darkplaces/model_brush.c \
+	darkplaces/model_shared.c \
+	darkplaces/model_sprite.c \
+	darkplaces/mvm_cmds.c \
+	darkplaces/netconn.c \
+	darkplaces/palette.c \
+	darkplaces/polygon.c \
+	darkplaces/portals.c \
+	darkplaces/protocol.c \
+	darkplaces/prvm_cmds.c \
+	darkplaces/prvm_edict.c \
+	darkplaces/prvm_exec.c \
+	darkplaces/r_explosion.c \
+	darkplaces/r_lerpanim.c \
+	darkplaces/r_lightning.c \
+	darkplaces/r_lasersight.c \
+	darkplaces/r_modules.c \
+	darkplaces/r_shadow.c \
+	darkplaces/r_sky.c \
+	darkplaces/r_sprites.c \
+	darkplaces/sbar.c \
+	darkplaces/snprintf.c \
+	darkplaces/sv_demo.c \
+	darkplaces/sv_main.c \
+	darkplaces/sv_move.c \
+	darkplaces/sv_phys.c \
+	darkplaces/sv_user.c \
+	darkplaces/svbsp.c \
+	darkplaces/svvm_cmds.c \
+	darkplaces/sys_shared.c \
+	darkplaces/vid_shared.c \
+	darkplaces/view.c \
+	darkplaces/wad.c \
+	darkplaces/world.c \
+	darkplaces/zone.c
 
-SRC_ANDROID= builddate.c sys_linux.c vid_android.c thread_pthread.c snd_android.c $(SRC_SND_COMMON) $(SRC_NOCD) $(SRC_COMMON)
+SRC_QUEST := \
+	QuakeQuestSrc/argtable3.c \
+	QuakeQuestSrc/QuakeQuest_SurfaceView.c
 
-LOCAL_SRC_FILES += $(SRC_ANDROID) 
+LOCAL_SRC_FILES := \
+	$(SRC_QUEST) \
+	darkplaces/builddate.c \
+	darkplaces/sys_linux.c \
+	darkplaces/vid_android.c \
+	darkplaces/thread_pthread.c \
+	darkplaces/snd_android.c  \
+	$(SRC_SND_COMMON) \
+	$(SRC_COMMON)
 
 include $(BUILD_SHARED_LIBRARY)
 

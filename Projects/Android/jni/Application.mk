@@ -3,7 +3,7 @@
 # Application.mk.
 ROOT_DIR := $(dir $(lastword $(MAKEFILE_LIST)))../../../../..
 
-APP_PLATFORM := android-21
+APP_PLATFORM := android-24
 
 NDK_MODULE_PATH := $(ROOT_DIR)
 
