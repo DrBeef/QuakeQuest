@@ -117,7 +117,8 @@ SRC_COMMON := \
 
 SRC_QUEST := \
 	QuakeQuestSrc/argtable3.c \
-	QuakeQuestSrc/QuakeQuest_SurfaceView.c
+	QuakeQuestSrc/QuakeQuest_SurfaceView.c \
+	QuakeQuestSrc/VrCompositor.c \
 
 LOCAL_SRC_FILES := \
 	$(SRC_QUEST) \

@@ -1,6 +1,6 @@
 /************************************************************************************
 
-Filename	:	QuakeQuest.c based on VrCubeWorld_SurfaceView.c
+Filename	:	QuakeQuest_SurfaceView.c based on VrCubeWorld_SurfaceView.c
 Content		:	This sample uses a plain Android SurfaceView and handles all
 				Activity and Surface life cycle events in native code. This sample
 				does not use the application framework and also does not use LibOVR.
@@ -15,7 +15,6 @@ Copyright	:	Copyright 2015 Oculus VR, LLC. All Rights reserved.
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <math.h>
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -35,22 +34,20 @@ Copyright	:	Copyright 2015 Oculus VR, LLC. All Rights reserved.
 #include "../darkplaces/quakedef.h"
 #include "../darkplaces/menu.h"
 
-#include <VrApi_Types.h>
+#include "VrApi.h"
+#include "VrApi_Helpers.h"
+#include "VrApi_SystemUtils.h"
+#include "VrApi_Input.h"
+#include "VrApi_Types.h"
+
+#include "VrCompositor.h"
+
+
+#include "VrCommon.h"
 
 #if !defined( EGL_OPENGL_ES3_BIT_KHR )
 #define EGL_OPENGL_ES3_BIT_KHR		0x0040
 #endif
-
-#define PITCH 0
-#define YAW 1
-#define ROLL 2
-
-
-#define SOURCE_GAMEPAD 	0x00000401
-#define SOURCE_JOYSTICK 0x01000010
-
-
-float maximumSupportedFramerate=60.0; //The lowest default framerate
 
 // EXT_texture_border_clamp
 #ifndef GL_CLAMP_TO_BORDER
@@ -89,29 +86,13 @@ PFNEGLSIGNALSYNCKHRPROC			eglSignalSyncKHR;
 PFNEGLGETSYNCATTRIBKHRPROC		eglGetSyncAttribKHR;
 #endif
 
-#include "VrApi.h"
-#include "VrApi_Helpers.h"
-#include "VrApi_SystemUtils.h"
-#include "VrApi_Input.h"
-
-#ifndef NDEBUG
-#define DEBUG 1
-#endif
-
-#define LOG_TAG "QuakeQuest"
-
-#define ALOGE(...) __android_log_print( ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__ )
-#if DEBUG
-#define ALOGV(...) __android_log_print( ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__ )
-#else
-#define ALOGV(...)
-#endif
-
-int CPU_LEVEL			= 2;
-int GPU_LEVEL			= 3;
+//Let's go to the maximum!
+int CPU_LEVEL			= 4;
+int GPU_LEVEL			= 4;
 int NUM_MULTI_SAMPLES	= 1;
+float SS_MULTIPLIER    = 1.2f;
 
-float SS_MULTIPLIER    = 1.0f;
+float maximumSupportedFramerate=60.0; //The lowest default framerate
 
 extern float worldPosition[3];
 float hmdPosition[3];
@@ -120,7 +101,7 @@ float positionDeltaThisFrame[3];
 
 extern cvar_t vr_worldscale;
 extern cvar_t r_lasersight;
-extern cvar_t cl_forwardspeed;
+extern cvar_t cl_movementspeed;
 extern cvar_t cl_walkdirection;
 extern cvar_t cl_controllerdeadzone;
 extern cvar_t cl_righthanded;
@@ -129,16 +110,18 @@ extern cvar_t slowmo;
 extern cvar_t bullettime;
 extern cvar_t cl_trackingmode;
 
-extern int			key_consoleactive;
+ovrDeviceID controllerIDs[2];
 
-static float radians(float deg) {
+
+jclass clazz;
+
+float radians(float deg) {
 	return (deg * M_PI) / 180.0;
 }
 
-static float degrees(float rad) {
+float degrees(float rad) {
 	return (rad * 180.0) / M_PI;
 }
-
 
 /* global arg_xxx structs */
 struct arg_dbl *ss;
@@ -154,22 +137,22 @@ int argc=0;
 /*
 ================================================================================
 
-System Clock Time
+System Clock Time in millis
 
 ================================================================================
 */
 
-static double GetTimeInSeconds()
+double GetTimeInMilliSeconds()
 {
 	struct timespec now;
 	clock_gettime( CLOCK_MONOTONIC, &now );
-	return ( now.tv_sec * 1e9 + now.tv_nsec ) * 0.000000001;
+	return ( now.tv_sec * 1e9 + now.tv_nsec ) * (double)(1e-6);
 }
 
 /*
 ================================================================================
 
-QQUEST Stuff
+QuakeQuest Stuff
 
 ================================================================================
 */
@@ -267,23 +250,22 @@ long delta=0;
 int curtime;
 int Sys_Milliseconds (void)
 {
-	struct timeval tp;
-	struct timezone tzp;
-	static int		secbase;
+    struct timeval tp;
+    struct timezone tzp;
+    static int		secbase;
 
-	gettimeofday(&tp, &tzp);
+    gettimeofday(&tp, &tzp);
 
-	if (!secbase)
-	{
-		secbase = tp.tv_sec;
-		return tp.tv_usec/1000;
-	}
+    if (!secbase)
+    {
+        secbase = tp.tv_sec;
+        return tp.tv_usec/1000;
+    }
 
-	curtime = (tp.tv_sec - secbase)*1000 + tp.tv_usec/1000;
+    curtime = (tp.tv_sec - secbase)*1000 + tp.tv_usec/1000;
 
-	return curtime;
+    return curtime;
 }
-
 int runStatus = -1;
 void QC_exit(int exitCode)
 {
@@ -296,20 +278,20 @@ float weaponOffset[3];
 float weaponVelocity[3];
 
 float vrFOV;
-float vrWidth;
-float vrHeight;
+
+int hmdType;
 
 int bigScreen = 1;
-ovrMatrix4f modelScreen;
-ovrMatrix4f rotation;
+extern client_static_t	cls;
+
+qboolean useScreenLayer()
+{
+    //TODO
+    return (bigScreen != 0 || cls.demoplayback || key_consoleactive);
+}
 
 void BigScreenMode(int mode)
 {
-	if (mode == 1 && key_consoleactive == 0) // bit of a hack, but only way rotation set when menu first invoked
-	{
-		rotation = ovrMatrix4f_CreateRotation( 0.0f, radians(hmdorientation[YAW]), 0.0f );
-	}
-
 	if (bigScreen != 2)
 	{
 		bigScreen = mode;
@@ -317,7 +299,6 @@ void BigScreenMode(int mode)
 }
 
 extern int stereoMode;
-qboolean demoplayback;
 
 static void UnEscapeQuotes( char *arg )
 {
@@ -461,43 +442,6 @@ static const char * GlFrameBufferStatusString( GLenum status )
 	}
 }
 
-#define CHECK_GL_ERRORS
-#ifdef CHECK_GL_ERRORS
-
-static const char * GlErrorString( GLenum error )
-{
-	switch ( error )
-	{
-		case GL_NO_ERROR:						return "GL_NO_ERROR";
-		case GL_INVALID_ENUM:					return "GL_INVALID_ENUM";
-		case GL_INVALID_VALUE:					return "GL_INVALID_VALUE";
-		case GL_INVALID_OPERATION:				return "GL_INVALID_OPERATION";
-		case GL_INVALID_FRAMEBUFFER_OPERATION:	return "GL_INVALID_FRAMEBUFFER_OPERATION";
-		case GL_OUT_OF_MEMORY:					return "GL_OUT_OF_MEMORY";
-		default: return "unknown";
-	}
-}
-
-static void GLCheckErrors( int line )
-{
-	for ( int i = 0; i < 10; i++ )
-	{
-		const GLenum error = glGetError();
-		if ( error == GL_NO_ERROR )
-		{
-			break;
-		}
-		ALOGE( "GL error on line %d: %s", line, GlErrorString( error ) );
-	}
-}
-
-#define GL( func )		func; GLCheckErrors( __LINE__ );
-
-#else // CHECK_GL_ERRORS
-
-#define GL( func )		func;
-
-#endif // CHECK_GL_ERRORS
 
 /*
 ================================================================================
@@ -685,17 +629,6 @@ ovrFramebuffer
 ================================================================================
 */
 
-typedef struct
-{
-	int						Width;
-	int						Height;
-	int						Multisamples;
-	int						TextureSwapChainLength;
-	int						TextureSwapChainIndex;
-	ovrTextureSwapChain *	ColorTextureSwapChain;
-	GLuint *				DepthBuffers;
-	GLuint *				FrameBuffers;
-} ovrFramebuffer;
 
 static void ovrFramebuffer_Clear( ovrFramebuffer * frameBuffer )
 {
@@ -721,7 +654,7 @@ static bool ovrFramebuffer_Create( ovrFramebuffer * frameBuffer, const GLenum co
 	PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC glFramebufferTextureMultisampleMultiviewOVR =
 		(PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC) eglGetProcAddress( "glFramebufferTextureMultisampleMultiviewOVR" );
 
-	frameBuffer->Width = width;
+    frameBuffer->Width = width;
 	frameBuffer->Height = height;
 	frameBuffer->Multisamples = multisamples;
 
@@ -745,10 +678,10 @@ static bool ovrFramebuffer_Create( ovrFramebuffer * frameBuffer, const GLenum co
 		}
 		else
 		{
-			// Just clamp to edge. However, this requires manually clearing the border
-			// around the layer to clear the edge texels.
-			GL( glTexParameteri( colorTextureTarget, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE ) );
-			GL( glTexParameteri( colorTextureTarget, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE ) );
+        // Just clamp to edge. However, this requires manually clearing the border
+        // around the layer to clear the edge texels.
+        GL( glTexParameteri( colorTextureTarget, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE ) );
+        GL( glTexParameteri( colorTextureTarget, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE ) );
 		}
 		GL( glTexParameteri( colorTextureTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR ) );
 		GL( glTexParameteri( colorTextureTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR ) );
@@ -804,7 +737,7 @@ static bool ovrFramebuffer_Create( ovrFramebuffer * frameBuffer, const GLenum co
 	return true;
 }
 
-static void ovrFramebuffer_Destroy( ovrFramebuffer * frameBuffer )
+void ovrFramebuffer_Destroy( ovrFramebuffer * frameBuffer )
 {
 	GL( glDeleteFramebuffers( frameBuffer->TextureSwapChainLength, frameBuffer->FrameBuffers ) );
 	GL( glDeleteRenderbuffers( frameBuffer->TextureSwapChainLength, frameBuffer->DepthBuffers ) );
@@ -817,57 +750,58 @@ static void ovrFramebuffer_Destroy( ovrFramebuffer * frameBuffer )
 	ovrFramebuffer_Clear( frameBuffer );
 }
 
-static void ovrFramebuffer_SetCurrent( ovrFramebuffer * frameBuffer )
+void ovrFramebuffer_SetCurrent( ovrFramebuffer * frameBuffer )
 {
-	GL( glBindFramebuffer( GL_DRAW_FRAMEBUFFER, frameBuffer->FrameBuffers[frameBuffer->TextureSwapChainIndex] ) );
+    GL( glBindFramebuffer( GL_DRAW_FRAMEBUFFER, frameBuffer->FrameBuffers[frameBuffer->TextureSwapChainIndex] ) );
 }
 
-static void ovrFramebuffer_SetNone()
+void ovrFramebuffer_SetNone()
 {
-	GL( glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 ) );
+    GL( glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 ) );
 }
 
-static void ovrFramebuffer_Resolve( ovrFramebuffer * frameBuffer )
+void ovrFramebuffer_Resolve( ovrFramebuffer * frameBuffer )
 {
 	// Discard the depth buffer, so the tiler won't need to write it back out to memory.
 	const GLenum depthAttachment[1] = { GL_DEPTH_ATTACHMENT };
 	glInvalidateFramebuffer( GL_DRAW_FRAMEBUFFER, 1, depthAttachment );
 
-	// Flush this frame worth of commands.
-	glFlush();
+    // Flush this frame worth of commands.
+    glFlush();
 }
 
-static void ovrFramebuffer_Advance( ovrFramebuffer * frameBuffer )
+void ovrFramebuffer_Advance( ovrFramebuffer * frameBuffer )
 {
 	// Advance to the next texture from the set.
 	frameBuffer->TextureSwapChainIndex = ( frameBuffer->TextureSwapChainIndex + 1 ) % frameBuffer->TextureSwapChainLength;
 }
 
 
-static void ovrFramebuffer_ClearEdgeTexels( ovrFramebuffer * frameBuffer )
+void ovrFramebuffer_ClearEdgeTexels( ovrFramebuffer * frameBuffer )
 {
-    GL( glEnable( GL_SCISSOR_TEST ) );
-    GL( glViewport( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
+	GL( glEnable( GL_SCISSOR_TEST ) );
+	GL( glViewport( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
 
-    // Explicitly clear the border texels to black because OpenGL-ES does not support GL_CLAMP_TO_BORDER.
-    // Clear to fully opaque black.
-    GL( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
+	// Explicitly clear the border texels to black because OpenGL-ES does not support GL_CLAMP_TO_BORDER.
+	// Clear to fully opaque black.
+	GL( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
 
-    // bottom
-    GL( glScissor( 0, 0, frameBuffer->Width, 1 ) );
-    GL( glClear( GL_COLOR_BUFFER_BIT ) );
-    // top
-    GL( glScissor( 0, frameBuffer->Height - 1, frameBuffer->Width, 1 ) );
-    GL( glClear( GL_COLOR_BUFFER_BIT ) );
-    // left
-    GL( glScissor( 0, 0, 1, frameBuffer->Height ) );
-    GL( glClear( GL_COLOR_BUFFER_BIT ) );
-    // right
-    GL( glScissor( frameBuffer->Width - 1, 0, 1, frameBuffer->Height ) );
-    GL( glClear( GL_COLOR_BUFFER_BIT ) );
+	// bottom
+	GL( glScissor( 0, 0, frameBuffer->Width, 1 ) );
+	GL( glClear( GL_COLOR_BUFFER_BIT ) );
+	// top
+	GL( glScissor( 0, frameBuffer->Height - 1, frameBuffer->Width, 1 ) );
+	GL( glClear( GL_COLOR_BUFFER_BIT ) );
+	// left
+	GL( glScissor( 0, 0, 1, frameBuffer->Height ) );
+	GL( glClear( GL_COLOR_BUFFER_BIT ) );
+	// right
+	GL( glScissor( frameBuffer->Width - 1, 0, 1, frameBuffer->Height ) );
+	GL( glClear( GL_COLOR_BUFFER_BIT ) );
 
-    GL( glScissor( 0, 0, 0, 0 ) );
-    GL( glDisable( GL_SCISSOR_TEST ) );
+
+	GL( glScissor( 0, 0, 0, 0 ) );
+	GL( glDisable( GL_SCISSOR_TEST ) );
 }
 
 
@@ -880,170 +814,40 @@ ovrRenderer
 */
 
 
-typedef struct
-{
-	ovrFramebuffer	FrameBuffer[VRAPI_FRAME_LAYER_EYE_MAX];
-	ovrFramebuffer	QuakeFrameBuffer;
-	ovrMatrix4f		ProjectionMatrix;
-	int				NumBuffers;
-} ovrRenderer;
-
-static void ovrRenderer_Clear( ovrRenderer * renderer )
+void ovrRenderer_Clear( ovrRenderer * renderer )
 {
 	for ( int eye = 0; eye < VRAPI_FRAME_LAYER_EYE_MAX; eye++ )
 	{
 		ovrFramebuffer_Clear( &renderer->FrameBuffer[eye] );
 	}
-	ovrFramebuffer_Clear( &renderer->QuakeFrameBuffer );
-	renderer->ProjectionMatrix = ovrMatrix4f_CreateIdentity();
+
 	renderer->NumBuffers = VRAPI_FRAME_LAYER_EYE_MAX;
 }
 
 
-static const char VERTEX_SHADER[] =
-		"uniform mat4 u_MVPMatrix;"
-		"attribute vec4 a_Position;"
-		"attribute vec2 a_texCoord;"
-		"varying vec2 v_texCoord;"
-		"void main() {"
-		"  gl_Position = u_MVPMatrix * a_Position;"
-		"  v_texCoord = a_texCoord;"
-		"}";
-
-
-static const char FRAGMENT_SHADER[] =
-		"precision mediump float;"
-		"varying vec2 v_texCoord;"
-		"uniform sampler2D s_texture;"
-		"uniform sampler2D s_texture1;"
-		"void main() {"
-		"  gl_FragColor = texture2D( s_texture, v_texCoord )  *  texture2D( s_texture1, v_texCoord );"
-		"}";
-
-int loadShader(int type, const char * shaderCode){
-	int shader = glCreateShader(type);
-	GLint length = 0;
-	GL( glShaderSource(shader, 1, &shaderCode, 0));
-	GL( glCompileShader(shader));
-	return shader;
-}
-
-int BuildScreenVignetteTexture( )
-{
-	static const int scale = 8;
-	static const int width = 10 * scale;
-	static const int height = 8 * scale;
-	unsigned char buffer[width * height];
-	memset( buffer, 255, sizeof( buffer ) );
-	for ( int i = 0; i < width; i++ )
-	{
-		buffer[i] = 0;
-		buffer[width*height - 1 - i] = 0;
-	}
-	for ( int i = 0; i < height; i++ )
-	{
-		buffer[i * width] = 0;
-		buffer[i * width + width - 1] = 0;
-	}
-	GLuint texId = 0;
-	glGenTextures( 1, &texId );
-	glBindTexture( GL_TEXTURE_2D, texId );
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, buffer );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-	glBindTexture( GL_TEXTURE_2D, 0 );
-
-	return texId;
-}
-
-static short indices[6] = {0, 1, 2, 0, 2, 3};
-
-static float uvs[8] = {
-		0.0f, 1.0f,
-		0.0f, 0.0f,
-		1.0f, 0.0f,
-		1.0f, 1.0f
-};
-
-static float SCREEN_COORDS[12] = {
-		-1.0f, 0.75f, 0.0f,
-		-1.0f, -0.75f, 0.0f,
-		1.0f, -0.75f, 0.0f,
-		1.0f, 0.75f, 0.0f
-};
-
-int vignetteTexture = 0;
-
-int sp_Image = 0;
-int positionParam = 0;
-int texCoordParam = 0;
-int samplerParam = 0;
-int vignetteParam = 0;
-int modelViewProjectionParam = 0;
-
-static void ovrRenderer_Create( ovrRenderer * renderer, const ovrJava * java )
+void ovrRenderer_Create( int width, int height, ovrRenderer * renderer, const ovrJava * java )
 {
 	renderer->NumBuffers = VRAPI_FRAME_LAYER_EYE_MAX;
-
-	 // Create the shaders, images
-	int vertexShader = loadShader(GL_VERTEX_SHADER, VERTEX_SHADER);
-    int fragmentShader = loadShader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
-
-
-	sp_Image = glCreateProgram();             // create empty OpenGL ES Program
-	GL( glAttachShader(sp_Image, vertexShader));   // add the vertex shader to program
-    GL( glAttachShader(sp_Image, fragmentShader)); // add the fragment shader to program
-	GL( glLinkProgram(sp_Image));                  // creates OpenGL ES program executable
-	positionParam = GL( glGetAttribLocation(sp_Image, "a_Position"));
-	texCoordParam = GL( glGetAttribLocation(sp_Image, "a_texCoord"));
-	modelViewProjectionParam = GL( glGetUniformLocation(sp_Image, "u_MVPMatrix"));
-	samplerParam = GL( glGetUniformLocation(sp_Image, "s_texture"));
-	vignetteParam = GL( glGetUniformLocation(sp_Image, "s_texture1"));
-
-    vignetteTexture = BuildScreenVignetteTexture();
-
-    modelScreen = ovrMatrix4f_CreateIdentity();
-    rotation = ovrMatrix4f_CreateIdentity();
-    ovrMatrix4f translation = ovrMatrix4f_CreateTranslation( 0, 0, -1.5f );
-    modelScreen = ovrMatrix4f_Multiply( &modelScreen, &translation );
-
-    vrFOV = vrapi_GetSystemPropertyInt( java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_Y);
 
 	// Create the render Textures.
 	for ( int eye = 0; eye < VRAPI_FRAME_LAYER_EYE_MAX; eye++ )
 	{
 		ovrFramebuffer_Create( &renderer->FrameBuffer[eye],
 							   GL_RGBA8,
-                (int)vrWidth,
-                               (int)vrHeight,
+							   width,
+							   height,
 							   NUM_MULTI_SAMPLES );
 	}
-
-	ovrFramebuffer_Create( &renderer->QuakeFrameBuffer,
-						   GL_RGBA8,
-                           (int)vrWidth,
-                           (int)vrHeight,
-						   NUM_MULTI_SAMPLES );
-
-	// Setup the projection matrix.
-	renderer->ProjectionMatrix = ovrMatrix4f_CreateProjectionFov(
-			vrFOV,
-			vrFOV,
-			0.0f, 0.0f, 1.0f, 0.0f );
-
 }
 
-static void ovrRenderer_Destroy( ovrRenderer * renderer )
+void ovrRenderer_Destroy( ovrRenderer * renderer )
 {
 	for ( int eye = 0; eye < renderer->NumBuffers; eye++ )
 	{
 		ovrFramebuffer_Destroy( &renderer->FrameBuffer[eye] );
 	}
-	ovrFramebuffer_Destroy( &renderer->QuakeFrameBuffer );
-	renderer->ProjectionMatrix = ovrMatrix4f_CreateIdentity();
 }
+
 
 #ifndef EPSILON
 #define EPSILON 0.001f
@@ -1067,10 +871,10 @@ static ovrVector3f normalizeVec(ovrVector3f vec) {
 
 void NormalizeAngles(vec3_t angles)
 {
-	while (angles[0] >= 90) angles[0] -= 360;
+	while (angles[0] >= 90) angles[0] -= 180;
 	while (angles[1] >= 180) angles[1] -= 360;
 	while (angles[2] >= 180) angles[2] -= 360;
-	while (angles[0] < -90) angles[0] += 360;
+	while (angles[0] < -90) angles[0] += 180;
 	while (angles[1] < -180) angles[1] += 360;
 	while (angles[2] < -180) angles[2] += 360;
 }
@@ -1129,10 +933,10 @@ void QuatToYawPitchRoll(ovrQuatf q, float pitchAdjust, vec3_t out) {
     ovrMatrix4f mat = ovrMatrix4f_CreateFromQuaternion( &q );
 
     if (pitchAdjust != 0.0f)
-    {
-        ovrMatrix4f rot = ovrMatrix4f_CreateRotation(radians(pitchAdjust), 0.0f, 0.0f);
-        mat = ovrMatrix4f_Multiply(&mat, &rot);
-    }
+	{
+		ovrMatrix4f rot = ovrMatrix4f_CreateRotation(radians(pitchAdjust), 0.0f, 0.0f);
+		mat = ovrMatrix4f_Multiply(&mat, &rot);
+	}
 
     ovrVector4f v1 = {0, 0, -1, 0};
     ovrVector4f v2 = {1, 0, 0, 0};
@@ -1154,15 +958,6 @@ void QuatToYawPitchRoll(ovrQuatf q, float pitchAdjust, vec3_t out) {
 	return;
 }
 
-static void adjustYaw(float adjustment, float* out)
-{
-    *out -= adjustment;
-    if (*out > 180.0f)
-        *out -= 360.0f;
-    if (*out < -180.0f)
-        *out += 360.0f;
-}
-
 void setWorldPosition( float x, float y, float z )
 {
     positionDeltaThisFrame[0] = (worldPosition[0] - x);
@@ -1174,18 +969,56 @@ void setWorldPosition( float x, float y, float z )
     worldPosition[2] = z;
 }
 
-void setHMDPosition( float x, float y, float z )
+extern float playerYaw;
+void setHMDPosition( float x, float y, float z, float yaw )
 {
-    hmdPosition[0] = x;
-    hmdPosition[1] = y;
-    if (bigScreen)
+	static bool s_useScreen = false;
+
+	VectorSet(hmdPosition, x, y, z);
+
+    if (s_useScreen != useScreenLayer())
     {
+		s_useScreen = useScreenLayer();
+
+		//Record player height on transition
         playerHeight = y;
     }
-    hmdPosition[2] = z;
+
+	if (!useScreenLayer())
+    {
+    	playerYaw = yaw;
+	}
 }
 
-static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, const ovrJava * java,
+qboolean isMultiplayer()
+{
+	return Cvar_VariableValue("maxclients") > 1;
+}
+
+
+/*
+========================
+Android_Vibrate
+========================
+*/
+
+//0 = left, 1 = right
+float vibration_channel_duration[2] = {0.0f, 0.0f};
+float vibration_channel_intensity[2] = {0.0f, 0.0f};
+
+void Android_Vibrate( float duration, int channel, float intensity )
+{
+	if (vibration_channel_duration[channel] > 0.0f)
+		return;
+
+	if (vibration_channel_duration[channel] == -1.0f &&	duration != 0.0f)
+		return;
+
+	vibration_channel_duration[channel] = duration;
+	vibration_channel_intensity[channel] = intensity;
+}
+
+static void ovrRenderer_RenderFrame( ovrRenderer * renderer, const ovrJava * java,
 											const ovrTracking2 * tracking, ovrMobile * ovr )
 {
     ovrTracking2 updatedTracking = *tracking;
@@ -1196,7 +1029,7 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
     const ovrQuatf quatHmd = tracking->HeadPose.Pose.Orientation;
     const ovrVector3f positionHmd = tracking->HeadPose.Pose.Position;
     QuatToYawPitchRoll(quatHmd, 0.0f, hmdorientation);
-    setHMDPosition(positionHmd.x, positionHmd.y, positionHmd.z);
+    setHMDPosition(positionHmd.x, positionHmd.y, positionHmd.z, hmdorientation[YAW]);
 
     //Use hmd position for world position
     setWorldPosition(positionHmd.x, positionHmd.y, positionHmd.z);
@@ -1213,43 +1046,14 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
     //Set everything up
     QC_BeginFrame(/* true to stop time if needed in future */ false);
 
-
-	ovrLayerProjection2 layer = vrapi_DefaultLayerProjection2();
-	layer.HeadPose = updatedTracking.HeadPose;
-	for ( int eye = 0; eye < VRAPI_FRAME_LAYER_EYE_MAX; eye++ )
-	{
-		ovrFramebuffer * frameBuffer = &renderer->FrameBuffer[renderer->NumBuffers == 1 ? 0 : eye];
-        layer.Textures[eye].ColorSwapChain = frameBuffer->ColorTextureSwapChain;
-        layer.Textures[eye].SwapChainIndex = frameBuffer->TextureSwapChainIndex;
-
-        ovrMatrix4f projectionMatrix;
-        projectionMatrix = ovrMatrix4f_CreateProjectionFov(vrFOV, vrFOV,
-                                                           0.0f, 0.0f, 0.1f, 0.0f);
-
-        layer.Textures[eye].TexCoordsFromTanAngles = ovrMatrix4f_TanAngleMatrixFromProjection(&projectionMatrix);
-
-        layer.Textures[eye].TextureRect.x = 0;
-        layer.Textures[eye].TextureRect.y = 0;
-        layer.Textures[eye].TextureRect.width = 1.0f;
-        layer.Textures[eye].TextureRect.height = 1.0f;
-	}
-	layer.Header.Flags |= VRAPI_FRAME_LAYER_FLAG_CHROMATIC_ABERRATION_CORRECTION;
-
 	// Render the eye images.
 	for ( int eye = 0; eye < renderer->NumBuffers; eye++ )
 	{
 		ovrFramebuffer * frameBuffer = &renderer->FrameBuffer[eye];
-		if (bigScreen != 0 || demoplayback)
-			frameBuffer = &renderer->QuakeFrameBuffer;
 
 		ovrFramebuffer_SetCurrent( frameBuffer );
 
 		//If showing the menu, then render mono, easier to navigate menu
-		if (eye > 0 && m_state != m_none)
-		{
-			//Do nothing, we just use the left eye again, render in Mono
-		}
-		else
 		{
 			GL( glEnable( GL_SCISSOR_TEST ) );
 			GL( glDepthMask( GL_TRUE ) );
@@ -1271,72 +1075,7 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
         //Clear edge to prevent smearing
         ovrFramebuffer_ClearEdgeTexels( frameBuffer );
 
-		if (bigScreen != 0 || demoplayback || key_consoleactive)
-		{
-			frameBuffer = &renderer->FrameBuffer[eye];
-			ovrFramebuffer_SetCurrent( frameBuffer );
 
-            // Apply the projection and view transformation
-            ovrMatrix4f modelView = ovrMatrix4f_Multiply( &updatedTracking.Eye[0].ViewMatrix, &rotation );
-            modelView = ovrMatrix4f_Multiply( &modelView, &modelScreen );
-            ovrMatrix4f modelViewProjection = ovrMatrix4f_Multiply( &renderer->ProjectionMatrix, &modelView );
-
-            GLint originalTex0 = 0;
-            GLint originalTex1 = 0;
-			GL( glEnable( GL_SCISSOR_TEST ) );
-			GL( glDepthMask( GL_TRUE ) );
-			GL( glEnable( GL_DEPTH_TEST ) );
-			GL( glDepthFunc( GL_LEQUAL ) );
-			GL( glViewport( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
-			GL( glScissor( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
-			GL( glClearColor( 0.01f, 0.0f, 0.0f, 1.0f ) );
-			GL( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
-			GL( glDisable(GL_SCISSOR_TEST));
-
-			GL( glUseProgram(sp_Image));
-
-			// Set the position of the screen
-			GL( glVertexAttribPointer(positionParam, 3, GL_FLOAT, GL_FALSE, 0, SCREEN_COORDS));
-
-			// Prepare the texture coordinates
-			GL( glVertexAttribPointer(texCoordParam, 2, GL_FLOAT, GL_FALSE, 0, uvs) );
-
-			// Apply the projection and view transformation
-			modelView = ovrMatrix4f_Multiply( &modelView, &modelScreen );
-
-			GL( glUniformMatrix4fv(modelViewProjectionParam, 1, GL_TRUE, (const GLfloat *)modelViewProjection.M[0]) );
-
-			GL( glActiveTexture(GL_TEXTURE0) );
-
-			GLuint colorTexture = vrapi_GetTextureSwapChainHandle(
-					renderer->QuakeFrameBuffer.ColorTextureSwapChain,
-					renderer->QuakeFrameBuffer.TextureSwapChainIndex);
-			glGetIntegerv(GL_TEXTURE_BINDING_2D, &originalTex0);
-			GL( glBindTexture( GL_TEXTURE_2D, colorTexture ) );
-
-			// Set the sampler texture unit to our fbo's color texture
-			GL( glUniform1i(samplerParam, 0) );
-
-			//Bind vignette texture to texture 1
-			GL( glActiveTexture( GL_TEXTURE1 ) );
-			glGetIntegerv(GL_TEXTURE_BINDING_2D, &originalTex1);
-			GL( glBindTexture( GL_TEXTURE_2D,  vignetteTexture) );
-			GL( glUniform1i(vignetteParam, 1) );
-
-			// Draw the triangles
-			GL( glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices) );
-
-
-			//Restore previously active textures
-			GL( glBindTexture(GL_TEXTURE_2D, originalTex1) );
-			GL( glActiveTexture(GL_TEXTURE0) );
-			GL( glBindTexture(GL_TEXTURE_2D, originalTex0) );
-
-
-            //Clear edge to prevent smearing
-            ovrFramebuffer_ClearEdgeTexels( frameBuffer );
-		}
-		
 		ovrFramebuffer_Resolve( frameBuffer );
 		ovrFramebuffer_Advance( frameBuffer );
 	}
@@ -1344,9 +1083,8 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
     QC_EndFrame();
 
 	ovrFramebuffer_SetNone();
-
-	return layer;
 }
+
 
 /*
 ================================================================================
@@ -1372,6 +1110,7 @@ typedef struct
 	ANativeWindow *		NativeWindow;
 	bool				Resumed;
 	ovrMobile *			Ovr;
+    ovrScene			Scene;
 	long long			FrameIndex;
 	double 				DisplayTime;
 	int					SwapInterval;
@@ -1379,6 +1118,8 @@ typedef struct
 	int					GpuLevel;
 	int					MainThreadTid;
 	int					RenderThreadTid;
+	ovrLayer_Union2		Layers[ovrMaxLayerCount];
+	int					LayerCount;
 	ovrRenderer			Renderer;
 } ovrApp;
 
@@ -1387,8 +1128,6 @@ static void ovrApp_Clear( ovrApp * app )
 	app->Java.Vm = NULL;
 	app->Java.Env = NULL;
 	app->Java.ActivityObject = NULL;
-	app->NativeWindow = NULL;
-	app->Resumed = false;
 	app->Ovr = NULL;
 	app->FrameIndex = 1;
 	app->DisplayTime = 0;
@@ -1400,6 +1139,7 @@ static void ovrApp_Clear( ovrApp * app )
 
 	ovrEgl_Clear( &app->Egl );
 
+    ovrScene_Clear( &app->Scene );
 	ovrRenderer_Clear( &app->Renderer );
 }
 
@@ -1666,6 +1406,105 @@ float length(float x, float y)
 	return sqrtf(powf(x, 2.0f) + powf(y, 2.0f));
 }
 
+static void weaponHaptics()
+{
+	if (useScreenLayer())
+	{
+		return;
+	}
+
+	qboolean isFirePressed = false;
+	if (cl_righthanded.integer) {
+		//Fire
+		isFirePressed = rightTrackedRemoteState_new.Buttons & ovrButton_Trigger;
+	} else {
+		isFirePressed = leftTrackedRemoteState_new.Buttons & ovrButton_Trigger;
+	}
+
+	if (isFirePressed)
+	{
+		static double timeLastHaptic = 0;
+		double timeNow = GetTimeInMilliSeconds();
+
+		float hapticInterval = 0;
+		float hapticLevel = 0;
+		float hapticLength = 0;
+
+		switch (cl.stats[STAT_ACTIVEWEAPON])
+		{
+			case IT_SHOTGUN:
+			{
+				hapticInterval = 500;
+				hapticLevel = 0.7f;
+				hapticLength = 150;
+			}
+			break;
+			case IT_SUPER_SHOTGUN:
+			{
+				hapticInterval = 700;
+				hapticLevel = 0.8f;
+				hapticLength = 200;
+			}
+				break;
+			case IT_NAILGUN:
+			{
+				hapticInterval = 100;
+				hapticLevel = 0.6f;
+				hapticLength = 50;
+			}
+				break;
+			case IT_SUPER_NAILGUN:
+			{
+				hapticInterval = 80;
+				hapticLevel = 0.9f;
+				hapticLength = 50;
+			}
+				break;
+			case IT_GRENADE_LAUNCHER:
+			{
+				hapticInterval = 600;
+				hapticLevel = 0.7f;
+				hapticLength = 100;
+			}
+				break;
+			case IT_ROCKET_LAUNCHER:
+			{
+				hapticInterval = 800;
+				hapticLevel = 1.0f;
+				hapticLength = 300;
+			}
+				break;
+			case IT_LIGHTNING:
+			{
+				hapticInterval = 10;
+				hapticLevel = lhrandom(0.0, 0.8f);
+				hapticLength = 10;
+			}
+				break;
+			case IT_SUPER_LIGHTNING:
+			{
+				hapticInterval = 10;
+				hapticLevel = lhrandom(0.3, 1.0f);
+				hapticLength = 10;
+			}
+				break;
+			case IT_AXE:
+			{
+				hapticInterval = 500;
+				hapticLevel = 0.6f;
+				hapticLength = 100;
+			}
+				break;
+		}
+
+		if ((timeNow - timeLastHaptic) > hapticInterval)
+		{
+			timeLastHaptic = timeNow;
+			Android_Vibrate(hapticLength, cl_righthanded.integer ? 1 : 0, hapticLevel);
+		}
+	}
+}
+
 static void ovrApp_HandleInput( ovrApp * app )
 {
     float remote_movementSideways = 0.0f;
@@ -1701,9 +1540,11 @@ static void ovrApp_HandleInput( ovrApp * app )
 				if (remoteCapabilities.ControllerCapabilities & ovrControllerCaps_RightHand) {
 					rightTrackedRemoteState_new = trackedRemoteState;
 					rightRemoteTracking = remoteTracking;
+					controllerIDs[1] = cap.DeviceID;
 				} else{
 					leftTrackedRemoteState_new = trackedRemoteState;
 					leftRemoteTracking = remoteTracking;
+					controllerIDs[0] = cap.DeviceID;
 				}
 			}
 		}
@@ -1787,9 +1628,11 @@ static void ovrApp_HandleInput( ovrApp * app )
                         right_char, right_char);
         }
 
-        //Menu button
+        //Menu button - could be on left or right controller
         handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old,
                                       ovrButton_Enter, K_ESCAPE);
+		handleTrackedControllerButton(&rightTrackedRemoteState_new, &rightTrackedRemoteState_old,
+									  ovrButton_Enter, K_ESCAPE);
 
 
         if (textInput) {
@@ -1850,20 +1693,6 @@ static void ovrApp_HandleInput( ovrApp * app )
 
             controllerYawHeading = controllerAngles[YAW] - gunangles[YAW] + yawOffset;
             hmdYawHeading = hmdorientation[YAW] - gunangles[YAW] + yawOffset;
-
-#ifndef NDEBUG
-            //Change heading mode on click of off=hand joystick
-            if ((offHandTrackedRemoteState->Buttons & ovrButton_Joystick) && bigScreen == 0 &&
-                (offHandTrackedRemoteState->Buttons & ovrButton_Joystick) !=
-                (offHandTrackedRemoteStateOld->Buttons & ovrButton_Joystick)) {
-                Cvar_SetValueQuick(&cl_walkdirection, 1 - cl_walkdirection.integer);
-                if (cl_walkdirection.integer == 1) {
-                    SCR_CenterPrint("Heading Mode: Direction of HMD");
-                } else {
-                    SCR_CenterPrint("Heading Mode: Direction of off-hand controller");
-                }
-            }
-#endif
         }
 
         //Right-hand specific stuff
@@ -1876,7 +1705,7 @@ static void ovrApp_HandleInput( ovrApp * app )
             //This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
             //player is facing for positional tracking
             float multiplier = /*arbitrary value that works ->*/
-                    2300.0f / (cl_forwardspeed.value * ((offHandTrackedRemoteState->Buttons & ovrButton_Trigger) ? cl_movespeedkey.value : 1.0f));
+                    2300.0f / (cl_movementspeed.value * ((offHandTrackedRemoteState->Buttons & ovrButton_Trigger) ? cl_movespeedkey.value : 1.0f));
 
             vec2_t v;
             rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier,
@@ -1928,13 +1757,20 @@ static void ovrApp_HandleInput( ovrApp * app )
 				if ((rightTrackedRemoteState_new.Buttons & ovrButton_B) &&
 					(rightTrackedRemoteState_new.Buttons & ovrButton_B) !=
 					(rightTrackedRemoteState_old.Buttons & ovrButton_B)) {
-					float newPitchAdjust = vr_weaponpitchadjust.value + 5.0f;
-					if (newPitchAdjust > 10.0f) {
-						newPitchAdjust = -40.0f;
-					}
 
-					Cvar_SetValueQuick(&vr_weaponpitchadjust, newPitchAdjust);
-					ALOGV("Pitch Adjust: %f", newPitchAdjust);
+					//Unused
+				}
+
+				{
+					//Weapon/Inventory Chooser
+					int rightJoyState = (rightTrackedRemoteState_new.Joystick.y < -0.7f ? 1 : 0);
+					if (rightJoyState != (rightTrackedRemoteState_old.Joystick.y < -0.7f ? 1 : 0)) {
+						QC_KeyEvent(rightJoyState, '/', 0);
+					}
+					rightJoyState = (rightTrackedRemoteState_new.Joystick.y > 0.7f ? 1 : 0);
+					if (rightJoyState != (rightTrackedRemoteState_old.Joystick.y > 0.7f ? 1 : 0)) {
+						QC_KeyEvent(rightJoyState, '#', 0);
+					}
 				}
             }
 
@@ -1949,10 +1785,6 @@ static void ovrApp_HandleInput( ovrApp * app )
                                               &rightTrackedRemoteState_old,
                                               ovrButton_Trigger, K_SHIFT);
             }
-
-            //Next Weapon
-            handleTrackedControllerButton(&rightTrackedRemoteState_new,
-                                          &rightTrackedRemoteState_old, ovrButton_GripTrigger, '/');
 
             rightTrackedRemoteState_old = rightTrackedRemoteState_new;
 
@@ -2016,10 +1848,6 @@ static void ovrApp_HandleInput( ovrApp * app )
                                               &leftTrackedRemoteState_old,
                                               ovrButton_Trigger, K_MOUSE1);
             }
-
-            //Prev Weapon
-            handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old,
-                                          ovrButton_GripTrigger, '#');
 
 #ifndef NDEBUG
             //Give all weapons and all ammo and god mode
@@ -2263,13 +2091,40 @@ typedef struct
 {
 	JavaVM *		JavaVm;
 	jobject			ActivityObject;
+	jclass          ActivityClass;
 	pthread_t		Thread;
 	ovrMessageQueue	MessageQueue;
 	ANativeWindow * NativeWindow;
 } ovrAppThread;
 
 long shutdownCountdown;
+
+int m_width;
+int m_height;
 static ovrJava java;
+
+qboolean R_SetMode( void );
+
+void Quest_GetScreenRes(int *width, int *height)
+{
+	*width = m_width;
+	*height = m_height;
+}
+
+int Quest_GetRefresh()
+{
+    return vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_DISPLAY_REFRESH_RATE );
+}
+
+float getFOV()
+{
+    return vrapi_GetSystemPropertyFloat( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_FOV_DEGREES_Y );
+}
+
+void Quest_MessageBox(const char *title, const char *text)
+{
+    ALOGE("%s %s", title, text);
+}
 
 float GetFOV()
 {
@@ -2307,12 +2162,9 @@ void * AppThreadFunction( void * parm )
 	// This app will handle android gamepad events itself.
 	vrapi_SetPropertyInt( &appState.Java, VRAPI_EAT_NATIVE_GAMEPAD_EVENTS, 0 );
 
-    //Using a symmetrical render target
-    vrWidth=vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ) * SS_MULTIPLIER;
-    vrHeight=vrWidth;
-
-
-
+	//Using a symmetrical render target
+    m_width=vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ) * SS_MULTIPLIER;
+    m_height=m_width;
     //AmmarkoV : Query Refresh rates and select maximum..!
     //----------------------------------------------------------------------------------------------------------- 
     int numberOfRefreshRates = vrapi_GetSystemPropertyInt(&java,VRAPI_SYS_PROP_NUM_SUPPORTED_DISPLAY_REFRESH_RATES);
@@ -2320,7 +2172,7 @@ void * AppThreadFunction( void * parm )
     if (numberOfRefreshRates > 16 ) { numberOfRefreshRates = 16; }
     vrapi_GetSystemPropertyFloatArray(&java, VRAPI_SYS_PROP_SUPPORTED_DISPLAY_REFRESH_RATES,&refreshRatesArray[0], numberOfRefreshRates);
     for (int i = 0; i < numberOfRefreshRates; i++) {
-                                                     ALOGV("Supported refresh rate : %s Hz", refreshRatesArray[i]);
+                                                     //ALOGV("Supported refresh rate : %s Hz", refreshRatesArray[i]);
                                                      if (maximumSupportedFramerate<refreshRatesArray[i])
                                                          {
                                                              maximumSupportedFramerate=refreshRatesArray[i];
@@ -2334,8 +2186,6 @@ void * AppThreadFunction( void * parm )
     //----------------------------------------------------------------------------------------------------------- 
 
 
-
-
 	ovrEgl_CreateContext( &appState.Egl, NULL );
 
 	EglInitExtensions();
@@ -2344,14 +2194,13 @@ void * AppThreadFunction( void * parm )
 	appState.GpuLevel = GPU_LEVEL;
 	appState.MainThreadTid = gettid();
 
-	ovrRenderer_Create( &appState.Renderer, &java );
+	ovrRenderer_Create( m_width, m_height, &appState.Renderer, &java );
 
-	//Always use this folder
-	chdir("/sdcard/QuakeQuest");
+    chdir("/sdcard/QuakeQuest");
 
-	const double startTime = GetTimeInSeconds();
+    hmdType = vrapi_GetSystemPropertyInt(&java, VRAPI_SYS_PROP_DEVICE_TYPE);
 
-	for ( bool destroyed = false; destroyed == false; )
+    for ( bool destroyed = false; destroyed == false; )
 	{
 		for ( ; ; )
 		{
@@ -2374,7 +2223,7 @@ void * AppThreadFunction( void * parm )
 					{
 						ALOGV( "    Initialising Quake Engine" );
 
-                        QC_SetResolution((int)vrWidth, (int)vrHeight);
+                        QC_SetResolution((int)m_width, (int)m_height);
 
 						if (argc != 0)
 						{
@@ -2428,6 +2277,16 @@ void * AppThreadFunction( void * parm )
 			continue;
 		}
 
+        //Use floor based tracking space
+        vrapi_SetTrackingSpace(appState.Ovr, VRAPI_TRACKING_SPACE_LOCAL_FLOOR);
+
+		// Create the scene if not yet created.
+		// The scene is created here to be able to show a loading icon.
+		if ( !ovrScene_IsCreated( &appState.Scene ) )
+		{
+			ovrScene_Create( m_width, m_height, &appState.Scene, &java );
+		}
+
         // This is the only place the frame index is incremented, right before
         // calling vrapi_GetPredictedDisplayTime().
         appState.FrameIndex++;
@@ -2463,6 +2322,31 @@ void * AppThreadFunction( void * parm )
 			vrapi_SubmitFrame2( appState.Ovr, &frameDesc );
 		}
 
+		//Handle haptics
+		static float lastFrameTime = 0.0f;
+		float timestamp = (float)(GetTimeInMilliSeconds());
+		float frametime = timestamp - lastFrameTime;
+		lastFrameTime = timestamp;
+
+		for (int i = 0; i < 2; ++i) {
+			if (vibration_channel_duration[i] > 0.0f ||
+				vibration_channel_duration[i] == -1.0f) {
+				vrapi_SetHapticVibrationSimple(appState.Ovr, controllerIDs[i],
+											   vibration_channel_intensity[i]);
+
+				if (vibration_channel_duration[i] != -1.0f) {
+					vibration_channel_duration[i] -= frametime;
+
+					if (vibration_channel_duration[i] < 0.0f) {
+						vibration_channel_duration[i] = 0.0f;
+						vibration_channel_intensity[i] = 0.0f;
+					}
+				}
+			} else {
+				vrapi_SetHapticVibrationSimple(appState.Ovr, controllerIDs[i], 0.0f);
+			}
+		}
+
         if (runStatus == -1) {
 #ifndef NDEBUG
             if (appState.FrameIndex > 10800)
@@ -2471,40 +2355,112 @@ void * AppThreadFunction( void * parm )
                 runStatus = 0;
             }
 #endif
-            // Get the HMD pose, predicted for the middle of the time period during which
-            // the new eye images will be displayed. The number of frames predicted ahead
-            // depends on the pipeline depth of the engine and the synthesis rate.
-            // The better the prediction, the less black will be pulled in at the edges.
-            const double predictedDisplayTime = vrapi_GetPredictedDisplayTime(appState.Ovr,
-                                                                              appState.FrameIndex);
-            const ovrTracking2 tracking = vrapi_GetPredictedTracking2(appState.Ovr,
-                                                                      predictedDisplayTime);
 
-            appState.DisplayTime = predictedDisplayTime;
+            //Set 90hz mode for Quest 2
+            if (hmdType == VRAPI_DEVICE_TYPE_OCULUSQUEST2) {
+                vrapi_SetDisplayRefreshRate(appState.Ovr, 90);
+            }
+
+			// Get the HMD pose, predicted for the middle of the time period during which
+			// the new eye images will be displayed. The number of frames predicted ahead
+			// depends on the pipeline depth of the engine and the synthesis rate.
+			// The better the prediction, the less black will be pulled in at the edges.
+			const double predictedDisplayTime = vrapi_GetPredictedDisplayTime(appState.Ovr,
+																			  appState.FrameIndex);
+			const ovrTracking2 tracking = vrapi_GetPredictedTracking2(appState.Ovr,
+																	  predictedDisplayTime);
+
+			appState.DisplayTime = predictedDisplayTime;
 
             ovrApp_HandleInput(&appState);
 
+			weaponHaptics();
 
-            // Render eye images and setup the primary layer using ovrTracking2.
-            const ovrLayerProjection2 worldLayer = ovrRenderer_RenderFrame(&appState.Renderer,
-                                                                           &appState.Java,
-                                                                           &tracking, appState.Ovr);
+			ovrSubmitFrameDescription2 frameDesc = { 0 };
+			if (!useScreenLayer()) {
 
-            const ovrLayerHeader2 *layers[] =
-                    {
-                            &worldLayer.Header
-                    };
+                ovrLayerProjection2 layer = vrapi_DefaultLayerProjection2();
+                layer.HeadPose = tracking.HeadPose;
+                for ( int eye = 0; eye < VRAPI_FRAME_LAYER_EYE_MAX; eye++ )
+                {
+                    ovrFramebuffer * frameBuffer = &appState.Renderer.FrameBuffer[appState.Renderer.NumBuffers == 1 ? 0 : eye];
+                    layer.Textures[eye].ColorSwapChain = frameBuffer->ColorTextureSwapChain;
+                    layer.Textures[eye].SwapChainIndex = frameBuffer->TextureSwapChainIndex;
 
-            ovrSubmitFrameDescription2 frameDesc = {};
-            frameDesc.Flags = 0;
-            frameDesc.SwapInterval = appState.SwapInterval;
-            frameDesc.FrameIndex = appState.FrameIndex;
-            frameDesc.DisplayTime = appState.DisplayTime;
-            frameDesc.LayerCount = 1;
-            frameDesc.Layers = layers;
+                    ovrMatrix4f projectionMatrix;
+                    float fov = getFOV();
+                    projectionMatrix = ovrMatrix4f_CreateProjectionFov(fov, fov,
+                                                                       0.0f, 0.0f, 0.1f, 0.0f);
 
-            // Hand over the eye images to the time warp.
-            vrapi_SubmitFrame2(appState.Ovr, &frameDesc);
+                    layer.Textures[eye].TexCoordsFromTanAngles = ovrMatrix4f_TanAngleMatrixFromProjection(&projectionMatrix);
+
+                    layer.Textures[eye].TextureRect.x = 0;
+                    layer.Textures[eye].TextureRect.y = 0;
+                    layer.Textures[eye].TextureRect.width = 1.0f;
+                    layer.Textures[eye].TextureRect.height = 1.0f;
+                }
+                layer.Header.Flags |= VRAPI_FRAME_LAYER_FLAG_CHROMATIC_ABERRATION_CORRECTION;
+
+                //Call the game drawing code to populate the cylinder layer texture
+                ovrRenderer_RenderFrame(&appState.Renderer,
+                            &appState.Java,
+                            &tracking,
+                            appState.Ovr);
+
+                // Set up the description for this frame.
+                const ovrLayerHeader2 *layers[] =
+                        {
+                                &layer.Header
+                        };
+
+                ovrSubmitFrameDescription2 frameDesc = {};
+                frameDesc.Flags = 0;
+                frameDesc.SwapInterval = appState.SwapInterval;
+                frameDesc.FrameIndex = appState.FrameIndex;
+                frameDesc.DisplayTime = appState.DisplayTime;
+                frameDesc.LayerCount = 1;
+                frameDesc.Layers = layers;
+
+                // Hand over the eye images to the time warp.
+                vrapi_SubmitFrame2(appState.Ovr, &frameDesc);
+
+			} else {
+				// Set-up the compositor layers for this frame.
+				// NOTE: Multiple independent layers are allowed, but they need to be added
+				// in a depth consistent order.
+				memset( appState.Layers, 0, sizeof( ovrLayer_Union2 ) * ovrMaxLayerCount );
+				appState.LayerCount = 0;
+
+				// Add a simple cylindrical layer
+				appState.Layers[appState.LayerCount++].Cylinder =
+						BuildCylinderLayer( &appState.Scene.CylinderRenderer,
+											appState.Scene.CylinderWidth, appState.Scene.CylinderHeight, &tracking, radians(playerYaw) );
+
+				//Call the game drawing code to populate the cylinder layer texture
+                ovrRenderer_RenderFrame(&appState.Scene.CylinderRenderer,
+										&appState.Java,
+										&tracking,
+										appState.Ovr);
+
+
+				// Compose the layers for this frame.
+				const ovrLayerHeader2 * layerHeaders[ovrMaxLayerCount] = { 0 };
+				for ( int i = 0; i < appState.LayerCount; i++ )
+				{
+					layerHeaders[i] = &appState.Layers[i].Header;
+				}
+
+				// Set up the description for this frame.
+				frameDesc.Flags = 0;
+				frameDesc.SwapInterval = appState.SwapInterval;
+				frameDesc.FrameIndex = appState.FrameIndex;
+				frameDesc.DisplayTime = appState.DisplayTime;
+				frameDesc.LayerCount = appState.LayerCount;
+				frameDesc.Layers = layerHeaders;
+
+                // Hand over the eye images to the time warp.
+                vrapi_SubmitFrame2(appState.Ovr, &frameDesc);
+            }
         }
         else
 		{
@@ -2538,10 +2494,11 @@ void * AppThreadFunction( void * parm )
 	return NULL;
 }
 
-static void ovrAppThread_Create( ovrAppThread * appThread, JNIEnv * env, jobject activityObject )
+static void ovrAppThread_Create( ovrAppThread * appThread, JNIEnv * env, jobject activityObject, jclass activityClass )
 {
 	(*env)->GetJavaVM( env, &appThread->JavaVm );
 	appThread->ActivityObject = (*env)->NewGlobalRef( env, activityObject );
+	appThread->ActivityClass = (*env)->NewGlobalRef( env, activityClass );
 	appThread->Thread = 0;
 	appThread->NativeWindow = NULL;
 	ovrMessageQueue_Create( &appThread->MessageQueue );
@@ -2557,6 +2514,7 @@ static void ovrAppThread_Destroy( ovrAppThread * appThread, JNIEnv * env )
 {
 	pthread_join( appThread->Thread, NULL );
 	(*env)->DeleteGlobalRef( env, appThread->ActivityObject );
+	(*env)->DeleteGlobalRef( env, appThread->ActivityClass );
 	ovrMessageQueue_Destroy( &appThread->MessageQueue );
 }
 
@@ -2618,6 +2576,11 @@ JNIEXPORT jlong JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onCreate( JNIEnv 
         if (ss->count > 0 && ss->dval[0] > 0.0)
         {
             SS_MULTIPLIER = ss->dval[0];
+
+            if (SS_MULTIPLIER > 1.2F)
+            {
+                SS_MULTIPLIER = 1.2F;
+            }
         }
 
         if (cpu->count > 0 && cpu->ival[0] > 0 && cpu->ival[0] < 10)
@@ -2636,9 +2599,8 @@ JNIEXPORT jlong JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onCreate( JNIEnv 
         }
 	}
 
-
 	ovrAppThread * appThread = (ovrAppThread *) malloc( sizeof( ovrAppThread ) );
-	ovrAppThread_Create( appThread, env, activity );
+	ovrAppThread_Create( appThread, env, activity, activityClass );
 
 	ovrMessageQueue_Enable( &appThread->MessageQueue, true );
 	ovrMessage message;

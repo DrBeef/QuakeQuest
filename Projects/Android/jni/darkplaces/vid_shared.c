@@ -1382,8 +1382,8 @@ void VID_ApplyJoyState(vid_joystate_t *joystate)
 			VID_KeyEventForButton(vid_joystate.button[j] != 0, joystate->button[j] != 0, joybuttonkey360[j][c], &vid_joybuttontimer[j]);
 
 		// axes
-		cl.cmd.forwardmove += VID_JoyState_GetAxis(joystate, joy_x360_axisforward.integer, joy_x360_sensitivityforward.value, joy_x360_deadzoneforward.value) * cl_forwardspeed.value;
-		cl.cmd.sidemove    += VID_JoyState_GetAxis(joystate, joy_x360_axisside.integer, joy_x360_sensitivityside.value, joy_x360_deadzoneside.value) * cl_sidespeed.value;
+		cl.cmd.forwardmove += VID_JoyState_GetAxis(joystate, joy_x360_axisforward.integer, joy_x360_sensitivityforward.value, joy_x360_deadzoneforward.value) * cl_movementspeed.value;
+		cl.cmd.sidemove    += VID_JoyState_GetAxis(joystate, joy_x360_axisside.integer, joy_x360_sensitivityside.value, joy_x360_deadzoneside.value) * cl_movementspeed.value;
 		cl.cmd.upmove      += VID_JoyState_GetAxis(joystate, joy_x360_axisup.integer, joy_x360_sensitivityup.value, joy_x360_deadzoneup.value) * cl_upspeed.value;
 		cl.viewangles[0]   += VID_JoyState_GetAxis(joystate, joy_x360_axispitch.integer, joy_x360_sensitivitypitch.value, joy_x360_deadzonepitch.value) * cl.realframetime * cl_pitchspeed.value;
 		cl.viewangles[1]   += VID_JoyState_GetAxis(joystate, joy_x360_axisyaw.integer, joy_x360_sensitivityyaw.value, joy_x360_deadzoneyaw.value) * cl.realframetime * cl_yawspeed.value;
@@ -1396,8 +1396,8 @@ void VID_ApplyJoyState(vid_joystate_t *joystate)
 			VID_KeyEventForButton(vid_joystate.button[j] != 0, joystate->button[j] != 0, joybuttonkey[j][c], &vid_joybuttontimer[j]);
 
 		// axes
-		cl.cmd.forwardmove += VID_JoyState_GetAxis(joystate, joy_axisforward.integer, joy_sensitivityforward.value, joy_deadzoneforward.value) * cl_forwardspeed.value;
-		cl.cmd.sidemove    += VID_JoyState_GetAxis(joystate, joy_axisside.integer, joy_sensitivityside.value, joy_deadzoneside.value) * cl_sidespeed.value;
+		cl.cmd.forwardmove += VID_JoyState_GetAxis(joystate, joy_axisforward.integer, joy_sensitivityforward.value, joy_deadzoneforward.value) * cl_movementspeed.value;
+		cl.cmd.sidemove    += VID_JoyState_GetAxis(joystate, joy_axisside.integer, joy_sensitivityside.value, joy_deadzoneside.value) * cl_movementspeed.value;
 		cl.cmd.upmove      += VID_JoyState_GetAxis(joystate, joy_axisup.integer, joy_sensitivityup.value, joy_deadzoneup.value) * cl_upspeed.value;
 		cl.viewangles[0]   += VID_JoyState_GetAxis(joystate, joy_axispitch.integer, joy_sensitivitypitch.value, joy_deadzonepitch.value) * cl.realframetime * cl_pitchspeed.value;
 		cl.viewangles[1]   += VID_JoyState_GetAxis(joystate, joy_axisyaw.integer, joy_sensitivityyaw.value, joy_deadzoneyaw.value) * cl.realframetime * cl_yawspeed.value;

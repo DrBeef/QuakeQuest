@@ -430,9 +430,7 @@ float CL_KeyState (kbutton_t *key)
 //==========================================================================
 
 cvar_t cl_upspeed = {CVAR_SAVE, "cl_upspeed","400","vertical movement speed (while swimming or flying)"};
-cvar_t cl_forwardspeed = {CVAR_SAVE, "cl_forwardspeed","150","forward movement speed"};
-cvar_t cl_backspeed = {CVAR_SAVE, "cl_backspeed","150","backward movement speed"};
-cvar_t cl_sidespeed = {CVAR_SAVE, "cl_sidespeed","150","strafe movement speed"};
+cvar_t cl_movementspeed = {CVAR_SAVE, "cl_movementspeed","150","forward movement speed"};
 
 cvar_t cl_movespeedkey = {CVAR_SAVE, "cl_movespeedkey","2.0","how much +speed multiplies keyboard movement speed"};
 cvar_t cl_movecliptokeyboard = {0, "cl_movecliptokeyboard", "0", "if set to 1, any move is clipped to the nine keyboard states; if set to 2, only the direction is clipped, not the amount"};
@@ -446,7 +444,7 @@ cvar_t cl_yawmult = {CVAR_SAVE, "cl_yawmult","1.0","Multiplier for yaw (leave at
 cvar_t cl_pitchmult = {CVAR_SAVE, "cl_pitchmult","1.0","Multiplier for yaw (leave at 1.0)"};
 cvar_t cl_controllerdeadzone = {0, "cl_controllerdeadzone","0.05","Amount of deadzone to prevent movement drift due to badly calibrated controller (0.0 to 1.0)"};
 cvar_t cl_righthanded = {CVAR_SAVE, "cl_righthanded","1","right-handed?"};
-cvar_t vr_weaponpitchadjust = {CVAR_SAVE, "vr_weaponpitchadjust","-30.0","Weapon pitch adjustment"};
+cvar_t vr_weaponpitchadjust = {CVAR_SAVE, "vr_weaponpitchadjust","-20.0","Weapon pitch adjustment"};
 cvar_t cl_trackingmode = {CVAR_SAVE, "cl_trackingmode","1","Tracking Mode:- 1 - 6DoF or 0 - 3DoF"};
 
 
@@ -578,20 +576,20 @@ void CL_Input (void)
 	// get basic movement from keyboard
 	if (in_strafe.state & 1)
 	{
-		cl.cmd.sidemove += cl_sidespeed.value * CL_KeyState (&in_right);
-		cl.cmd.sidemove -= cl_sidespeed.value * CL_KeyState (&in_left);
+		cl.cmd.sidemove += cl_movementspeed.value * CL_KeyState (&in_right);
+		cl.cmd.sidemove -= cl_movementspeed.value * CL_KeyState (&in_left);
 	}
 
-	cl.cmd.sidemove += cl_sidespeed.value * CL_KeyState (&in_moveright);
-	cl.cmd.sidemove -= cl_sidespeed.value * CL_KeyState (&in_moveleft);
+	cl.cmd.sidemove += cl_movementspeed.value * CL_KeyState (&in_moveright);
+	cl.cmd.sidemove -= cl_movementspeed.value * CL_KeyState (&in_moveleft);
 
 	cl.cmd.upmove += cl_upspeed.value * CL_KeyState (&in_up);
 	cl.cmd.upmove -= cl_upspeed.value * CL_KeyState (&in_down);
 
 	if (! (in_klook.state & 1) )
 	{
-		cl.cmd.forwardmove += cl_forwardspeed.value * CL_KeyState (&in_forward);
-		cl.cmd.forwardmove -= cl_backspeed.value * CL_KeyState (&in_back);
+		cl.cmd.forwardmove += cl_movementspeed.value * CL_KeyState (&in_forward);
+		cl.cmd.forwardmove -= cl_movementspeed.value * CL_KeyState (&in_back);
 	}
 
 	// adjust for speed key
@@ -777,16 +775,16 @@ void CL_Input (void)
 		else if(cl_movecliptokeyboard.integer)
 		{
 			// digital direction, digital amount
-			if(cl.cmd.sidemove >= cl_sidespeed.value * f * 0.5)
-				cl.cmd.sidemove = cl_sidespeed.value * f;
-			else if(cl.cmd.sidemove <= -cl_sidespeed.value * f * 0.5)
-				cl.cmd.sidemove = -cl_sidespeed.value * f;
+			if(cl.cmd.sidemove >= cl_movementspeed.value * f * 0.5)
+				cl.cmd.sidemove = cl_movementspeed.value * f;
+			else if(cl.cmd.sidemove <= -cl_movementspeed.value * f * 0.5)
+				cl.cmd.sidemove = -cl_movementspeed.value * f;
 			else
 				cl.cmd.sidemove = 0;
-			if(cl.cmd.forwardmove >= cl_forwardspeed.value * f * 0.5)
-				cl.cmd.forwardmove = cl_forwardspeed.value * f;
-			else if(cl.cmd.forwardmove <= -cl_backspeed.value * f * 0.5)
-				cl.cmd.forwardmove = -cl_backspeed.value * f;
+			if(cl.cmd.forwardmove >= cl_movementspeed.value * f * 0.5)
+				cl.cmd.forwardmove = cl_movementspeed.value * f;
+			else if(cl.cmd.forwardmove <= -cl_movementspeed.value * f * 0.5)
+				cl.cmd.forwardmove = -cl_movementspeed.value * f;
 			else
 				cl.cmd.forwardmove = 0;
 		}

@@ -134,9 +134,11 @@ int Sbar_GetYOffset()
 	return offset;
 }
 
+qboolean useScreenLayer();
+
 int Sbar_GetXOffset()
 {
-	if (!vrMode)
+	if (useScreenLayer())
 		return 0;
 
 	//This will give the status bar depth in the 3D space

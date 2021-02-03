@@ -51,9 +51,11 @@ static qboolean r_gpuskeletal;
 // 1.0 pixel unit / 1.5 inch == 0.666666 pixel units per inch
 cvar_t vr_worldscale = {CVAR_SAVE, "vr_worldscale", "26.2467", "VR World scale multiplier"};
 
+qboolean useScreenLayer();
+
 float GetStereoSeparation()
 {
-	return vr_worldscale.value * 0.065f;
+	return useScreenLayer() ? 0.0f : vr_worldscale.value * 0.065f;
 }
 
 
