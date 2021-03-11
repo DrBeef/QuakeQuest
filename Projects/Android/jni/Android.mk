@@ -10,9 +10,11 @@ LOCAL_CFLAGS			:= -std=c99
 LOCAL_MODULE			:= quakequest
 LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL		# include default libraries
 
-LOCAL_C_INCLUDES := ../QuakeQuestSrc/ ../darkplaces/
+LOCAL_C_INCLUDES := ../QuakeQuestSrc/ \
+../darkplaces/ \
+$(SUPPORT_LIBS)/liboggvorbis/include
 
-LOCAL_SHARED_LIBRARIES	:= vrapi
+LOCAL_SHARED_LIBRARIES	:= vrapi libvorbis libogg libvorbis-jni
 
 SRC_SND_COMMON := \
 	darkplaces/snd_main.c \
@@ -131,5 +133,6 @@ LOCAL_SRC_FILES := \
 	$(SRC_COMMON)
 
 include $(BUILD_SHARED_LIBRARY)
+include $(SUPPORT_LIBS)/liboggvorbis/Android.mk
 
 $(call import-module,VrApi/Projects/AndroidPrebuilt/jni)

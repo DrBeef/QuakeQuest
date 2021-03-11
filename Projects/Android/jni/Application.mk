@@ -2,10 +2,16 @@
 # one. I use that to obtain the Application.mk dir then import the root
 # Application.mk.
 ROOT_DIR := $(dir $(lastword $(MAKEFILE_LIST)))../../../../..
+NDK_MODULE_PATH := $(ROOT_DIR)
 
 APP_PLATFORM := android-24
 
-NDK_MODULE_PATH := $(ROOT_DIR)
+APP_CFLAGS += -Wl,--no-undefined
+
+APPLICATIONMK_PATH = $(call my-dir)
+
+TOP_DIR			:= $(APPLICATIONMK_PATH)
+SUPPORT_LIBS	:= $(APPLICATIONMK_PATH)/SupportLibs
 
 APP_STL := c++_shared
 

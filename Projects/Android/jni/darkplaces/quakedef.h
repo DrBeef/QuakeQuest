@@ -420,6 +420,7 @@ extern cvar_t sessionid;
 # define DP_OS_NAME		"Android"
 # define DP_OS_STR		"android"
 # define USE_GLES2		1
+# define LINK_TO_LIBVORBIS 1
 
 #if defined(__GNUC__)
 # if defined(__i386__)
