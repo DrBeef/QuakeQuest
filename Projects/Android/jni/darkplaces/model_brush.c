@@ -39,6 +39,7 @@ cvar_t r_subdivisions_collision_mintess = {0, "r_subdivisions_collision_mintess"
 cvar_t r_subdivisions_collision_maxtess = {0, "r_subdivisions_collision_maxtess", "1024", "maximum number of subdivisions (prevents curves beyond a certain detail level, limits smoothing)"};
 cvar_t r_subdivisions_collision_maxvertices = {0, "r_subdivisions_collision_maxvertices", "4225", "maximum vertices allowed per subdivided curve"};
 cvar_t r_trippy = {0, "r_trippy", "0", "easter egg"};
+cvar_t r_fxaa = {CVAR_SAVE, "r_fxaa", "0", "fast approximate anti aliasing"};
 cvar_t mod_noshader_default_offsetmapping = {CVAR_SAVE, "mod_noshader_default_offsetmapping", "1", "use offsetmapping by default on all surfaces that are not using q3 shader files"};
 cvar_t mod_obj_orientation = {0, "mod_obj_orientation", "1", "fix orientation of OBJ models to the usual conventions (if zero, use coordinates as is)"};
 cvar_t mod_q3bsp_curves_collisions = {0, "mod_q3bsp_curves_collisions", "1", "enables collisions with curves (SLOW)"};
@@ -83,6 +84,7 @@ void Mod_BrushInit(void)
 	Cvar_RegisterVariable(&r_subdivisions_collision_maxtess);
 	Cvar_RegisterVariable(&r_subdivisions_collision_maxvertices);
 	Cvar_RegisterVariable(&r_trippy);
+	Cvar_RegisterVariable(&r_fxaa);
 	Cvar_RegisterVariable(&mod_noshader_default_offsetmapping);
 	Cvar_RegisterVariable(&mod_obj_orientation);
 	Cvar_RegisterVariable(&mod_q3bsp_curves_collisions);
@@ -691,7 +693,6 @@ RecursiveHullCheckTraceInfo_t;
 #define HULLCHECKSTATE_SOLID 1
 #define HULLCHECKSTATE_DONE 2
 
-extern cvar_t collision_prefernudgedfraction;
 static int Mod_Q1BSP_RecursiveHullCheck(RecursiveHullCheckTraceInfo_t *t, int num, double p1f, double p2f, double p1[3], double p2[3])
 {
 	// status variables, these don't need to be saved on the stack when
@@ -703,156 +704,151 @@ static int Mod_Q1BSP_RecursiveHullCheck(RecursiveHullCheckTraceInfo_t *t, int nu
 
 	// variables that need to be stored on the stack when recursing
 	mclipnode_t *node;
-	int side;
+	int p1side, p2side;
 	double midf, mid[3];
 
-	// LordHavoc: a goto!  everyone flee in terror... :)
-loc0:
+	// keep looping until we hit a leaf
+	while (num >= 0)
+	{
+		// find the point distances
+		node = t->hull->clipnodes + num;
+		plane = t->hull->planes + node->planenum;
+
+		// axial planes can be calculated more quickly without the DotProduct
+		if (plane->type < 3)
+		{
+			t1 = p1[plane->type] - plane->dist;
+			t2 = p2[plane->type] - plane->dist;
+		}
+		else
+		{
+			t1 = DotProduct (plane->normal, p1) - plane->dist;
+			t2 = DotProduct (plane->normal, p2) - plane->dist;
+		}
+
+		// negative plane distances indicate children[1] (behind plane)
+		p1side = t1 < 0;
+		p2side = t2 < 0;
+
+		// if the line starts and ends on the same side of the plane, recurse
+		// into that child instantly
+		if (p1side == p2side)
+		{
+#if COLLISIONPARANOID >= 3
+			if (p1side)
+				Con_Print("<");
+			else
+				Con_Print(">");
+#endif
+			// loop back and process the start child
+			num = node->children[p1side];
+		}
+		else
+		{
+			// find the midpoint where the line crosses the plane, use the
+			// original line for best accuracy
+#if COLLISIONPARANOID >= 3
+			Con_Print("M");
+#endif
+			if (plane->type < 3)
+			{
+				t1 = t->start[plane->type] - plane->dist;
+				t2 = t->end[plane->type] - plane->dist;
+			}
+			else
+			{
+				t1 = DotProduct (plane->normal, t->start) - plane->dist;
+				t2 = DotProduct (plane->normal, t->end) - plane->dist;
+			}
+			midf = t1 / (t1 - t2);
+			midf = bound(p1f, midf, p2f);
+			VectorMA(t->start, midf, t->dist, mid);
+
+			// we now have a mid point, essentially splitting the line into
+			// the segments in the near child and the far child, we can now
+			// recurse those in order and get their results
+
+			// recurse both sides, front side first
+			ret = Mod_Q1BSP_RecursiveHullCheck(t, node->children[p1side], p1f, midf, p1, mid);
+			// if this side is not empty, return what it is (solid or done)
+			if (ret != HULLCHECKSTATE_EMPTY)
+				return ret;
+
+			ret = Mod_Q1BSP_RecursiveHullCheck(t, node->children[p2side], midf, p2f, mid, p2);
+			// if other side is not solid, return what it is (empty or done)
+			if (ret != HULLCHECKSTATE_SOLID)
+				return ret;
+
+			// front is air and back is solid, this is the impact point...
+
+			// copy the plane information, flipping it if needed
+			if (p1side)
+			{
+				t->trace->plane.dist = -plane->dist;
+				VectorNegate (plane->normal, t->trace->plane.normal);
+			}
+			else
+			{
+				t->trace->plane.dist = plane->dist;
+				VectorCopy (plane->normal, t->trace->plane.normal);
+			}
+
+			// calculate the return fraction which is nudged off the surface a bit
+			t1 = DotProduct(t->trace->plane.normal, t->start) - t->trace->plane.dist;
+			t2 = DotProduct(t->trace->plane.normal, t->end) - t->trace->plane.dist;
+			midf = (t1 - collision_impactnudge.value) / (t1 - t2);
+			t->trace->fraction = bound(0, midf, 1);
+
+#if COLLISIONPARANOID >= 3
+			Con_Print("D");
+#endif
+			return HULLCHECKSTATE_DONE;
+		}
+	}
+
+	// we reached a leaf contents
+
 	// check for empty
-	if (num < 0)
+	num = Mod_Q1BSP_SuperContentsFromNativeContents(NULL, num);
+	if (!t->trace->startfound)
 	{
-		num = Mod_Q1BSP_SuperContentsFromNativeContents(NULL, num);
-		if (!t->trace->startfound)
-		{
-			t->trace->startfound = true;
-			t->trace->startsupercontents |= num;
-		}
-		if (num & SUPERCONTENTS_LIQUIDSMASK)
-			t->trace->inwater = true;
-		if (num == 0)
-			t->trace->inopen = true;
-		if (num & SUPERCONTENTS_SOLID)
-			t->trace->hittexture = &mod_q1bsp_texture_solid;
-		else if (num & SUPERCONTENTS_SKY)
-			t->trace->hittexture = &mod_q1bsp_texture_sky;
-		else if (num & SUPERCONTENTS_LAVA)
-			t->trace->hittexture = &mod_q1bsp_texture_lava;
-		else if (num & SUPERCONTENTS_SLIME)
-			t->trace->hittexture = &mod_q1bsp_texture_slime;
-		else
-			t->trace->hittexture = &mod_q1bsp_texture_water;
-		t->trace->hitq3surfaceflags = t->trace->hittexture->surfaceflags;
-		t->trace->hitsupercontents = num;
-		if (num & t->trace->hitsupercontentsmask)
-		{
-			// if the first leaf is solid, set startsolid
-			if (t->trace->allsolid)
-				t->trace->startsolid = true;
-#if COLLISIONPARANOID >= 3
-			Con_Print("S");
-#endif
-			return HULLCHECKSTATE_SOLID;
-		}
-		else
-		{
-			t->trace->allsolid = false;
-#if COLLISIONPARANOID >= 3
-			Con_Print("E");
-#endif
-			return HULLCHECKSTATE_EMPTY;
-		}
+		t->trace->startfound = true;
+		t->trace->startsupercontents |= num;
 	}
-
-	// find the point distances
-	node = t->hull->clipnodes + num;
-
-	plane = t->hull->planes + node->planenum;
-	if (plane->type < 3)
+	if (num & SUPERCONTENTS_LIQUIDSMASK)
+		t->trace->inwater = true;
+	if (num == 0)
+		t->trace->inopen = true;
+	if (num & SUPERCONTENTS_SOLID)
+		t->trace->hittexture = &mod_q1bsp_texture_solid;
+	else if (num & SUPERCONTENTS_SKY)
+		t->trace->hittexture = &mod_q1bsp_texture_sky;
+	else if (num & SUPERCONTENTS_LAVA)
+		t->trace->hittexture = &mod_q1bsp_texture_lava;
+	else if (num & SUPERCONTENTS_SLIME)
+		t->trace->hittexture = &mod_q1bsp_texture_slime;
+	else
+		t->trace->hittexture = &mod_q1bsp_texture_water;
+	t->trace->hitq3surfaceflags = t->trace->hittexture->surfaceflags;
+	t->trace->hitsupercontents = num;
+	if (num & t->trace->hitsupercontentsmask)
 	{
-		t1 = p1[plane->type] - plane->dist;
-		t2 = p2[plane->type] - plane->dist;
+		// if the first leaf is solid, set startsolid
+		if (t->trace->allsolid)
+			t->trace->startsolid = true;
+#if COLLISIONPARANOID >= 3
+		Con_Print("S");
+#endif
+		return HULLCHECKSTATE_SOLID;
 	}
 	else
 	{
-		t1 = DotProduct (plane->normal, p1) - plane->dist;
-		t2 = DotProduct (plane->normal, p2) - plane->dist;
-	}
-
-	if (t1 < 0)
-	{
-		if (t2 < 0)
-		{
+		t->trace->allsolid = false;
 #if COLLISIONPARANOID >= 3
-			Con_Print("<");
+		Con_Print("E");
 #endif
-			num = node->children[1];
-			goto loc0;
-		}
-		side = 1;
+		return HULLCHECKSTATE_EMPTY;
 	}
-	else
-	{
-		if (t2 >= 0)
-		{
-#if COLLISIONPARANOID >= 3
-			Con_Print(">");
-#endif
-			num = node->children[0];
-			goto loc0;
-		}
-		side = 0;
-	}
-
-	// the line intersects, find intersection point
-	// LordHavoc: this uses the original trace for maximum accuracy
-#if COLLISIONPARANOID >= 3
-	Con_Print("M");
-#endif
-	if (plane->type < 3)
-	{
-		t1 = t->start[plane->type] - plane->dist;
-		t2 = t->end[plane->type] - plane->dist;
-	}
-	else
-	{
-		t1 = DotProduct (plane->normal, t->start) - plane->dist;
-		t2 = DotProduct (plane->normal, t->end) - plane->dist;
-	}
-
-	midf = t1 / (t1 - t2);
-	midf = bound(p1f, midf, p2f);
-	VectorMA(t->start, midf, t->dist, mid);
-
-	// recurse both sides, front side first
-	ret = Mod_Q1BSP_RecursiveHullCheck(t, node->children[side], p1f, midf, p1, mid);
-	// if this side is not empty, return what it is (solid or done)
-	if (ret != HULLCHECKSTATE_EMPTY)
-		return ret;
-
-	ret = Mod_Q1BSP_RecursiveHullCheck(t, node->children[side ^ 1], midf, p2f, mid, p2);
-	// if other side is not solid, return what it is (empty or done)
-	if (ret != HULLCHECKSTATE_SOLID)
-		return ret;
-
-	// front is air and back is solid, this is the impact point...
-	if (side)
-	{
-		t->trace->plane.dist = -plane->dist;
-		VectorNegate (plane->normal, t->trace->plane.normal);
-	}
-	else
-	{
-		t->trace->plane.dist = plane->dist;
-		VectorCopy (plane->normal, t->trace->plane.normal);
-	}
-
-	// calculate the true fraction
-	t1 = DotProduct(t->trace->plane.normal, t->start) - t->trace->plane.dist;
-	t2 = DotProduct(t->trace->plane.normal, t->end) - t->trace->plane.dist;
-	midf = t1 / (t1 - t2);
-	t->trace->realfraction = bound(0, midf, 1);
-
-	// calculate the return fraction which is nudged off the surface a bit
-	midf = (t1 - DIST_EPSILON) / (t1 - t2);
-	t->trace->fraction = bound(0, midf, 1);
-
-	if (collision_prefernudgedfraction.integer)
-		t->trace->realfraction = t->trace->fraction;
-
-#if COLLISIONPARANOID >= 3
-	Con_Print("D");
-#endif
-	return HULLCHECKSTATE_DONE;
 }
 
 //#if COLLISIONPARANOID < 2
@@ -895,7 +891,6 @@ static void Mod_Q1BSP_TracePoint(struct model_s *model, const frameblend_t *fram
 	memset(trace, 0, sizeof(trace_t));
 	rhc.trace = trace;
 	rhc.trace->fraction = 1;
-	rhc.trace->realfraction = 1;
 	rhc.trace->allsolid = true;
 	rhc.hull = &model->brushq1.hulls[0]; // 0x0x0
 	VectorCopy(start, rhc.start);
@@ -927,7 +922,6 @@ static void Mod_Q1BSP_TraceLine(struct model_s *model, const frameblend_t *frame
 	rhc.trace = trace;
 	rhc.trace->hitsupercontentsmask = hitsupercontentsmask;
 	rhc.trace->fraction = 1;
-	rhc.trace->realfraction = 1;
 	rhc.trace->allsolid = true;
 	rhc.hull = &model->brushq1.hulls[0]; // 0x0x0
 	VectorCopy(start, rhc.start);
@@ -945,7 +939,6 @@ static void Mod_Q1BSP_TraceLine(struct model_s *model, const frameblend_t *frame
 		rhc.trace = &testtrace;
 		rhc.trace->hitsupercontentsmask = hitsupercontentsmask;
 		rhc.trace->fraction = 1;
-		rhc.trace->realfraction = 1;
 		rhc.trace->allsolid = true;
 		VectorCopy(test, rhc.start);
 		VectorCopy(test, rhc.end);
@@ -984,7 +977,6 @@ static void Mod_Q1BSP_TraceBox(struct model_s *model, const frameblend_t *frameb
 	rhc.trace = trace;
 	rhc.trace->hitsupercontentsmask = hitsupercontentsmask;
 	rhc.trace->fraction = 1;
-	rhc.trace->realfraction = 1;
 	rhc.trace->allsolid = true;
 	VectorSubtract(boxmaxs, boxmins, boxsize);
 	if (boxsize[0] < 3)
@@ -1027,7 +1019,6 @@ static void Mod_Q1BSP_TraceBox(struct model_s *model, const frameblend_t *frameb
 		rhc.trace = &testtrace;
 		rhc.trace->hitsupercontentsmask = hitsupercontentsmask;
 		rhc.trace->fraction = 1;
-		rhc.trace->realfraction = 1;
 		rhc.trace->allsolid = true;
 		VectorCopy(test, rhc.start);
 		VectorCopy(test, rhc.end);
@@ -1096,7 +1087,6 @@ void Collision_ClipTrace_Box(trace_t *trace, const vec3_t cmins, const vec3_t cm
 	memset(trace, 0, sizeof(trace_t));
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	Collision_TraceLineBrushFloat(trace, start, end, &cbox, &cbox);
 #else
 	RecursiveHullCheckTraceInfo_t rhc;
@@ -1154,7 +1144,6 @@ void Collision_ClipTrace_Box(trace_t *trace, const vec3_t cmins, const vec3_t cm
 	rhc.trace = trace;
 	rhc.trace->hitsupercontentsmask = hitsupercontentsmask;
 	rhc.trace->fraction = 1;
-	rhc.trace->realfraction = 1;
 	rhc.trace->allsolid = true;
 	VectorCopy(start, rhc.start);
 	VectorCopy(end, rhc.end);
@@ -1170,7 +1159,6 @@ void Collision_ClipTrace_Point(trace_t *trace, const vec3_t cmins, const vec3_t 
 {
 	memset(trace, 0, sizeof(trace_t));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	if (BoxesOverlap(start, start, cmins, cmaxs))
 	{
 		trace->startsupercontents |= boxsupercontents;
@@ -1195,48 +1183,45 @@ static int Mod_Q1BSP_LightPoint_RecursiveBSPNode(dp_model_t *model, vec3_t ambie
 	float front, back;
 	float mid, distz = endz - startz;
 
-loc0:
-	if (!node->plane)
-		return false;		// didn't hit anything
-
-	switch (node->plane->type)
+	while (node->plane)
 	{
-	case PLANE_X:
-		node = node->children[x < node->plane->dist];
-		goto loc0;
-	case PLANE_Y:
-		node = node->children[y < node->plane->dist];
-		goto loc0;
-	case PLANE_Z:
-		side = startz < node->plane->dist;
-		if ((endz < node->plane->dist) == side)
+		switch (node->plane->type)
 		{
-			node = node->children[side];
-			goto loc0;
+		case PLANE_X:
+			node = node->children[x < node->plane->dist];
+			continue; // loop back and process the new node
+		case PLANE_Y:
+			node = node->children[y < node->plane->dist];
+			continue; // loop back and process the new node
+		case PLANE_Z:
+			side = startz < node->plane->dist;
+			if ((endz < node->plane->dist) == side)
+			{
+				node = node->children[side];
+				continue; // loop back and process the new node
+			}
+			// found an intersection
+			mid = node->plane->dist;
+			break;
+		default:
+			back = front = x * node->plane->normal[0] + y * node->plane->normal[1];
+			front += startz * node->plane->normal[2];
+			back += endz * node->plane->normal[2];
+			side = front < node->plane->dist;
+			if ((back < node->plane->dist) == side)
+			{
+				node = node->children[side];
+				continue; // loop back and process the new node
+			}
+			// found an intersection
+			mid = startz + distz * (front - node->plane->dist) / (front - back);
+			break;
 		}
-		// found an intersection
-		mid = node->plane->dist;
-		break;
-	default:
-		back = front = x * node->plane->normal[0] + y * node->plane->normal[1];
-		front += startz * node->plane->normal[2];
-		back += endz * node->plane->normal[2];
-		side = front < node->plane->dist;
-		if ((back < node->plane->dist) == side)
-		{
-			node = node->children[side];
-			goto loc0;
-		}
-		// found an intersection
-		mid = startz + distz * (front - node->plane->dist) / (front - back);
-		break;
-	}
 
-	// go down front side
-	if (node->children[side]->plane && Mod_Q1BSP_LightPoint_RecursiveBSPNode(model, ambientcolor, diffusecolor, diffusenormal, node->children[side], x, y, startz, mid))
-		return true;	// hit something
-	else
-	{
+		// go down front side
+		if (node->children[side]->plane && Mod_Q1BSP_LightPoint_RecursiveBSPNode(model, ambientcolor, diffusecolor, diffusenormal, node->children[side], x, y, startz, mid))
+			return true;	// hit something
+
 		// check for impact on this node
 		if (node->numsurfaces)
 		{
@@ -1261,22 +1246,44 @@ loc0:
 				dt = ((x * surface->lightmapinfo->texinfo->vecs[1][0] + y * surface->lightmapinfo->texinfo->vecs[1][1] + mid * surface->lightmapinfo->texinfo->vecs[1][2] + surface->lightmapinfo->texinfo->vecs[1][3]) - surface->lightmapinfo->texturemins[1]) * 0.0625f;
 
 				// check the bounds
-				dsi = (int)ds;
-				dti = (int)dt;
+				// thanks to jitspoe for pointing out that this int cast was
+				// rounding toward zero, so we floor it
+				dsi = (int)floor(ds);
+				dti = (int)floor(dt);
 				lmwidth = ((surface->lightmapinfo->extents[0]>>4)+1);
 				lmheight = ((surface->lightmapinfo->extents[1]>>4)+1);
 
 				// is it in bounds?
-				if (dsi >= 0 && dsi < lmwidth-1 && dti >= 0 && dti < lmheight-1)
+				// we have to tolerate a position of lmwidth-1 for some rare
+				// cases - in which case the sampling position still gets
+				// clamped but the color gets interpolated to that edge.
+				if (dsi >= 0 && dsi < lmwidth && dti >= 0 && dti < lmheight)
 				{
+					// in the rare cases where we're sampling slightly off
+					// the polygon, clamp the sampling position (we can still
+					// interpolate outside it, where it becomes extrapolation)
+					if (dsi < 0)
+						dsi = 0;
+					if (dti < 0)
+						dti = 0;
+					if (dsi > lmwidth-2)
+						dsi = lmwidth-2;
+					if (dti > lmheight-2)
+						dti = lmheight-2;
+					
 					// calculate bilinear interpolation factors
-					// and also multiply by fixedpoint conversion factors
+					// and also multiply by fixedpoint conversion factors to
+					// compensate for lightmaps being 0-255 (as 0-2), we use
+					// r_refdef.scene.rtlightstylevalue here which is already
+					// 0.000-2.148 range
+					// (if we used r_refdef.scene.lightstylevalue this
+					//  divisor would be 32768 rather than 128)
 					dsfrac = ds - dsi;
 					dtfrac = dt - dti;
-					w00 = (1 - dsfrac) * (1 - dtfrac) * (1.0f / 32768.0f);
-					w01 = (    dsfrac) * (1 - dtfrac) * (1.0f / 32768.0f);
-					w10 = (1 - dsfrac) * (    dtfrac) * (1.0f / 32768.0f);
-					w11 = (    dsfrac) * (    dtfrac) * (1.0f / 32768.0f);
+					w00 = (1 - dsfrac) * (1 - dtfrac) * (1.0f / 128.0f);
+					w01 = (    dsfrac) * (1 - dtfrac) * (1.0f / 128.0f);
+					w10 = (1 - dsfrac) * (    dtfrac) * (1.0f / 128.0f);
+					w11 = (    dsfrac) * (    dtfrac) * (1.0f / 128.0f);
 
 					// values for pointer math
 					line3 = lmwidth * 3; // LordHavoc: *3 for colored lighting
@@ -1288,7 +1295,7 @@ loc0:
 					// bilinear filter each lightmap style, and sum them
 					for (maps = 0;maps < MAXLIGHTMAPS && surface->lightmapinfo->styles[maps] != 255;maps++)
 					{
-						scale = r_refdef.scene.lightstylevalue[surface->lightmapinfo->styles[maps]];
+						scale = r_refdef.scene.rtlightstylevalue[surface->lightmapinfo->styles[maps]];
 						w = w00 * scale;VectorMA(ambientcolor, w, lightmap            , ambientcolor);
 						w = w01 * scale;VectorMA(ambientcolor, w, lightmap + 3        , ambientcolor);
 						w = w10 * scale;VectorMA(ambientcolor, w, lightmap + line3    , ambientcolor);
@@ -1305,8 +1312,11 @@ loc0:
 		node = node->children[side ^ 1];
 		startz = mid;
 		distz = endz - startz;
-		goto loc0;
+		// loop back and process the new node
 	}
+
+	// did not hit anything
+	return false;
 }
 
 static void Mod_Q1BSP_LightPoint(dp_model_t *model, const vec3_t p, vec3_t ambientcolor, vec3_t diffusecolor, vec3_t diffusenormal)
@@ -1373,18 +1383,11 @@ static const texture_t *Mod_Q1BSP_TraceLineAgainstSurfacesFindTextureOnNode(Recu
 		VectorCopy(normal, t->trace->plane.normal);
 		t->trace->plane.dist = DotProduct(normal, p);
 
-		// calculate the true fraction
+		// calculate the return fraction which is nudged off the surface a bit
 		t1 = DotProduct(t->start, t->trace->plane.normal) - t->trace->plane.dist;
 		t2 = DotProduct(t->end, t->trace->plane.normal) - t->trace->plane.dist;
-		midf = t1 / (t1 - t2);
-		t->trace->realfraction = midf;
-
-		// calculate the return fraction which is nudged off the surface a bit
-		midf = (t1 - DIST_EPSILON) / (t1 - t2);
+		midf = (t1 - collision_impactnudge.value) / (t1 - t2);
 		t->trace->fraction = bound(0, midf, 1);
-
-		if (collision_prefernudgedfraction.integer)
-			t->trace->realfraction = t->trace->fraction;
 
 		t->trace->hittexture = surface->texture->currentframe;
 		t->trace->hitq3surfaceflags = t->trace->hittexture->surfaceflags;
@@ -1496,7 +1499,6 @@ static void Mod_Q1BSP_TraceLineAgainstSurfaces(struct model_s *model, const fram
 	rhc.trace = trace;
 	rhc.trace->hitsupercontentsmask = hitsupercontentsmask;
 	rhc.trace->fraction = 1;
-	rhc.trace->realfraction = 1;
 	rhc.trace->allsolid = true;
 	rhc.hull = &model->brushq1.hulls[0]; // 0x0x0
 	VectorCopy(start, rhc.start);
@@ -6218,7 +6220,6 @@ void Mod_CollisionBIH_TracePoint(dp_model_t *model, const frameblend_t *frameble
 
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 
 	bih = &model->collision_bih;
@@ -6294,7 +6295,6 @@ static void Mod_CollisionBIH_TraceLineShared(dp_model_t *model, const frameblend
 
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 
 	// push first node
@@ -6311,7 +6311,12 @@ static void Mod_CollisionBIH_TraceLineShared(dp_model_t *model, const frameblend
 		node = bih->nodes + nodenum;
 		VectorCopy(nodestackline[nodestackpos], nodestart);
 		VectorCopy(nodestackline[nodestackpos] + 3, nodeend);
-		sweepnodemins[0] = min(nodestart[0], nodeend[0]); sweepnodemins[1] = min(nodestart[1], nodeend[1]); sweepnodemins[2] = min(nodestart[2], nodeend[2]); sweepnodemaxs[0] = max(nodestart[0], nodeend[0]); sweepnodemaxs[1] = max(nodestart[1], nodeend[1]); sweepnodemaxs[2] = max(nodestart[2], nodeend[2]);
+		sweepnodemins[0] = min(nodestart[0], nodeend[0]) - 1;
+		sweepnodemins[1] = min(nodestart[1], nodeend[1]) - 1;
+		sweepnodemins[2] = min(nodestart[2], nodeend[2]) - 1;
+		sweepnodemaxs[0] = max(nodestart[0], nodeend[0]) + 1;
+		sweepnodemaxs[1] = max(nodestart[1], nodeend[1]) + 1;
+		sweepnodemaxs[2] = max(nodestart[2], nodeend[2]) + 1;
 		if (!BoxesOverlap(sweepnodemins, sweepnodemaxs, node->mins, node->maxs))
 			continue;
 		if (node->type <= BIH_SPLITZ && nodestackpos+2 <= 1024)
@@ -6354,7 +6359,12 @@ static void Mod_CollisionBIH_TraceLineShared(dp_model_t *model, const frameblend
 			axis = 2; d1 = nodestart[axis] - nodebigmins[axis]; d2 = nodeend[axis] - nodebigmins[axis]; if (d1 < 0) { if (d2 < 0) continue; f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodestart); } else if (d2 < 0) { f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodeend); } d1 = nodebigmaxs[axis] - nodestart[axis]; d2 = nodebigmaxs[axis] - nodeend[axis]; if (d1 < 0) { if (d2 < 0) continue; f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodestart); } else if (d2 < 0) { f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodeend); }
 			// some of the line intersected the enlarged node box
 			// calculate sweep bounds for this node
-			sweepnodemins[0] = min(nodestart[0], nodeend[0]); sweepnodemins[1] = min(nodestart[1], nodeend[1]); sweepnodemins[2] = min(nodestart[2], nodeend[2]); sweepnodemaxs[0] = max(nodestart[0], nodeend[0]); sweepnodemaxs[1] = max(nodestart[1], nodeend[1]); sweepnodemaxs[2] = max(nodestart[2], nodeend[2]);
+			sweepnodemins[0] = min(nodestart[0], nodeend[0]) - 1;
+			sweepnodemins[1] = min(nodestart[1], nodeend[1]) - 1;
+			sweepnodemins[2] = min(nodestart[2], nodeend[2]) - 1;
+			sweepnodemaxs[0] = max(nodestart[0], nodeend[0]) + 1;
+			sweepnodemaxs[1] = max(nodestart[1], nodeend[1]) + 1;
+			sweepnodemaxs[2] = max(nodestart[2], nodeend[2]) + 1;
 			for (axis = 0;axis < BIH_MAXUNORDEREDCHILDREN && node->children[axis] >= 0;axis++)
 			{
 				leaf = bih->leafs + node->children[axis];
@@ -6424,7 +6434,6 @@ void Mod_CollisionBIH_TraceBrush(dp_model_t *model, const frameblend_t *frameble
 	// box trace, performed as brush trace
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 
 	// calculate tracebox-like parameters for efficient culling
@@ -6455,7 +6464,12 @@ void Mod_CollisionBIH_TraceBrush(dp_model_t *model, const frameblend_t *frameble
 		node = bih->nodes + nodenum;
 		VectorCopy(nodestackline[nodestackpos], nodestart);
 		VectorCopy(nodestackline[nodestackpos] + 3, nodeend);
-		sweepnodemins[0] = min(nodestart[0], nodeend[0]) + mins[0]; sweepnodemins[1] = min(nodestart[1], nodeend[1]) + mins[1]; sweepnodemins[2] = min(nodestart[2], nodeend[2]) + mins[2]; sweepnodemaxs[0] = max(nodestart[0], nodeend[0]) + maxs[0]; sweepnodemaxs[1] = max(nodestart[1], nodeend[1]) + maxs[1]; sweepnodemaxs[2] = max(nodestart[2], nodeend[2]) + maxs[2];
+		sweepnodemins[0] = min(nodestart[0], nodeend[0]) + mins[0] - 1;
+		sweepnodemins[1] = min(nodestart[1], nodeend[1]) + mins[1] - 1;
+		sweepnodemins[2] = min(nodestart[2], nodeend[2]) + mins[2] - 1;
+		sweepnodemaxs[0] = max(nodestart[0], nodeend[0]) + maxs[0] + 1;
+		sweepnodemaxs[1] = max(nodestart[1], nodeend[1]) + maxs[1] + 1;
+		sweepnodemaxs[2] = max(nodestart[2], nodeend[2]) + maxs[2] + 1;
 		if (!BoxesOverlap(sweepnodemins, sweepnodemaxs, node->mins, node->maxs))
 			continue;
 		if (node->type <= BIH_SPLITZ && nodestackpos+2 <= 1024)
@@ -6498,7 +6512,12 @@ void Mod_CollisionBIH_TraceBrush(dp_model_t *model, const frameblend_t *frameble
 			axis = 2; d1 = nodestart[axis] - nodebigmins[axis]; d2 = nodeend[axis] - nodebigmins[axis]; if (d1 < 0) { if (d2 < 0) continue; f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodestart); } else if (d2 < 0) { f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodeend); } d1 = nodebigmaxs[axis] - nodestart[axis]; d2 = nodebigmaxs[axis] - nodeend[axis]; if (d1 < 0) { if (d2 < 0) continue; f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodestart); } else if (d2 < 0) { f = d1 / (d1 - d2); VectorLerp(nodestart, f, nodeend, nodeend); }
 			// some of the line intersected the enlarged node box
 			// calculate sweep bounds for this node
-			sweepnodemins[0] = min(nodestart[0], nodeend[0]) + mins[0]; sweepnodemins[1] = min(nodestart[1], nodeend[1]) + mins[1]; sweepnodemins[2] = min(nodestart[2], nodeend[2]) + mins[2]; sweepnodemaxs[0] = max(nodestart[0], nodeend[0]) + maxs[0]; sweepnodemaxs[1] = max(nodestart[1], nodeend[1]) + maxs[1]; sweepnodemaxs[2] = max(nodestart[2], nodeend[2]) + maxs[2];
+			sweepnodemins[0] = min(nodestart[0], nodeend[0]) + mins[0] - 1;
+			sweepnodemins[1] = min(nodestart[1], nodeend[1]) + mins[1] - 1;
+			sweepnodemins[2] = min(nodestart[2], nodeend[2]) + mins[2] - 1;
+			sweepnodemaxs[0] = max(nodestart[0], nodeend[0]) + maxs[0] + 1;
+			sweepnodemaxs[1] = max(nodestart[1], nodeend[1]) + maxs[1] + 1;
+			sweepnodemaxs[2] = max(nodestart[2], nodeend[2]) + maxs[2] + 1;
 			for (axis = 0;axis < BIH_MAXUNORDEREDCHILDREN && node->children[axis] >= 0;axis++)
 			{
 				leaf = bih->leafs + node->children[axis];
@@ -6561,14 +6580,12 @@ void Mod_CollisionBIH_TracePoint_Mesh(dp_model_t *model, const frameblend_t *fra
 #endif
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 #if 0
 	Mod_CollisionBIH_TraceLine(model, frameblend, skeleton, trace, start, end, hitsupercontentsmask);
 	hitsupercontents = trace->hitsupercontents;
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 	trace->startsupercontents = hitsupercontents;
 #endif
@@ -6583,7 +6600,6 @@ int Mod_CollisionBIH_PointSuperContents_Mesh(struct model_s *model, int frame, c
 	VectorSet(end, start[0], start[1], model->normalmins[2]);
 	memset(&trace, 0, sizeof(trace));
 	trace.fraction = 1;
-	trace.realfraction = 1;
 	trace.hitsupercontentsmask = 0;
 	Mod_CollisionBIH_TraceLine(model, frameblend, skeleton, trace, start, end, hitsupercontentsmask);
 	return trace.hitsupercontents;
@@ -6665,7 +6681,7 @@ static void Mod_Q3BSP_TraceLine_RecursiveBSPNode(trace_t *trace, dp_model_t *mod
 			Mod_Q3BSP_TraceLine_RecursiveBSPNode(trace, model, node->children[startside], start, mid, startfrac, midfrac, linestart, lineend, markframe, segmentmins, segmentmaxs);
 			// if we found an impact on the front side, don't waste time
 			// exploring the far side
-			if (midfrac <= trace->realfraction)
+			if (midfrac <= trace->fraction)
 				Mod_Q3BSP_TraceLine_RecursiveBSPNode(trace, model, node->children[endside], mid, end, midfrac, endfrac, linestart, lineend, markframe, segmentmins, segmentmaxs);
 			return;
 		}
@@ -6813,7 +6829,6 @@ static void Mod_Q3BSP_TracePoint(dp_model_t *model, const frameblend_t *frameble
 	q3mbrush_t *brush;
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 	if (mod_collision_bih.integer)
 		Mod_CollisionBIH_TracePoint(model, frameblend, skeleton, trace, start, hitsupercontentsmask);
@@ -6842,7 +6857,6 @@ static void Mod_Q3BSP_TraceLine(dp_model_t *model, const frameblend_t *frameblen
 
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
 	segmentmins[0] = min(start[0], end[0]) - 1;
 	segmentmins[1] = min(start[1], end[1]) - 1;
@@ -6885,14 +6899,13 @@ static void Mod_Q3BSP_TraceBrush(dp_model_t *model, const frameblend_t *frameble
 	// box trace, performed as brush trace
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
-	trace->realfraction = 1;
 	trace->hitsupercontentsmask = hitsupercontentsmask;
-	segmentmins[0] = min(start->mins[0], end->mins[0]);
-	segmentmins[1] = min(start->mins[1], end->mins[1]);
-	segmentmins[2] = min(start->mins[2], end->mins[2]);
-	segmentmaxs[0] = max(start->maxs[0], end->maxs[0]);
-	segmentmaxs[1] = max(start->maxs[1], end->maxs[1]);
-	segmentmaxs[2] = max(start->maxs[2], end->maxs[2]);
+	segmentmins[0] = min(start->mins[0], end->mins[0]) - 1;
+	segmentmins[1] = min(start->mins[1], end->mins[1]) - 1;
+	segmentmins[2] = min(start->mins[2], end->mins[2]) - 1;
+	segmentmaxs[0] = max(start->maxs[0], end->maxs[0]) + 1;
+	segmentmaxs[1] = max(start->maxs[1], end->maxs[1]) + 1;
+	segmentmaxs[2] = max(start->maxs[2], end->maxs[2]) + 1;
 	if (mod_collision_bih.integer)
 		Mod_CollisionBIH_TraceBrush(model, frameblend, skeleton, trace, start, end, hitsupercontentsmask);
 	else if (model->brush.submodel)

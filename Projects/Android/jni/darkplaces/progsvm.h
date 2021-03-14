@@ -534,6 +534,7 @@ typedef struct prvm_prog_s
 	double				profiletime; // system time when last PRVM_CallProfile was called (or PRVM_Prog_Load initially)
 	unsigned int		id; // increasing unique id of progs instance
 	mfunction_t			*functions;
+	int				functions_covered;
 	char				*strings;
 	int					stringssize;
 	ddef_t				*fielddefs;
@@ -562,8 +563,13 @@ typedef struct prvm_prog_s
 	int					numglobals;
 
 	int					*statement_linenums; // NULL if not available
+	int					*statement_columnnums; // NULL if not available
 
 	double				*statement_profile; // only incremented if prvm_statementprofiling is on
+	int				statements_covered;
+	double				*explicit_profile; // only incremented if prvm_statementprofiling is on
+	int				explicit_covered;
+	int				numexplicitcoveragestatements;
 
 	union {
 		prvm_vec_t *fp;
@@ -724,7 +730,9 @@ prvm_prog_t *PRVM_FriendlyProgFromString(const char *str); // for console comman
 #define PRVM_ProgLoaded(n) (PRVM_GetProg(n)->loaded)
 #define SVVM_prog (&prvm_prog_list[PRVM_PROG_SERVER])
 #define CLVM_prog (&prvm_prog_list[PRVM_PROG_CLIENT])
+#ifdef CONFIG_MENU
 #define MVM_prog (&prvm_prog_list[PRVM_PROG_MENU])
+#endif
 
 //============================================================================
 // prvm_cmds part
@@ -746,8 +754,10 @@ void SVVM_reset_cmd(prvm_prog_t *prog);
 void CLVM_init_cmd(prvm_prog_t *prog);
 void CLVM_reset_cmd(prvm_prog_t *prog);
 
+#ifdef CONFIG_MENU
 void MVM_init_cmd(prvm_prog_t *prog);
 void MVM_reset_cmd(prvm_prog_t *prog);
+#endif
 
 void VM_Cmd_Init(prvm_prog_t *prog);
 void VM_Cmd_Reset(prvm_prog_t *prog);
@@ -758,11 +768,15 @@ void PRVM_Init (void);
 #ifdef PROFILING
 void SVVM_ExecuteProgram (prvm_prog_t *prog, func_t fnum, const char *errormessage);
 void CLVM_ExecuteProgram (prvm_prog_t *prog, func_t fnum, const char *errormessage);
+#ifdef CONFIG_MENU
 void MVM_ExecuteProgram (prvm_prog_t *prog, func_t fnum, const char *errormessage);
+#endif
 #else
 #define SVVM_ExecuteProgram PRVM_ExecuteProgram
 #define CLVM_ExecuteProgram PRVM_ExecuteProgram
+#ifdef CONFIG_MENU
 #define MVM_ExecuteProgram PRVM_ExecuteProgram
+#endif
 void PRVM_ExecuteProgram (prvm_prog_t *prog, func_t fnum, const char *errormessage);
 #endif
 
@@ -882,5 +896,7 @@ void VM_GenerateFrameGroupBlend(prvm_prog_t *prog, framegroupblend_t *framegroup
 void VM_FrameBlendFromFrameGroupBlend(frameblend_t *frameblend, const framegroupblend_t *framegroupblend, const dp_model_t *model, double curtime);
 void VM_UpdateEdictSkeleton(prvm_prog_t *prog, prvm_edict_t *ed, const dp_model_t *edmodel, const frameblend_t *frameblend);
 void VM_RemoveEdictSkeleton(prvm_prog_t *prog, prvm_edict_t *ed);
+
+void PRVM_ExplicitCoverageEvent(prvm_prog_t *prog, mfunction_t *func, int statement);
 
 #endif

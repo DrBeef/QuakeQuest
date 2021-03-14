@@ -64,6 +64,7 @@ typedef struct viddef_support_s
 	qboolean ati_separate_stencil;
 	qboolean ext_blend_minmax;
 	qboolean ext_blend_subtract;
+	qboolean ext_blend_func_separate;
 	qboolean ext_draw_range_elements;
 	qboolean ext_framebuffer_object;
 	qboolean ext_packed_depth_stencil;

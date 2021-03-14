@@ -55,6 +55,7 @@ extern cvar_t gl_flashblend;
 extern cvar_t r_novis;
 
 extern cvar_t r_trippy;
+extern cvar_t r_fxaa;
 
 extern cvar_t r_lerpsprites;
 extern cvar_t r_lerpmodels;
@@ -125,7 +126,7 @@ extern cvar_t r_dynamic;
 
 void R_Init(void);
 void R_UpdateVariables(void); // must call after setting up most of r_refdef, but before calling R_RenderView
-void R_RenderView(); // must set r_refdef and call R_UpdateVariables first
+void R_RenderView(void); // must set r_refdef and call R_UpdateVariables first
 void R_RenderView_UpdateViewVectors(void); // just updates r_refdef.view.{forward,left,up,origin,right,inverse_matrix}
 
 typedef enum r_refdef_scene_type_s {

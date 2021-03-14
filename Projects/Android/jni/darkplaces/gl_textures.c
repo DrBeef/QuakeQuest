@@ -36,7 +36,7 @@ cvar_t gl_texturecompression_sky = {CVAR_SAVE, "gl_texturecompression_sky", "0",
 cvar_t gl_texturecompression_lightcubemaps = {CVAR_SAVE, "gl_texturecompression_lightcubemaps", "1", "whether to compress light cubemaps (spotlights and other light projection images)"};
 cvar_t gl_texturecompression_reflectmask = {CVAR_SAVE, "gl_texturecompression_reflectmask", "1", "whether to compress reflection cubemap masks (mask of which areas of the texture should reflect the generic shiny cubemap)"};
 cvar_t gl_texturecompression_sprites = {CVAR_SAVE, "gl_texturecompression_sprites", "1", "whether to compress sprites"};
-cvar_t gl_nopartialtextureupdates = {CVAR_SAVE, "gl_nopartialtextureupdates", "1", "use alternate path for dynamic lightmap updates that avoids a possibly slow code path in the driver"};
+cvar_t gl_nopartialtextureupdates = {CVAR_SAVE, "gl_nopartialtextureupdates", "0", "use alternate path for dynamic lightmap updates that avoids a possibly slow code path in the driver"};
 cvar_t r_texture_dds_load_alphamode = {0, "r_texture_dds_load_alphamode", "1", "0: trust DDPF_ALPHAPIXELS flag, 1: texture format and brute force search if ambiguous, 2: texture format only"};
 cvar_t r_texture_dds_load_logfailure = {0, "r_texture_dds_load_logfailure", "0", "log missing DDS textures to ddstexturefailures.log, 0: done log, 1: log with no optional textures (_norm, glow etc.). 2: log all"};
 cvar_t r_texture_dds_swdecode = {0, "r_texture_dds_swdecode", "0", "0: don't software decode DDS, 1: software decode DDS if unsupported, 2: always software decode DDS"};
@@ -81,24 +81,23 @@ typedef struct textypeinfo_s
 textypeinfo_t;
 
 #ifdef USE_GLES2
-#define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT 0x83f2
-#define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT 0x83f3
+
+// we use these internally even if we never deliver such data to the driver
+#define GL_BGR					0x80E0
+#define GL_BGRA					0x80E1
+
 // framebuffer texture formats
 // GLES2 devices rarely support depth textures, so we actually use a renderbuffer there
-static textypeinfo_t textype_shadowmap16_comp            = {"shadowmap16_comp",         TEXTYPE_SHADOWMAP16_COMP     ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT};
-static textypeinfo_t textype_shadowmap16_raw             = {"shadowmap16_raw",          TEXTYPE_SHADOWMAP16_RAW      ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT};
-static textypeinfo_t textype_shadowmap24_comp            = {"shadowmap24_comp",         TEXTYPE_SHADOWMAP24_COMP     ,  4,  4,  4.0f, GL_DEPTH_COMPONENT24_OES              , GL_DEPTH_COMPONENT24_OES, GL_UNSIGNED_SHORT};
-static textypeinfo_t textype_shadowmap24_raw             = {"shadowmap24_raw",          TEXTYPE_SHADOWMAP24_RAW      ,  4,  4,  4.0f, GL_DEPTH_COMPONENT24_OES              , GL_DEPTH_COMPONENT24_OES, GL_UNSIGNED_SHORT};
-static textypeinfo_t textype_depth16                     = {"depth16",                  TEXTYPE_DEPTHBUFFER16        ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT};
-static textypeinfo_t textype_depth24                     = {"depth24",                  TEXTYPE_DEPTHBUFFER24        ,  4,  4,  4.0f, GL_DEPTH_COMPONENT24_OES              , GL_DEPTH_COMPONENT24_OES, GL_UNSIGNED_SHORT};
-static textypeinfo_t textype_depth24stencil8             = {"depth24stencil8",          TEXTYPE_DEPTHBUFFER24STENCIL8,  2,  2,  2.0f, GL_DEPTH_COMPONENT              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
-static textypeinfo_t textype_colorbuffer_32                 = {"colorbuffer",              TEXTYPE_COLORBUFFER          ,  4,  4,  4.0f, GL_RGBA                               , GL_RGBA           , GL_UNSIGNED_BYTE};
-static textypeinfo_t textype_colorbuffer16f_32              = {"colorbuffer16f",           TEXTYPE_COLORBUFFER16F       ,  4,  4,  4.0f, GL_RGBA                               , GL_RGBA           , GL_UNSIGNED_BYTE};
-static textypeinfo_t textype_colorbuffer32f_32              = {"colorbuffer32f",           TEXTYPE_COLORBUFFER32F       ,  4,  4,  4.0f, GL_RGBA                               , GL_RGBA           , GL_UNSIGNED_BYTE};
-
-static textypeinfo_t textype_colorbuffer_16                 = {"colorbuffer",              TEXTYPE_COLORBUFFER          ,  2,  2,  2.0f, GL_RGB                              , GL_RGB           , GL_UNSIGNED_SHORT_5_6_5};
-static textypeinfo_t textype_colorbuffer16f_16              = {"colorbuffer16f",           TEXTYPE_COLORBUFFER16F       ,  2,  2,  2.0f, GL_RGB                              , GL_RGB           , GL_UNSIGNED_SHORT_5_6_5};
-static textypeinfo_t textype_colorbuffer32f_16              = {"colorbuffer32f",           TEXTYPE_COLORBUFFER32F       ,  2,  2,  2.0f, GL_RGB                              , GL_RGB           , GL_UNSIGNED_SHORT_5_6_5};
+static textypeinfo_t textype_shadowmap16_comp            = {"shadowmap16_comp",         TEXTYPE_SHADOWMAP16_COMP     ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
+static textypeinfo_t textype_shadowmap16_raw             = {"shadowmap16_raw",          TEXTYPE_SHADOWMAP16_RAW      ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
+static textypeinfo_t textype_shadowmap24_comp            = {"shadowmap24_comp",         TEXTYPE_SHADOWMAP24_COMP     ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
+static textypeinfo_t textype_shadowmap24_raw             = {"shadowmap24_raw",          TEXTYPE_SHADOWMAP24_RAW      ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
+static textypeinfo_t textype_depth16                     = {"depth16",                  TEXTYPE_DEPTHBUFFER16        ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
+static textypeinfo_t textype_depth24                     = {"depth24",                  TEXTYPE_DEPTHBUFFER24        ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
+static textypeinfo_t textype_depth24stencil8             = {"depth24stencil8",          TEXTYPE_DEPTHBUFFER24STENCIL8,  2,  2,  2.0f, GL_DEPTH_COMPONENT16              , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
+static textypeinfo_t textype_colorbuffer                 = {"colorbuffer",              TEXTYPE_COLORBUFFER          ,  2,  2,  2.0f, GL_RGB565                         , GL_RGBA           , GL_UNSIGNED_SHORT_5_6_5};
+static textypeinfo_t textype_colorbuffer16f              = {"colorbuffer16f",           TEXTYPE_COLORBUFFER16F       ,  2,  2,  2.0f, GL_RGB565                         , GL_RGBA           , GL_UNSIGNED_SHORT_5_6_5};
+static textypeinfo_t textype_colorbuffer32f              = {"colorbuffer32f",           TEXTYPE_COLORBUFFER32F       ,  2,  2,  2.0f, GL_RGB565                         , GL_RGBA           , GL_UNSIGNED_SHORT_5_6_5};
 
 // image formats:
 static textypeinfo_t textype_alpha                       = {"alpha",                    TEXTYPE_ALPHA         ,  1,  4,  4.0f, GL_ALPHA                              , GL_ALPHA          , GL_UNSIGNED_BYTE };
@@ -108,10 +107,9 @@ static textypeinfo_t textype_rgba                        = {"rgba",             
 static textypeinfo_t textype_rgba_alpha                  = {"rgba_alpha",               TEXTYPE_RGBA          ,  4,  4,  4.0f, GL_RGBA                               , GL_RGBA           , GL_UNSIGNED_BYTE };
 static textypeinfo_t textype_bgra                        = {"bgra",                     TEXTYPE_BGRA          ,  4,  4,  4.0f, GL_RGBA                               , GL_BGRA           , GL_UNSIGNED_BYTE };
 static textypeinfo_t textype_bgra_alpha                  = {"bgra_alpha",               TEXTYPE_BGRA          ,  4,  4,  4.0f, GL_RGBA                               , GL_BGRA           , GL_UNSIGNED_BYTE };
-static textypeinfo_t textype_dxt1                        = {"dxt1",                     TEXTYPE_DXT1          ,  4,  0,  0.5f, GL_COMPRESSED_RGB_S3TC_DXT1_EXT       , 0                 , 0                };
-static textypeinfo_t textype_dxt1a                       = {"dxt1a",                    TEXTYPE_DXT1A         ,  4,  0,  0.5f, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT      , 0                 , 0                };
-static textypeinfo_t textype_dxt3                        = {"dxt3",                     TEXTYPE_DXT3          ,  4,  0,  1.0f, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT      , 0                 , 0                };
-static textypeinfo_t textype_dxt5                        = {"dxt5",                     TEXTYPE_DXT5          ,  4,  0,  1.0f, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT      , 0                 , 0                };
+#ifdef __ANDROID__
+static textypeinfo_t textype_etc1                        = {"etc1",                     TEXTYPE_ETC1          ,  1,  3,  0.5f, GL_ETC1_RGB8_OES                         , 0                 , 0                };
+#endif
 #else
 // framebuffer texture formats
 static textypeinfo_t textype_shadowmap16_comp            = {"shadowmap16_comp",         TEXTYPE_SHADOWMAP16_COMP     ,  2,  2,  2.0f, GL_DEPTH_COMPONENT16_ARB          , GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT};
@@ -167,7 +165,9 @@ typedef enum gltexturetype_e
 gltexturetype_t;
 
 static int gltexturetypeenums[GLTEXTURETYPE_TOTAL] = {GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_CUBE_MAP};
+#ifdef GL_TEXTURE_WRAP_R
 static int gltexturetypedimensions[GLTEXTURETYPE_TOTAL] = {2, 3, 2};
+#endif
 static int cubemapside[6] =
 {
 	GL_TEXTURE_CUBE_MAP_POSITIVE_X,
@@ -274,23 +274,21 @@ static unsigned char *resizebuffer = NULL, *colorconvertbuffer;
 static int resizebuffersize = 0;
 static const unsigned char *texturebuffer;
 
-extern int is32bit;
-
 static textypeinfo_t *R_GetTexTypeInfo(textype_t textype, int flags)
 {
 	switch(textype)
 	{
-	case TEXTYPE_DXT1: return &textype_dxt1;
-	case TEXTYPE_DXT1A: return &textype_dxt1a;
-	case TEXTYPE_DXT3: return &textype_dxt3;
-	case TEXTYPE_DXT5: return &textype_dxt5;
+#ifdef USE_GLES2
 	case TEXTYPE_PALETTE: return (flags & TEXF_ALPHA) ? &textype_palette_alpha : &textype_palette;
-	case TEXTYPE_RGBA: return /*((flags & TEXF_COMPRESS) && vid.support.ext_texture_compression_s3tc) ? ((flags & TEXF_ALPHA) ? &textype_rgba_alpha_compress : &textype_rgba_compress) : */((flags & TEXF_ALPHA) ? &textype_rgba_alpha : &textype_rgba);
-	case TEXTYPE_BGRA: return /*((flags & TEXF_COMPRESS) && vid.support.ext_texture_compression_s3tc) ? ((flags & TEXF_ALPHA) ? &textype_bgra_alpha_compress : &textype_bgra_compress) : */((flags & TEXF_ALPHA) ? &textype_bgra_alpha : &textype_bgra);
+	case TEXTYPE_RGBA: return ((flags & TEXF_ALPHA) ? &textype_rgba_alpha : &textype_rgba);
+	case TEXTYPE_BGRA: return ((flags & TEXF_ALPHA) ? &textype_bgra_alpha : &textype_bgra);
+#ifdef __ANDROID__
+	case TEXTYPE_ETC1: return &textype_etc1;
+#endif
 	case TEXTYPE_ALPHA: return &textype_alpha;
-	case TEXTYPE_COLORBUFFER: return (is32bit) ? &textype_colorbuffer_32 : &textype_colorbuffer_16;
-	case TEXTYPE_COLORBUFFER16F: return (is32bit) ? &textype_colorbuffer16f_32 : &textype_colorbuffer16f_16;
-	case TEXTYPE_COLORBUFFER32F: return (is32bit) ? &textype_colorbuffer32f_32 : &textype_colorbuffer32f_16;
+	case TEXTYPE_COLORBUFFER: return &textype_colorbuffer;
+	case TEXTYPE_COLORBUFFER16F: return &textype_colorbuffer16f;
+	case TEXTYPE_COLORBUFFER32F: return &textype_colorbuffer32f;
 	case TEXTYPE_DEPTHBUFFER16: return &textype_depth16;
 	case TEXTYPE_DEPTHBUFFER24: return &textype_depth24;
 	case TEXTYPE_DEPTHBUFFER24STENCIL8: return &textype_depth24stencil8;
@@ -298,14 +296,33 @@ static textypeinfo_t *R_GetTexTypeInfo(textype_t textype, int flags)
 	case TEXTYPE_SHADOWMAP16_RAW: return &textype_shadowmap16_raw;
 	case TEXTYPE_SHADOWMAP24_COMP: return &textype_shadowmap24_comp;
 	case TEXTYPE_SHADOWMAP24_RAW: return &textype_shadowmap24_raw;
-	/*case TEXTYPE_SRGB_DXT1: return &textype_sRGB_dxt1;
+#else
+	case TEXTYPE_DXT1: return &textype_dxt1;
+	case TEXTYPE_DXT1A: return &textype_dxt1a;
+	case TEXTYPE_DXT3: return &textype_dxt3;
+	case TEXTYPE_DXT5: return &textype_dxt5;
+	case TEXTYPE_PALETTE: return (flags & TEXF_ALPHA) ? &textype_palette_alpha : &textype_palette;
+	case TEXTYPE_RGBA: return ((flags & TEXF_COMPRESS) && vid.support.ext_texture_compression_s3tc) ? ((flags & TEXF_ALPHA) ? &textype_rgba_alpha_compress : &textype_rgba_compress) : ((flags & TEXF_ALPHA) ? &textype_rgba_alpha : &textype_rgba);
+	case TEXTYPE_BGRA: return ((flags & TEXF_COMPRESS) && vid.support.ext_texture_compression_s3tc) ? ((flags & TEXF_ALPHA) ? &textype_bgra_alpha_compress : &textype_bgra_compress) : ((flags & TEXF_ALPHA) ? &textype_bgra_alpha : &textype_bgra);
+	case TEXTYPE_ALPHA: return &textype_alpha;
+	case TEXTYPE_COLORBUFFER: return &textype_colorbuffer;
+	case TEXTYPE_COLORBUFFER16F: return &textype_colorbuffer16f;
+	case TEXTYPE_COLORBUFFER32F: return &textype_colorbuffer32f;
+	case TEXTYPE_DEPTHBUFFER16: return &textype_depth16;
+	case TEXTYPE_DEPTHBUFFER24: return &textype_depth24;
+	case TEXTYPE_DEPTHBUFFER24STENCIL8: return &textype_depth24stencil8;
+	case TEXTYPE_SHADOWMAP16_COMP: return &textype_shadowmap16_comp;
+	case TEXTYPE_SHADOWMAP16_RAW: return &textype_shadowmap16_raw;
+	case TEXTYPE_SHADOWMAP24_COMP: return &textype_shadowmap24_comp;
+	case TEXTYPE_SHADOWMAP24_RAW: return &textype_shadowmap24_raw;
+	case TEXTYPE_SRGB_DXT1: return &textype_sRGB_dxt1;
 	case TEXTYPE_SRGB_DXT1A: return &textype_sRGB_dxt1a;
 	case TEXTYPE_SRGB_DXT3: return &textype_sRGB_dxt3;
 	case TEXTYPE_SRGB_DXT5: return &textype_sRGB_dxt5;
 	case TEXTYPE_SRGB_PALETTE: return (flags & TEXF_ALPHA) ? &textype_sRGB_palette_alpha : &textype_sRGB_palette;
 	case TEXTYPE_SRGB_RGBA: return ((flags & TEXF_COMPRESS) && vid.support.ext_texture_compression_s3tc) ? ((flags & TEXF_ALPHA) ? &textype_sRGB_rgba_alpha_compress : &textype_sRGB_rgba_compress) : ((flags & TEXF_ALPHA) ? &textype_sRGB_rgba_alpha : &textype_sRGB_rgba);
 	case TEXTYPE_SRGB_BGRA: return ((flags & TEXF_COMPRESS) && vid.support.ext_texture_compression_s3tc) ? ((flags & TEXF_ALPHA) ? &textype_sRGB_bgra_alpha_compress : &textype_sRGB_bgra_compress) : ((flags & TEXF_ALPHA) ? &textype_sRGB_bgra_alpha : &textype_sRGB_bgra);
-	*/
+#endif
 	default:
 		Host_Error("R_GetTexTypeInfo: unknown texture format");
 		break;
@@ -977,7 +994,9 @@ void R_Textures_Init (void)
 
 void R_Textures_Frame (void)
 {
+#ifdef GL_TEXTURE_MAX_ANISOTROPY_EXT
 	static int old_aniso = 0;
+#endif
 
 	// could do procedural texture animation here, if we keep track of which
 	// textures were accessed this frame...
@@ -995,6 +1014,7 @@ void R_Textures_Frame (void)
 		colorconvertbuffer = NULL;
 	}
 
+#ifdef GL_TEXTURE_MAX_ANISOTROPY_EXT
 	if (old_aniso != gl_texture_anisotropy.integer)
 	{
 		gltexture_t *glt;
@@ -1024,8 +1044,7 @@ void R_Textures_Frame (void)
 						oldbindtexnum = R_Mesh_TexBound(0, gltexturetypeenums[glt->texturetype]);
 
 						qglBindTexture(gltexturetypeenums[glt->texturetype], glt->texnum);CHECKGLERROR
-						qglTexParameteri(gltexturetypeenums[glt->texturetype], GL_TEXTURE_MAX_ANISOTROPY_EXT, old_aniso);
-						CHECKGLERROR
+						qglTexParameteri(gltexturetypeenums[glt->texturetype], GL_TEXTURE_MAX_ANISOTROPY_EXT, old_aniso);CHECKGLERROR
 
 						qglBindTexture(gltexturetypeenums[glt->texturetype], oldbindtexnum);CHECKGLERROR
 					}
@@ -1039,6 +1058,7 @@ void R_Textures_Frame (void)
 			break;
 		}
 	}
+#endif
 }
 
 static void R_MakeResizeBufferBigger(int size)
@@ -1064,6 +1084,7 @@ static void GL_SetupTextureParameters(int flags, textype_t textype, int texturet
 
 	CHECKGLERROR
 
+#ifdef GL_TEXTURE_MAX_ANISOTROPY_EXT
 	if (vid.support.ext_texture_filter_anisotropic && (flags & TEXF_MIPMAP))
 	{
 		int aniso = bound(1, gl_texture_anisotropy.integer, (int)vid.max_anisotropy);
@@ -1071,6 +1092,7 @@ static void GL_SetupTextureParameters(int flags, textype_t textype, int texturet
 			Cvar_SetValueQuick(&gl_texture_anisotropy, aniso);
 		qglTexParameteri(textureenum, GL_TEXTURE_MAX_ANISOTROPY_EXT, aniso);CHECKGLERROR
 	}
+#endif
 	qglTexParameteri(textureenum, GL_TEXTURE_WRAP_S, wrapmode);CHECKGLERROR
 	qglTexParameteri(textureenum, GL_TEXTURE_WRAP_T, wrapmode);CHECKGLERROR
 #ifdef GL_TEXTURE_WRAP_R
@@ -1125,23 +1147,25 @@ static void GL_SetupTextureParameters(int flags, textype_t textype, int texturet
 		qglTexParameteri(textureenum, GL_TEXTURE_MAG_FILTER, gl_filter_mag);CHECKGLERROR
 	}
 
+#ifdef GL_TEXTURE_COMPARE_MODE_ARB
 	switch(textype)
 	{
 	case TEXTYPE_SHADOWMAP16_COMP:
 	case TEXTYPE_SHADOWMAP24_COMP:
-		/*qglTexParameteri(textureenum, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE_ARB);CHECKGLERROR
+		qglTexParameteri(textureenum, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE_ARB);CHECKGLERROR
 		qglTexParameteri(textureenum, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);CHECKGLERROR
-		qglTexParameteri(textureenum, GL_DEPTH_TEXTURE_MODE_ARB, GL_LUMINANCE);*/CHECKGLERROR
+		qglTexParameteri(textureenum, GL_DEPTH_TEXTURE_MODE_ARB, GL_LUMINANCE);CHECKGLERROR
 		break;
 	case TEXTYPE_SHADOWMAP16_RAW:
 	case TEXTYPE_SHADOWMAP24_RAW:
-		/*qglTexParameteri(textureenum, GL_TEXTURE_COMPARE_MODE_ARB, GL_NONE);CHECKGLERROR
+		qglTexParameteri(textureenum, GL_TEXTURE_COMPARE_MODE_ARB, GL_NONE);CHECKGLERROR
 		qglTexParameteri(textureenum, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);CHECKGLERROR
-		qglTexParameteri(textureenum, GL_DEPTH_TEXTURE_MODE_ARB, GL_LUMINANCE);*/CHECKGLERROR
+		qglTexParameteri(textureenum, GL_DEPTH_TEXTURE_MODE_ARB, GL_LUMINANCE);CHECKGLERROR
 		break;
 	default:
 		break;
 	}
+#endif
 
 	CHECKGLERROR
 }
@@ -1295,6 +1319,7 @@ static void R_UploadFullTexture(gltexture_t *glt, const unsigned char *data)
 			oldbindtexnum = R_Mesh_TexBound(0, gltexturetypeenums[glt->texturetype]);
 			qglBindTexture(gltexturetypeenums[glt->texturetype], glt->texnum);CHECKGLERROR
 
+#ifndef USE_GLES2
 #ifdef GL_TEXTURE_COMPRESSION_HINT_ARB
 			if (qglGetCompressedTexImageARB)
 			{
@@ -1304,6 +1329,7 @@ static void R_UploadFullTexture(gltexture_t *glt, const unsigned char *data)
 					qglHint(GL_TEXTURE_COMPRESSION_HINT_ARB, GL_FASTEST);
 				CHECKGLERROR
 			}
+#endif
 #endif
 			switch(glt->texturetype)
 			{
@@ -1754,7 +1780,6 @@ static rtexture_t *R_SetupTexture(rtexturepool_t *rtexturepool, const char *iden
 	glt = (gltexture_t *)Mem_ExpandableArray_AllocRecord(&texturearray);
 	if (identifier)
 		strlcpy (glt->identifier, identifier, sizeof(glt->identifier));
-
 	glt->pool = pool;
 	glt->chain = pool->gltchain;
 	pool->gltchain = glt;
@@ -1879,7 +1904,6 @@ static rtexture_t *R_SetupTexture(rtexturepool_t *rtexturepool, const char *iden
 	}
 
 	R_UploadFullTexture(glt, data);
-
 	if ((glt->flags & TEXF_ALLOWUPDATES) && gl_nopartialtextureupdates.integer)
 		glt->bufferpixels = (unsigned char *)Mem_Alloc(texturemempool, glt->tilewidth*glt->tileheight*glt->tiledepth*glt->sides*glt->bytesperpixel);
 
@@ -2164,6 +2188,11 @@ int R_SaveTextureDDSFile(rtexture_t *rt, const char *filename, qboolean skipunco
 #endif
 }
 
+#ifdef __ANDROID__
+// ELUAN: FIXME: separate this code
+//#include "ktx10/include/ktx.h"
+#endif
+
 rtexture_t *R_LoadTextureDDSFile(rtexturepool_t *rtexturepool, const char *filename, qboolean srgb, int flags, qboolean *hasalphaflag, float *avgcolor, int miplevel, qboolean optionaltexture) // DDS textures are opaque, so miplevel isn't a pointer but just seen as a hint
 {
 	int i, size, dds_format_flags, dds_miplevels, dds_width, dds_height;
@@ -2185,8 +2214,155 @@ rtexture_t *R_LoadTextureDDSFile(rtexturepool_t *rtexturepool, const char *filen
 	unsigned int ddssize;
 	qboolean force_swdecode, npothack;
 
+#ifdef __ANDROID__
+	/*
+	// ELUAN: FIXME: separate this code
+	char vabuf[1024];
+	char vabuf2[1024];
+	int strsize;
+	KTX_dimensions sizes;*/
+#endif
+
 	if (cls.state == ca_dedicated)
 		return NULL;
+
+#ifdef __ANDROID__
+	/*
+	// ELUAN: FIXME: separate this code
+	if (vid.renderpath != RENDERPATH_GLES2)
+	{
+		Con_DPrintf("KTX texture format is only supported on the GLES2 renderpath\n");
+		return NULL;
+	}
+
+	// some textures are specified with extensions, so it becomes .tga.dds
+	FS_StripExtension (filename, vabuf2, sizeof(vabuf2));
+	FS_StripExtension (vabuf2, vabuf, sizeof(vabuf));
+	FS_DefaultExtension (vabuf, ".ktx", sizeof(vabuf));
+	strsize = strlen(vabuf);
+	if (strsize > 5)
+	for (i = 0; i <= strsize - 4; i++) // copy null termination
+		vabuf[i] = vabuf[i + 4];
+
+	Con_DPrintf("Loading %s...\n", vabuf);
+	dds = FS_LoadFile(vabuf, tempmempool, true, &ddsfilesize);
+	ddssize = ddsfilesize;
+
+	if (!dds)
+	{
+		Con_DPrintf("Not found!\n");
+		return NULL; // not found
+	}
+	Con_DPrintf("Found!\n");
+
+	if (flags & TEXF_ALPHA)
+	{
+		Con_DPrintf("KTX texture with alpha not supported yet, disabling\n");
+		flags &= ~TEXF_ALPHA;
+	}
+
+	{
+		GLenum target;
+		GLenum glerror;
+		GLboolean isMipmapped;
+		KTX_error_code ktxerror;
+
+		glt = (gltexture_t *)Mem_ExpandableArray_AllocRecord(&texturearray);
+
+		// texture uploading can take a while, so make sure we're sending keepalives
+		CL_KeepaliveMessage(false);
+
+		// create the texture object
+		CHECKGLERROR
+		GL_ActiveTexture(0);
+		oldbindtexnum = R_Mesh_TexBound(0, gltexturetypeenums[GLTEXTURETYPE_2D]);
+		qglGenTextures(1, (GLuint *)&glt->texnum);CHECKGLERROR
+		qglBindTexture(gltexturetypeenums[GLTEXTURETYPE_2D], glt->texnum);CHECKGLERROR
+
+		// upload the texture
+		// we need to restore the texture binding after finishing the upload
+
+		// NOTE: some drivers fail with ETC1 NPOT (only PowerVR?). This may make the driver crash later.
+		ktxerror = ktxLoadTextureM(dds, ddssize, &glt->texnum, &target, &sizes, &isMipmapped, &glerror,
+								0, NULL);// can't CHECKGLERROR, the lib catches it
+
+		// FIXME: delete texture if we fail here
+		if (target != GL_TEXTURE_2D)
+		{
+			qglBindTexture(gltexturetypeenums[glt->texturetype], oldbindtexnum);CHECKGLERROR
+			Mem_Free(dds);
+			Con_DPrintf("%s target != GL_TEXTURE_2D, target == %x\n", vabuf, target);
+			return NULL; // FIXME: delete the texture from memory
+		}
+
+		if (KTX_SUCCESS == ktxerror)
+		{
+			textype = TEXTYPE_ETC1;
+			flags &= ~TEXF_COMPRESS; // don't let the textype be wrong
+
+			// return whether this texture is transparent
+			if (hasalphaflag)
+				*hasalphaflag = (flags & TEXF_ALPHA) != 0;
+
+			// TODO: apply gl_picmip
+			// TODO: avgcolor
+			// TODO: srgb
+			// TODO: only load mipmaps if requested
+
+			if (isMipmapped)
+				flags |= TEXF_MIPMAP;
+			else
+				flags &= ~TEXF_MIPMAP;
+
+			texinfo = R_GetTexTypeInfo(textype, flags);
+
+			strlcpy (glt->identifier, vabuf, sizeof(glt->identifier));
+			glt->pool = pool;
+			glt->chain = pool->gltchain;
+			pool->gltchain = glt;
+			glt->inputwidth = sizes.width;
+			glt->inputheight = sizes.height;
+			glt->inputdepth = 1;
+			glt->flags = flags;
+			glt->textype = texinfo;
+			glt->texturetype = GLTEXTURETYPE_2D;
+			glt->inputdatasize = ddssize;
+			glt->glinternalformat = texinfo->glinternalformat;
+			glt->glformat = texinfo->glformat;
+			glt->gltype = texinfo->gltype;
+			glt->bytesperpixel = texinfo->internalbytesperpixel;
+			glt->sides = 1;
+			glt->gltexturetypeenum = gltexturetypeenums[glt->texturetype];
+			glt->tilewidth = sizes.width;
+			glt->tileheight = sizes.height;
+			glt->tiledepth = 1;
+			glt->miplevels = isMipmapped ? 1 : 0; // FIXME
+
+				// after upload we have to set some parameters...
+#ifdef GL_TEXTURE_MAX_LEVEL
+			/* FIXME
+				if (dds_miplevels >= 1 && !mipcomplete)
+				{
+					// need to set GL_TEXTURE_MAX_LEVEL
+					qglTexParameteri(gltexturetypeenums[glt->texturetype], GL_TEXTURE_MAX_LEVEL, dds_miplevels - 1);CHECKGLERROR
+				}
+			//
+#endif
+				GL_SetupTextureParameters(glt->flags, glt->textype->textype, glt->texturetype);
+
+				qglBindTexture(gltexturetypeenums[glt->texturetype], oldbindtexnum);CHECKGLERROR
+				Mem_Free(dds);
+				return (rtexture_t *)glt;
+		}
+		else
+		{
+			qglBindTexture(gltexturetypeenums[glt->texturetype], oldbindtexnum);CHECKGLERROR
+			Mem_Free(dds);
+			Con_DPrintf("KTX texture %s failed to load: %x\n", vabuf, ktxerror);
+			return NULL;
+		}
+	}*/
+#endif // __ANDROID__
 
 	dds = FS_LoadFile(filename, tempmempool, true, &ddsfilesize);
 	ddssize = ddsfilesize;

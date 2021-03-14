@@ -329,6 +329,7 @@ extern void qglMultiTexCoord1f(GLenum, GLfloat);
 extern void qglMultiTexCoord2f(GLenum, GLfloat, GLfloat);
 extern void qglMultiTexCoord3f(GLenum, GLfloat, GLfloat, GLfloat);
 extern void qglMultiTexCoord4f(GLenum, GLfloat, GLfloat, GLfloat, GLfloat);
+extern void qglActiveTexture (GLenum);
 extern void qglClientActiveTexture(GLenum);
 #ifndef GL_ACTIVE_TEXTURE
 #define GL_ACTIVE_TEXTURE			0x84E0
@@ -1106,6 +1107,15 @@ extern void qglPointSize(GLfloat size);
 #define GL_UNSIGNED_INT_24_8_EXT        0x84FA
 #define GL_DEPTH24_STENCIL8_EXT         0x88F0
 
+//GL_EXT_blend_func_separate
+#ifndef GL_BLEND_DST_RGB
+#define GL_BLEND_DST_RGB                  0x80C8
+#define GL_BLEND_SRC_RGB                  0x80C9
+#define GL_BLEND_DST_ALPHA                0x80CA
+#define GL_BLEND_SRC_ALPHA                0x80CB
+#endif
+extern void (GLAPIENTRY *qglBlendFuncSeparate)(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha);
+
 #endif
 
 #define DEBUGGL
@@ -1153,6 +1163,7 @@ void GL_PrintError(int errornumber, const char *filename, int linenumber);
 #define qglBindTexture glBindTexture
 #define qglBlendEquationEXT glBlendEquation
 #define qglBlendFunc glBlendFunc
+#define qglBlendFuncSeparate glBlendFuncSeparate
 #define qglBufferDataARB glBufferData
 #define qglBufferSubDataARB glBufferSubData
 #define qglClear glClear

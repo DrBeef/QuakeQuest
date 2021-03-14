@@ -60,8 +60,18 @@ int moncontrol(int);
 
 void Sys_AllowProfiling(qboolean enable)
 {
-#if defined(__linux__) || defined(__FreeBSD__)
-	//moncontrol(enable);
+#ifdef __ANDROID__
+#ifdef USE_PROFILER
+	extern void monstartup(const char *libname);
+	extern void moncleanup(void);
+	if (enable)
+		monstartup("libmain.so");
+	else
+		moncleanup();
+#endif
+#elif defined(__linux__) || defined(__FreeBSD__)
+	extern int moncontrol(int);
+	moncontrol(enable);
 #endif
 }
 

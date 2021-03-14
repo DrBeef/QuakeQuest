@@ -14,7 +14,7 @@ LOCAL_C_INCLUDES := ../QuakeQuestSrc/ \
 ../darkplaces/ \
 $(SUPPORT_LIBS)/liboggvorbis/include
 
-LOCAL_SHARED_LIBRARIES	:= vrapi libvorbis libogg libvorbis-jni
+LOCAL_SHARED_LIBRARIES	:= vrapi libvorbis libogg libvorbis-jni SDL2
 
 SRC_SND_COMMON := \
 	darkplaces/snd_main.c \
@@ -134,5 +134,6 @@ LOCAL_SRC_FILES := \
 
 include $(BUILD_SHARED_LIBRARY)
 include $(SUPPORT_LIBS)/liboggvorbis/Android.mk
+include $(SUPPORT_LIBS)/SDL2/Android.mk
 
 $(call import-module,VrApi/Projects/AndroidPrebuilt/jni)

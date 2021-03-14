@@ -35,6 +35,7 @@ cvar_t prvm_traceqc = {0, "prvm_traceqc", "0", "prints every QuakeC statement as
 // LordHavoc: counts usage of each QuakeC statement
 cvar_t prvm_statementprofiling = {0, "prvm_statementprofiling", "0", "counts how many times each QuakeC statement has been executed, these counts are displayed in prvm_printfunction output (if enabled)"};
 cvar_t prvm_timeprofiling = {0, "prvm_timeprofiling", "0", "counts how long each function has been executed, these counts are displayed in prvm_profile output (if enabled)"};
+cvar_t prvm_coverage = {0, "prvm_coverage", "0", "report and count coverage events (1: per-function, 2: coverage() builtin, 4: per-statement)"};
 cvar_t prvm_backtraceforwarnings = {0, "prvm_backtraceforwarnings", "0", "print a backtrace for warnings too"};
 cvar_t prvm_leaktest = {0, "prvm_leaktest", "0", "try to detect memory leaks in strings or entities"};
 cvar_t prvm_leaktest_ignore_classnames = {0, "prvm_leaktest_ignore_classnames", "", "classnames of entities to NOT leak check because they are found by find(world, classname, ...) but are actually spawned by QC code (NOT map entities)"};
@@ -156,8 +157,10 @@ prvm_prog_t *PRVM_ProgFromString(const char *str)
 		return SVVM_prog;
 	if (!strcmp(str, "client"))
 		return CLVM_prog;
+#ifdef CONFIG_MENU
 	if (!strcmp(str, "menu"))
 		return MVM_prog;
+#endif
 	return NULL;
 }
 
@@ -1683,9 +1686,9 @@ static void PRVM_PO_ParseString(char *out, const char *in, size_t outsize)
 		++in;
 	}
 }
-static po_t *PRVM_PO_Load(const char *filename, mempool_t *pool)
+static po_t *PRVM_PO_Load(const char *filename, const char *filename2, mempool_t *pool)
 {
-	po_t *po;
+	po_t *po = NULL;
 	const char *p, *q;
 	int mode;
 	char inbuf[MAX_INPUTLINE];
@@ -1693,93 +1696,106 @@ static po_t *PRVM_PO_Load(const char *filename, mempool_t *pool)
 	size_t decodedpos;
 	int hashindex;
 	po_string_t thisstr;
-	const char *buf = (const char *) FS_LoadFile(filename, pool, true, NULL);
+	int i;
 
-	if(!buf)
-		return NULL;
-
-	memset(&thisstr, 0, sizeof(thisstr)); // hush compiler warning
-
-	po = (po_t *)Mem_Alloc(pool, sizeof(*po));
-	memset(po, 0, sizeof(*po));
-
-	p = buf;
-	while(*p)
+	for (i = 0; i < 2; ++i)
 	{
-		if(*p == '#')
-		{
-			// skip to newline
-			p = strchr(p, '\n');
-			if(!p)
-				break;
-			++p;
+		const char *buf = (const char *)
+			FS_LoadFile((i > 0 ? filename : filename2), pool, true, NULL);
+		// first read filename2, then read filename
+		// so that progs.dat.de.po wins over common.de.po
+		// and within file, last item wins
+
+		if(!buf)
 			continue;
-		}
-		if(*p == '\r' || *p == '\n')
+
+		if (!po)
 		{
-			++p;
-			continue;
+			po = (po_t *)Mem_Alloc(pool, sizeof(*po));
+			memset(po, 0, sizeof(*po));
 		}
-		if(!strncmp(p, "msgid \"", 7))
+
+		memset(&thisstr, 0, sizeof(thisstr)); // hush compiler warning
+
+		p = buf;
+		while(*p)
 		{
-			mode = 0;
-			p += 6;
+			if(*p == '#')
+			{
+				// skip to newline
+				p = strchr(p, '\n');
+				if(!p)
+					break;
+				++p;
+				continue;
+			}
+			if(*p == '\r' || *p == '\n')
+			{
+				++p;
+				continue;
+			}
+			if(!strncmp(p, "msgid \"", 7))
+			{
+				mode = 0;
+				p += 6;
+			}
+			else if(!strncmp(p, "msgstr \"", 8))
+			{
+				mode = 1;
+				p += 7;
+			}
+			else
+			{
+				p = strchr(p, '\n');
+				if(!p)
+					break;
+				++p;
+				continue;
+			}
+			decodedpos = 0;
+			while(*p == '"')
+			{
+				++p;
+				q = strchr(p, '\n');
+				if(!q)
+					break;
+				if(*(q-1) == '\r')
+					--q;
+				if(*(q-1) != '"')
+					break;
+				if((size_t)(q - p) >= (size_t) sizeof(inbuf))
+					break;
+				strlcpy(inbuf, p, q - p); // not - 1, because this adds a NUL
+				PRVM_PO_ParseString(decodedbuf + decodedpos, inbuf, sizeof(decodedbuf) - decodedpos);
+				decodedpos += strlen(decodedbuf + decodedpos);
+				if(*q == '\r')
+					++q;
+				if(*q == '\n')
+					++q;
+				p = q;
+			}
+			if(mode == 0)
+			{
+				if(thisstr.key)
+					Mem_Free(thisstr.key);
+				thisstr.key = (char *)Mem_Alloc(pool, decodedpos + 1);
+				memcpy(thisstr.key, decodedbuf, decodedpos + 1);
+			}
+			else if(decodedpos > 0 && thisstr.key) // skip empty translation results
+			{
+				thisstr.value = (char *)Mem_Alloc(pool, decodedpos + 1);
+				memcpy(thisstr.value, decodedbuf, decodedpos + 1);
+				hashindex = CRC_Block((const unsigned char *) thisstr.key, strlen(thisstr.key)) % PO_HASHSIZE;
+				thisstr.nextonhashchain = po->hashtable[hashindex];
+				po->hashtable[hashindex] = (po_string_t *)Mem_Alloc(pool, sizeof(thisstr));
+				memcpy(po->hashtable[hashindex], &thisstr, sizeof(thisstr));
+				memset(&thisstr, 0, sizeof(thisstr));
+			}
 		}
-		else if(!strncmp(p, "msgstr \"", 8))
-		{
-			mode = 1;
-			p += 7;
-		}
-		else
-		{
-			p = strchr(p, '\n');
-			if(!p)
-				break;
-			++p;
-			continue;
-		}
-		decodedpos = 0;
-		while(*p == '"')
-		{
-			++p;
-			q = strchr(p, '\n');
-			if(!q)
-				break;
-			if(*(q-1) == '\r')
-				--q;
-			if(*(q-1) != '"')
-				break;
-			if((size_t)(q - p) >= (size_t) sizeof(inbuf))
-				break;
-			strlcpy(inbuf, p, q - p); // not - 1, because this adds a NUL
-			PRVM_PO_ParseString(decodedbuf + decodedpos, inbuf, sizeof(decodedbuf) - decodedpos);
-			decodedpos += strlen(decodedbuf + decodedpos);
-			if(*q == '\r')
-				++q;
-			if(*q == '\n')
-				++q;
-			p = q;
-		}
-		if(mode == 0)
-		{
-			if(thisstr.key)
-				Mem_Free(thisstr.key);
-			thisstr.key = (char *)Mem_Alloc(pool, decodedpos + 1);
-			memcpy(thisstr.key, decodedbuf, decodedpos + 1);
-		}
-		else if(decodedpos > 0 && thisstr.key) // skip empty translation results
-		{
-			thisstr.value = (char *)Mem_Alloc(pool, decodedpos + 1);
-			memcpy(thisstr.value, decodedbuf, decodedpos + 1);
-			hashindex = CRC_Block((const unsigned char *) thisstr.key, strlen(thisstr.key)) % PO_HASHSIZE;
-			thisstr.nextonhashchain = po->hashtable[hashindex];
-			po->hashtable[hashindex] = (po_string_t *)Mem_Alloc(pool, sizeof(thisstr));
-			memcpy(po->hashtable[hashindex], &thisstr, sizeof(thisstr));
-			memset(&thisstr, 0, sizeof(thisstr));
-		}
+		
+		Mem_Free((char *) buf);
 	}
-	
-	Mem_Free((char *) buf);
+
 	return po;
 }
 static const char *PRVM_PO_Lookup(po_t *po, const char *str)
@@ -1872,7 +1888,14 @@ static void PRVM_LoadLNO( prvm_prog_t *prog, const char *progname ) {
 		(unsigned int)LittleLong( header[ 5 ] ) == (unsigned int)prog->progs_numstatements )
 	{
 		prog->statement_linenums = (int *)Mem_Alloc(prog->progs_mempool, prog->progs_numstatements * sizeof( int ) );
-		memcpy( prog->statement_linenums, (int *) lno + 6, prog->progs_numstatements * sizeof( int ) );
+		memcpy( prog->statement_linenums, header + 6, prog->progs_numstatements * sizeof( int ) );
+
+		/* gmqcc suports columnums */
+		if ((unsigned int)filesize > ((6 + 2 * prog->progs_numstatements) * sizeof( int )))
+		{
+			prog->statement_columnnums = (int *)Mem_Alloc(prog->progs_mempool, prog->progs_numstatements * sizeof( int ) );
+			memcpy( prog->statement_columnnums, header + 6 + prog->progs_numstatements, prog->progs_numstatements * sizeof( int ) );
+		}
 	}
 	Mem_Free( lno );
 }
@@ -1907,6 +1930,7 @@ void PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned char * da
 	u;
 	unsigned int d;
 	char vabuf[1024];
+	char vabuf2[1024];
 
 	if (prog->loaded)
 		prog->error_cmd("PRVM_LoadProgs: there is already a %s program loaded!", prog->name );
@@ -1987,6 +2011,7 @@ void PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned char * da
 	prog->statements = (mstatement_t *)Mem_Alloc(prog->progs_mempool, prog->progs_numstatements * sizeof(mstatement_t));
 	// allocate space for profiling statement usage
 	prog->statement_profile = (double *)Mem_Alloc(prog->progs_mempool, prog->progs_numstatements * sizeof(*prog->statement_profile));
+	prog->explicit_profile = (double *)Mem_Alloc(prog->progs_mempool, prog->progs_numstatements * sizeof(*prog->statement_profile));
 	// functions need to be converted to the memory format
 	prog->functions = (mfunction_t *)Mem_Alloc(prog->progs_mempool, sizeof(mfunction_t) * prog->progs_numfunctions);
 
@@ -2110,6 +2135,7 @@ void PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned char * da
 			break;
 		default:
 			Con_DPrintf("PRVM_LoadProgs: unknown opcode %d at statement %d in %s\n", (int)op, i, prog->name);
+			break;
 		// global global global
 		case OP_ADD_F:
 		case OP_ADD_V:
@@ -2191,6 +2217,11 @@ void PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned char * da
 			break;
 		// 1 global
 		case OP_CALL0:
+			if ( a < prog->progs_numglobals)
+				if ( prog->globals.ip[remapglobal(a)] >= 0 )
+					if ( prog->globals.ip[remapglobal(a)] < prog->progs_numfunctions )
+						if ( prog->functions[prog->globals.ip[remapglobal(a)]].first_statement == -642 )
+							++prog->numexplicitcoveragestatements;
 		case OP_CALL1:
 		case OP_CALL2:
 		case OP_CALL3:
@@ -2288,7 +2319,10 @@ void PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned char * da
 		}
 		else
 		{
-			po_t *po = PRVM_PO_Load(va(vabuf, sizeof(vabuf), "%s.%s.po", realfilename, prvm_language.string), prog->progs_mempool);
+			po_t *po = PRVM_PO_Load(
+					va(vabuf, sizeof(vabuf), "%s.%s.po", realfilename, prvm_language.string),
+					va(vabuf2, sizeof(vabuf2), "common.%s.po", prvm_language.string),
+					prog->progs_mempool);
 			if(po)
 			{
 				for (i=0 ; i<prog->numglobaldefs ; i++)
@@ -2874,6 +2908,7 @@ void PRVM_Init (void)
 	Cvar_RegisterVariable (&prvm_traceqc);
 	Cvar_RegisterVariable (&prvm_statementprofiling);
 	Cvar_RegisterVariable (&prvm_timeprofiling);
+	Cvar_RegisterVariable (&prvm_coverage);
 	Cvar_RegisterVariable (&prvm_backtraceforwarnings);
 	Cvar_RegisterVariable (&prvm_leaktest);
 	Cvar_RegisterVariable (&prvm_leaktest_ignore_classnames);

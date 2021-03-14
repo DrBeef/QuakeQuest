@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sv_demo.h"
 #include "image.h"
 
+#include "prvm_cmds.h"
 #include "utf8lib.h"
 
 // for secure rcon authentication
@@ -111,7 +112,7 @@ static void Host_Status_f (void)
 		if (svs.clients[i].active)
 			players++;
 	print ("host:     %s\n", Cvar_VariableString ("hostname"));
-	print ("version:  %s build %s\n", gamename, buildstring);
+	print ("version:  %s build %s (gamename %s)\n", gamename, buildstring, gamenetworkfiltername);
 	print ("protocol: %i (%s)\n", Protocol_NumberForEnum(sv.protocol), Protocol_NameForEnum(sv.protocol));
 	print ("map:      %s\n", sv.name);
 	print ("timing:   %s\n", Host_TimingReport(vabuf, sizeof(vabuf)));
@@ -383,9 +384,11 @@ static void Host_Map_f (void)
 		svs.clients = (client_t *)Mem_Alloc(sv_mempool, sizeof(client_t) * svs.maxclients);
 	}
 
+#ifdef CONFIG_MENU
 	// remove menu
 	if (key_dest == key_menu || key_dest == key_menu_grabbed)
 		MR_ToggleMenu(0);
+#endif
 	key_dest = key_game;
 
 	svs.serverflags = 0;			// haven't completed an episode yet
@@ -418,9 +421,11 @@ static void Host_Changelevel_f (void)
 		return;
 	}
 
+#ifdef CONFIG_MENU
 	// remove menu
 	if (key_dest == key_menu || key_dest == key_menu_grabbed)
 		MR_ToggleMenu(0);
+#endif
 	key_dest = key_game;
 
 	SV_SaveSpawnparms ();
@@ -453,9 +458,11 @@ static void Host_Restart_f (void)
 		return;
 	}
 
+#ifdef CONFIG_MENU
 	// remove menu
 	if (key_dest == key_menu || key_dest == key_menu_grabbed)
 		MR_ToggleMenu(0);
+#endif
 	key_dest = key_game;
 
 	allowcheats = sv_cheats.integer != 0;
@@ -759,11 +766,6 @@ Host_Loadgame_f
 ===============
 */
 
-prvm_stringbuffer_t *BufStr_FindCreateReplace (prvm_prog_t *prog, int bufindex, int flags, char *format);
-void BufStr_Set(prvm_prog_t *prog, prvm_stringbuffer_t *stringbuffer, int strindex, const char *str);
-void BufStr_Del(prvm_prog_t *prog, prvm_stringbuffer_t *stringbuffer);
-void BufStr_Flush(prvm_prog_t *prog);
-
 static void Host_Loadgame_f (void)
 {
 	prvm_prog_t *prog = SVVM_prog;
@@ -796,9 +798,11 @@ static void Host_Loadgame_f (void)
 	if (cls.demoplayback)
 		CL_Disconnect ();
 
+#ifdef CONFIG_MENU
 	// remove menu
 	if (key_dest == key_menu || key_dest == key_menu_grabbed)
 		MR_ToggleMenu(0);
+#endif
 	key_dest = key_game;
 
 	cls.demonum = -1;		// stop demo loop in case this fails
@@ -1674,6 +1678,7 @@ static void Host_BottomColor_f(void)
 }
 
 cvar_t cl_rate = {CVAR_SAVE | CVAR_NQUSERINFOHACK, "_cl_rate", "20000", "internal storage cvar for current rate (changed by rate command)"};
+cvar_t cl_rate_burstsize = {CVAR_SAVE | CVAR_NQUSERINFOHACK, "_cl_rate_burstsize", "1024", "internal storage cvar for current rate control burst size (changed by rate_burstsize command)"};
 static void Host_Rate_f(void)
 {
 	int rate;
@@ -1694,6 +1699,27 @@ static void Host_Rate_f(void)
 	}
 
 	host_client->rate = rate;
+}
+static void Host_Rate_BurstSize_f(void)
+{
+	int rate_burstsize;
+
+	if (Cmd_Argc() != 2)
+	{
+		Con_Printf("\"rate_burstsize\" is \"%i\"\n", cl_rate_burstsize.integer);
+		Con_Print("rate_burstsize <bytes>\n");
+		return;
+	}
+
+	rate_burstsize = atoi(Cmd_Argv(1));
+
+	if (cmd_source == src_command)
+	{
+		Cvar_SetValue ("_cl_rate_burstsize", rate_burstsize);
+		return;
+	}
+
+	host_client->rate_burstsize = rate_burstsize;
 }
 
 /*
@@ -3001,6 +3027,8 @@ void Host_InitCommands (void)
 	Cmd_AddCommand_WithClientCommand ("color", Host_Color_f, Host_Color_f, "change your player shirt and pants colors");
 	Cvar_RegisterVariable (&cl_rate);
 	Cmd_AddCommand_WithClientCommand ("rate", Host_Rate_f, Host_Rate_f, "change your network connection speed");
+	Cvar_RegisterVariable (&cl_rate_burstsize);
+	Cmd_AddCommand_WithClientCommand ("rate_burstsize", Host_Rate_BurstSize_f, Host_Rate_BurstSize_f, "change your network connection speed");
 	Cvar_RegisterVariable (&cl_pmodel);
 	Cmd_AddCommand_WithClientCommand ("pmodel", Host_PModel_f, Host_PModel_f, "(Nehahra-only) change your player model choice");
 

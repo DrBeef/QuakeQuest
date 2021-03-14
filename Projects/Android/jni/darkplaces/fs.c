@@ -32,7 +32,8 @@
 
 #include <limits.h>
 #include <fcntl.h>
-
+#include <errno.h>
+#include <dirent.h>
 #ifdef WIN32
 # include <direct.h>
 # include <io.h>
@@ -41,6 +42,7 @@
 # include <share.h>
 #else
 # include <pwd.h>
+# include <sys/types.h>
 # include <sys/stat.h>
 # include <unistd.h>
 #endif
@@ -1073,6 +1075,8 @@ static qboolean FS_AddPack_Fullpath(const char *pakfile, const char *shortname, 
 		pak = FS_LoadPackPAK (pakfile);
 	else if(!strcasecmp(ext, "pk3"))
 		pak = FS_LoadPackPK3 (pakfile);
+	else if(!strcasecmp(ext, "obb")) // android apk expansion
+		pak = FS_LoadPackPK3 (pakfile);
 	else
 		Con_Printf("\"%s\" does not have a pack extension\n", pakfile);
 
@@ -1214,7 +1218,7 @@ static void FS_AddGameDirectory (const char *dir)
 	// add any PK3 package in the directory
 	for (i = 0;i < list.numstrings;i++)
 	{
-		if (!strcasecmp(FS_FileExtension(list.strings[i]), "pk3") || !strcasecmp(FS_FileExtension(list.strings[i]), "pk3dir"))
+		if (!strcasecmp(FS_FileExtension(list.strings[i]), "pk3") || !strcasecmp(FS_FileExtension(list.strings[i]), "obb") || !strcasecmp(FS_FileExtension(list.strings[i]), "pk3dir"))
 		{
 			FS_AddPack_Fullpath(list.strings[i], list.strings[i] + strlen(dir), NULL, false);
 		}
@@ -1875,6 +1879,8 @@ static int FS_ChooseUserDir(userdirmode_t userdirmode, char *userdir, size_t use
 #endif
 
 
+#if !defined(__IPHONEOS__)
+
 #ifdef WIN32
 	// historical behavior...
 	if (userdirmode == USERDIRMODE_NOHOME && strcmp(gamedirname1, "id1"))
@@ -1905,6 +1911,7 @@ static int FS_ChooseUserDir(userdirmode_t userdirmode, char *userdir, size_t use
 		else
 			return 0; // probably good - failed to write but maybe we need to create path
 	}
+#endif
 }
 
 /*

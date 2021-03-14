@@ -1,6 +1,8 @@
 
 #include "quakedef.h"
+#ifdef CONFIG_CD
 #include "cdaudio.h"
+#endif
 #include "image.h"
 
 #ifdef SUPPORTD3D
@@ -518,6 +520,8 @@ void (GLAPIENTRY *qglBindBufferRange)(GLenum target, GLuint index, GLuint buffer
 void (GLAPIENTRY *qglBindBufferBase)(GLenum target, GLuint index, GLuint buffer);
 void (GLAPIENTRY *qglGetIntegeri_v)(GLenum target, GLuint index, GLint* data);
 void (GLAPIENTRY *qglUniformBlockBinding)(GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
+
+void (GLAPIENTRY *qglBlendFuncSeparate)(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha);
 #endif
 
 #if _MSC_VER >= 1400
@@ -974,6 +978,13 @@ static dllfunction_t multisamplefuncs[] =
 	{"glSampleCoverageARB",          (void **) &qglSampleCoverageARB},
 	{NULL, NULL}
 };
+
+static dllfunction_t blendfuncseparatefuncs[] =
+{
+	{"glBlendFuncSeparateEXT", (void **) &qglBlendFuncSeparate},
+	{NULL, NULL}
+};
+
 #endif
 
 void VID_ClearExtensions(void)
@@ -1059,6 +1070,7 @@ void VID_CheckExtensions(void)
 	vid.support.ati_separate_stencil = GL_CheckExtension("separatestencil", gl2separatestencilfuncs, "-noseparatestencil", true) || GL_CheckExtension("GL_ATI_separate_stencil", atiseparatestencilfuncs, "-noseparatestencil", false);
 	vid.support.ext_blend_minmax = GL_CheckExtension("GL_EXT_blend_minmax", blendequationfuncs, "-noblendminmax", false);
 	vid.support.ext_blend_subtract = GL_CheckExtension("GL_EXT_blend_subtract", blendequationfuncs, "-noblendsubtract", false);
+	vid.support.ext_blend_func_separate = GL_CheckExtension("GL_EXT_blend_func_separate", blendfuncseparatefuncs, "-noblendfuncseparate", false);
 	vid.support.ext_draw_range_elements = GL_CheckExtension("drawrangeelements", drawrangeelementsfuncs, "-nodrawrangeelements", true) || GL_CheckExtension("GL_EXT_draw_range_elements", drawrangeelementsextfuncs, "-nodrawrangeelements", false);
 	vid.support.arb_framebuffer_object = GL_CheckExtension("GL_ARB_framebuffer_object", arbfbofuncs, "-nofbo", false);
 	if (vid.support.arb_framebuffer_object)
@@ -1836,7 +1848,7 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 		vid.refreshrate    = vid.mode.refreshrate;
 		vid.userefreshrate = vid.mode.userefreshrate;
 		vid.stereobuffer   = vid.mode.stereobuffer;
-		vid.stencil        = vid.mode.bitsperpixel >= 16;
+		vid.stencil        = vid.mode.bitsperpixel > 16;
 		vid.sRGB2D         = vid_sRGB.integer >= 1 && vid.sRGBcapable2D;
 		vid.sRGB3D         = vid_sRGB.integer >= 1 && vid.sRGBcapable3D;
 
@@ -2118,7 +2130,11 @@ void VID_Soft_SharedSetup(void)
 	Cvar_SetQuick(&gl_info_driver, gl_driver);
 
 	// LordHavoc: report supported extensions
+#ifdef CONFIG_MENU
 	Con_DPrintf("\nQuakeC extensions for server and client: %s\nQuakeC extensions for menu: %s\n", vm_sv_extensions, vm_m_extensions );
+#else
+	Con_DPrintf("\nQuakeC extensions for server and client: %s\n", vm_sv_extensions );
+#endif
 
 	// clear to black (loading plaque will be seen over this)
 	GL_Clear(GL_COLOR_BUFFER_BIT, NULL, 1.0f, 128);

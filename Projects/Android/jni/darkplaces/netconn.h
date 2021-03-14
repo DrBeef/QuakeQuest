@@ -27,14 +27,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define NET_HEADERSIZE		(2 * sizeof(unsigned int))
 
 // NetHeader flags
-#define NETFLAG_LENGTH_MASK	0x0000ffff
-#define NETFLAG_DATA		0x00010000
-#define NETFLAG_ACK			0x00020000
-#define NETFLAG_NAK			0x00040000
-#define NETFLAG_EOM			0x00080000
-#define NETFLAG_UNRELIABLE	0x00100000
-#define NETFLAG_CTL			0x80000000
-#define NETFLAG_CRYPTO		0x40000000
+#define NETFLAG_LENGTH_MASK 0x0000ffff
+#define NETFLAG_DATA        0x00010000
+#define NETFLAG_ACK         0x00020000
+#define NETFLAG_NAK         0x00040000
+#define NETFLAG_EOM         0x00080000
+#define NETFLAG_UNRELIABLE  0x00100000
+#define NETFLAG_CRYPTO0     0x10000000
+#define NETFLAG_CRYPTO1     0x20000000
+#define NETFLAG_CRYPTO2     0x40000000
+#define NETFLAG_CTL         0x80000000
 
 
 #define NET_PROTOCOL_VERSION	3
@@ -128,6 +130,7 @@ typedef struct netgraphitem_s
 	int reliablebytes;
 	int unreliablebytes;
 	int ackbytes;
+	double cleartime;
 }
 netgraphitem_t;
 
@@ -207,6 +210,7 @@ typedef struct netconn_s
 
 	// bandwidth estimator
 	double		cleartime;			// if realtime > nc->cleartime, free to go
+	double		incoming_cleartime;		// if realtime > nc->cleartime, free to go (netgraph cleartime simulation only)
 
 	// this tracks packet loss and packet sizes on the most recent packets
 	// used by shownetgraph feature
@@ -240,6 +244,7 @@ extern mempool_t *netconn_mempool;
 extern cvar_t hostname;
 extern cvar_t developer_networking;
 
+#ifdef CONFIG_MENU
 #define SERVERLIST_VIEWLISTSIZE		SERVERLIST_TOTALSIZE
 
 typedef enum serverlist_maskop_e
@@ -294,6 +299,9 @@ typedef struct serverlist_info_s
 	/// (an integer that is used for filtering incompatible servers,
 	///  not filterable by QC)
 	int gameversion;
+
+	// categorized sorting
+	int category;
 	/// favorite server flag
 	qboolean isfavorite;
 } serverlist_info_t;
@@ -314,6 +322,7 @@ typedef enum
 	SLIF_FREESLOTS,
 	SLIF_QCSTATUS,
 	SLIF_PLAYERS,
+	SLIF_CATEGORY,
 	SLIF_ISFAVORITE,
 	SLIF_COUNT
 } serverlist_infofield_t;
@@ -321,7 +330,8 @@ typedef enum
 typedef enum
 {
 	SLSF_DESCENDING = 1,
-	SLSF_FAVORITESFIRST = 2
+	SLSF_FAVORITES = 2,
+	SLSF_CATEGORIES = 4
 } serverlist_sortflags_t;
 
 typedef enum
@@ -375,10 +385,12 @@ extern unsigned short serverlist_viewlist[SERVERLIST_VIEWLISTSIZE];
 
 extern int serverlist_cachecount;
 extern serverlist_entry_t *serverlist_cache;
+extern const serverlist_entry_t *serverlist_callbackentry;
 
 extern qboolean serverlist_consoleoutput;
 
 void ServerList_GetPlayerStatistics(int *numplayerspointer, int *maxplayerspointer);
+#endif
 
 //============================================================================
 //
@@ -394,11 +406,13 @@ extern char sv_net_extresponse[NET_EXTRESPONSE_MAX][1400];
 extern int sv_net_extresponse_count;
 extern int sv_net_extresponse_last;
 
+#ifdef CONFIG_MENU
 extern double masterquerytime;
 extern int masterquerycount;
 extern int masterreplycount;
 extern int serverquerycount;
 extern int serverreplycount;
+#endif
 
 extern sizebuf_t cl_message;
 extern sizebuf_t sv_message;
@@ -413,9 +427,11 @@ extern cvar_t cl_netport;
 extern cvar_t sv_netport;
 extern cvar_t net_address;
 extern cvar_t net_address_ipv6;
+extern cvar_t net_usesizelimit;
+extern cvar_t net_burstreserve;
 
 qboolean NetConn_CanSend(netconn_t *conn);
-int NetConn_SendUnreliableMessage(netconn_t *conn, sizebuf_t *data, protocolversion_t protocol, int rate, qboolean quakesignon_suppressreliables);
+int NetConn_SendUnreliableMessage(netconn_t *conn, sizebuf_t *data, protocolversion_t protocol, int rate, int burstsize, qboolean quakesignon_suppressreliables);
 qboolean NetConn_HaveClientPorts(void);
 qboolean NetConn_HaveServerPorts(void);
 void NetConn_CloseClientPorts(void);
@@ -437,10 +453,12 @@ int NetConn_IsLocalGame(void);
 void NetConn_ClientFrame(void);
 void NetConn_ServerFrame(void);
 void NetConn_SleepMicroseconds(int microseconds);
-void NetConn_QueryMasters(qboolean querydp, qboolean queryqw);
 void NetConn_Heartbeat(int priority);
-void NetConn_QueryQueueFrame(void);
 void Net_Stats_f(void);
+
+#ifdef CONFIG_MENU
+void NetConn_QueryMasters(qboolean querydp, qboolean queryqw);
+void NetConn_QueryQueueFrame(void);
 void Net_Slist_f(void);
 void Net_SlistQW_f(void);
 void Net_Refresh_f(void);
@@ -453,6 +471,7 @@ void ServerList_QueryList(qboolean resetcache, qboolean querydp, qboolean queryq
 
 /// called whenever net_slist_favorites changes
 void NetConn_UpdateFavorites(void);
+#endif
 
 #define MAX_CHALLENGES 128
 typedef struct challenge_s

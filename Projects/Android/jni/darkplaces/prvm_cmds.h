@@ -217,11 +217,15 @@ float	getserverlistindexforkey(string key)
 // init code
 void PR_Cmd_Init(void);
 
-// builtins and other general functions
-
+// general functions
 void VM_CheckEmptyString (prvm_prog_t *prog, const char *s);
 void VM_VarString(prvm_prog_t *prog, int first, char *out, int outlength);
+prvm_stringbuffer_t *BufStr_FindCreateReplace (prvm_prog_t *prog, int bufindex, int flags, char *format);
+void BufStr_Set(prvm_prog_t *prog, prvm_stringbuffer_t *stringbuffer, int strindex, const char *str);
+void BufStr_Del(prvm_prog_t *prog, prvm_stringbuffer_t *stringbuffer);
+void BufStr_Flush(prvm_prog_t *prog);
 
+// builtins
 void VM_checkextension (prvm_prog_t *prog);
 void VM_error (prvm_prog_t *prog);
 void VM_objerror (prvm_prog_t *prog);
@@ -483,5 +487,7 @@ void VM_getsurfacetriangle(prvm_prog_t *prog);
 void VM_physics_enable(prvm_prog_t *prog);
 void VM_physics_addforce(prvm_prog_t *prog);
 void VM_physics_addtorque(prvm_prog_t *prog);
+
+void VM_coverage(prvm_prog_t *prog);
 
 #endif

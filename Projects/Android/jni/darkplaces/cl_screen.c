@@ -7,8 +7,10 @@
 #include "cl_collision.h"
 #include "libcurl.h"
 #include "csprogs.h"
+#ifdef CONFIG_VIDEO_CAPTURE
 #include "cap_avi.h"
 #include "cap_ogg.h"
+#endif
 
 // we have to include snd_main.h here only to get access to snd_renderbuffer->format.speed when writing the AVI headers
 #include "snd_main.h"
@@ -26,10 +28,12 @@ cvar_t scr_conscroll2_x = {CVAR_SAVE, "scr_conscroll2_x", "0", "scroll speed of 
 cvar_t scr_conscroll2_y = {CVAR_SAVE, "scr_conscroll2_y", "0", "scroll speed of gfx/conback2 in y direction"};
 cvar_t scr_conscroll3_x = {CVAR_SAVE, "scr_conscroll3_x", "0", "scroll speed of gfx/conback3 in x direction"};
 cvar_t scr_conscroll3_y = {CVAR_SAVE, "scr_conscroll3_y", "0", "scroll speed of gfx/conback3 in y direction"};
+#ifdef CONFIG_MENU
 cvar_t scr_menuforcewhiledisconnected = {0, "scr_menuforcewhiledisconnected", "0", "forces menu while disconnected"};
-cvar_t scr_centertime = {0, "scr_centertime","4", "how long centerprint messages show"};
+#endif
+cvar_t scr_centertime = {0, "scr_centertime","2", "how long centerprint messages show"};
 cvar_t scr_showram = {CVAR_SAVE, "showram","1", "show ram icon if low on surface cache memory (not used)"};
-cvar_t scr_showturtle = {CVAR_SAVE, "showturtle","1", "show turtle icon when framerate is too low"};
+cvar_t scr_showturtle = {CVAR_SAVE, "showturtle","0", "show turtle icon when framerate is too low"};
 cvar_t scr_showpause = {CVAR_SAVE, "showpause","1", "show pause icon when game is paused"};
 cvar_t scr_showbrand = {0, "showbrand","0", "shows gfx/brand.tga in a corner of the screen (different values select different positions, including centered)"};
 cvar_t scr_printspeed = {0, "scr_printspeed","0", "speed of intermission printing (episode end texts), a value of 0 disables the slow printing"};
@@ -52,9 +56,10 @@ cvar_t scr_screenshot_jpeg_quality = {CVAR_SAVE, "scr_screenshot_jpeg_quality","
 cvar_t scr_screenshot_png = {CVAR_SAVE, "scr_screenshot_png","0", "save png instead of targa"};
 cvar_t scr_screenshot_gammaboost = {CVAR_SAVE, "scr_screenshot_gammaboost","1", "gamma correction on saved screenshots and videos, 1.0 saves unmodified images"};
 cvar_t scr_screenshot_hwgamma = {CVAR_SAVE, "scr_screenshot_hwgamma","1", "apply the video gamma ramp to saved screenshots and videos"};
-cvar_t scr_screenshot_alpha = {CVAR_SAVE, "scr_screenshot_alpha","0", "try to write an alpha channel to screenshots (debugging feature)"};
+cvar_t scr_screenshot_alpha = {0, "scr_screenshot_alpha","0", "try to write an alpha channel to screenshots (debugging feature)"};
 cvar_t scr_screenshot_timestamp = {CVAR_SAVE, "scr_screenshot_timestamp", "1", "use a timestamp based number of the type YYYYMMDDHHMMSSsss instead of sequential numbering"};
 // scr_screenshot_name is defined in fs.c
+#ifdef CONFIG_VIDEO_CAPTURE
 cvar_t cl_capturevideo = {0, "cl_capturevideo", "0", "enables saving of video to a .avi file using uncompressed I420 colorspace and PCM audio, note that scr_screenshot_gammaboost affects the brightness of the output)"};
 cvar_t cl_capturevideo_demo_stop = {CVAR_SAVE, "cl_capturevideo_demo_stop", "1", "automatically stops video recording when demo ends"};
 cvar_t cl_capturevideo_printfps = {CVAR_SAVE, "cl_capturevideo_printfps", "1", "prints the frames per second captured in capturevideo (is only written to the log file, not to the console, as that would be visible on the video)"};
@@ -66,6 +71,7 @@ cvar_t cl_capturevideo_nameformat = {CVAR_SAVE, "cl_capturevideo_nameformat", "d
 cvar_t cl_capturevideo_number = {CVAR_SAVE, "cl_capturevideo_number", "1", "number to append to video filename, incremented each time a capture begins"};
 cvar_t cl_capturevideo_ogg = {CVAR_SAVE, "cl_capturevideo_ogg", "1", "save captured video data as Ogg/Vorbis/Theora streams"};
 cvar_t cl_capturevideo_framestep = {CVAR_SAVE, "cl_capturevideo_framestep", "1", "when set to n >= 1, render n frames to capture one (useful for motion blur like effects)"};
+#endif
 cvar_t r_letterbox = {0, "r_letterbox", "0", "reduces vertical height of view to simulate a letterboxed movie effect (can be used by mods for cutscenes)"};
 cvar_t r_stereo_angle = {0, "r_stereo_angle", "0", "separation angle of eyes (makes the views look different directions, as an example, 90 gives a 90 degree separation where the views are 45 degrees left and 45 degrees right)"};
 cvar_t scr_stipple = {0, "scr_stipple", "0", "interlacing-like stippling of the display"};
@@ -74,7 +80,7 @@ cvar_t scr_screenshot_name_in_mapdir = {CVAR_SAVE, "scr_screenshot_name_in_mapdi
 cvar_t shownetgraph = {CVAR_SAVE, "shownetgraph", "0", "shows a graph of packet sizes and other information, 0 = off, 1 = show client netgraph, 2 = show client and server netgraphs (when hosting a server)"};
 cvar_t cl_demo_mousegrab = {0, "cl_demo_mousegrab", "0", "Allows reading the mouse input while playing demos. Useful for camera mods developed in csqc. (0: never, 1: always)"};
 cvar_t timedemo_screenshotframelist = {0, "timedemo_screenshotframelist", "", "when performing a timedemo, take screenshots of each frame in this space-separated list - example: 1 201 401"};
-cvar_t vid_touchscreen_outlinealpha = {0, "vid_touchscreen_outlinealpha", "0.25", "opacity of touchscreen area outlines"};
+cvar_t vid_touchscreen_outlinealpha = {0, "vid_touchscreen_outlinealpha", "0", "opacity of touchscreen area outlines"};
 cvar_t vid_touchscreen_overlayalpha = {0, "vid_touchscreen_overlayalpha", "0.25", "opacity of touchscreen area icons"};
 cvar_t r_speeds_graph = {CVAR_SAVE, "r_speeds_graph", "0", "display a graph of renderer statistics "};
 cvar_t r_speeds_graph_filter[8] =
@@ -94,6 +100,8 @@ cvar_t r_speeds_graph_x = {CVAR_SAVE, "r_speeds_graph_x", "0", "position of grap
 cvar_t r_speeds_graph_y = {CVAR_SAVE, "r_speeds_graph_y", "0", "position of graph"};
 cvar_t r_speeds_graph_width = {CVAR_SAVE, "r_speeds_graph_width", "256", "size of graph"};
 cvar_t r_speeds_graph_height = {CVAR_SAVE, "r_speeds_graph_height", "128", "size of graph"};
+cvar_t r_speeds_graph_maxtimedelta = {CVAR_SAVE, "r_speeds_graph_maxtimedelta", "16667", "maximum timedelta to display in the graph (this value will be the top line)"};
+cvar_t r_speeds_graph_maxdefault = {CVAR_SAVE, "r_speeds_graph_maxdefault", "100", "if the minimum and maximum observed values are closer than this, use this value as the graph range (keeps small numbers from being big graphs)"};
 
 
 
@@ -147,19 +155,7 @@ for a few moments
 */
 void SCR_CenterPrint(const char *str)
 {
-	//Check to see if this is the shareware message, if so, replace with a more up to date
-	//relevant one
-	if (strstr(str, "1-800"))
-	{
-		char tempstr[] = "This episode isn't availble in the Shareware version\n"
-			"You can buy the full game of Quake for $10 on Steam:\n"
-				"http://store.steampowered.com/app/2310/";
-		strlcpy(scr_centerstring, tempstr, sizeof(scr_centerstring));
-	}
-	else {
-		strlcpy(scr_centerstring, str, sizeof(scr_centerstring));
-	}
-
+	strlcpy (scr_centerstring, str, sizeof (scr_centerstring));
 	scr_centertime_off = scr_centertime.value;
 	scr_centertime_start = cl.time;
 
@@ -249,16 +245,16 @@ static void SCR_CheckDrawCenterString (void)
 	SCR_DrawCenterString ();
 }
 
-static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, int graphheight, float graphscale, const char *label, float textsize, int packetcounter, netgraphitem_t *netgraph)
+static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, int graphheight, float graphscale, int graphlimit, const char *label, float textsize, int packetcounter, netgraphitem_t *netgraph)
 {
 	netgraphitem_t *graph;
 	int j, x, y, numlines;
 	int totalbytes = 0;
 	char bytesstring[128];
-	float g[NETGRAPH_PACKETS][6];
+	float g[NETGRAPH_PACKETS][7];
 	float *a;
 	float *b;
-	r_vertexgeneric_t vertex[(NETGRAPH_PACKETS+2)*5*2];
+	r_vertexgeneric_t vertex[(NETGRAPH_PACKETS+2)*6*2];
 	r_vertexgeneric_t *v;
 	DrawQ_Fill(graphx, graphy, graphwidth, graphheight + textsize * 2, 0, 0, 0, 0.5, 0);
 	// draw the bar graph itself
@@ -272,12 +268,16 @@ static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, 
 		g[j][3] = 1.0f;
 		g[j][4] = 1.0f;
 		g[j][5] = 1.0f;
+		g[j][6] = 1.0f;
 		if (graph->unreliablebytes == NETGRAPH_LOSTPACKET)
 			g[j][1] = 0.00f;
 		else if (graph->unreliablebytes == NETGRAPH_CHOKEDPACKET)
-			g[j][2] = 0.96f;
+			g[j][2] = 0.90f;
 		else
 		{
+			if(netgraph[j].time >= netgraph[(j+NETGRAPH_PACKETS-1)%NETGRAPH_PACKETS].time)
+				if(graph->unreliablebytes + graph->reliablebytes + graph->ackbytes >= graphlimit * (netgraph[j].time - netgraph[(j+NETGRAPH_PACKETS-1)%NETGRAPH_PACKETS].time))
+					g[j][2] = 0.98f;
 			g[j][3] = 1.0f    - graph->unreliablebytes * graphscale;
 			g[j][4] = g[j][3] - graph->reliablebytes   * graphscale;
 			g[j][5] = g[j][4] - graph->ackbytes        * graphscale;
@@ -285,11 +285,14 @@ static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, 
 			if (realtime - graph->time < 1.0f)
 				totalbytes += graph->unreliablebytes + graph->reliablebytes + graph->ackbytes;
 		}
+		if(graph->cleartime >= 0)
+			g[j][6] = 0.5f + 0.5f * (2.0 / M_PI) * atan((M_PI / 2.0) * (graph->cleartime - graph->time));
 		g[j][1] = bound(0.0f, g[j][1], 1.0f);
 		g[j][2] = bound(0.0f, g[j][2], 1.0f);
 		g[j][3] = bound(0.0f, g[j][3], 1.0f);
 		g[j][4] = bound(0.0f, g[j][4], 1.0f);
 		g[j][5] = bound(0.0f, g[j][5], 1.0f);
+		g[j][6] = bound(0.0f, g[j][6], 1.0f);
 	}
 	// render the lines for the graph
 	numlines = 0;
@@ -315,7 +318,10 @@ static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, 
 		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[3], 0.0f);Vector4Set(v->color4f, 1.0f, 0.5f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
 		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[3], 0.0f);Vector4Set(v->color4f, 1.0f, 0.5f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
 
-		numlines += 5;
+		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[6], 0.0f);Vector4Set(v->color4f, 0.0f, 0.0f, 1.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[6], 0.0f);Vector4Set(v->color4f, 0.0f, 0.0f, 1.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+
+		numlines += 6;
 	}
 	if (numlines > 0)
 	{
@@ -336,7 +342,7 @@ SCR_DrawNetGraph
 */
 static void SCR_DrawNetGraph (void)
 {
-	int i, separator1, separator2, graphwidth, graphheight, netgraph_x, netgraph_y, textsize, index, netgraphsperrow;
+	int i, separator1, separator2, graphwidth, graphheight, netgraph_x, netgraph_y, textsize, index, netgraphsperrow, graphlimit;
 	float graphscale;
 	netconn_t *c;
 	char vabuf[1024];
@@ -354,6 +360,7 @@ static void SCR_DrawNetGraph (void)
 	graphwidth = 120;
 	graphheight = 70;
 	graphscale = 1.0f / 1500.0f;
+	graphlimit = cl_rate.integer;
 
 	netgraphsperrow = (vid_conwidth.integer + separator2) / (graphwidth * 2 + separator1 + separator2);
 	netgraphsperrow = max(netgraphsperrow, 1);
@@ -362,8 +369,8 @@ static void SCR_DrawNetGraph (void)
 	netgraph_x = (vid_conwidth.integer + separator2) - (1 + (index % netgraphsperrow)) * (graphwidth * 2 + separator1 + separator2);
 	netgraph_y = (vid_conheight.integer - 48 - sbar_info_pos.integer + separator2) - (1 + (index / netgraphsperrow)) * (graphheight + textsize + separator2);
 	c = cls.netcon;
-	SCR_DrawNetGraph_DrawGraph(netgraph_x                          , netgraph_y, graphwidth, graphheight, graphscale, "incoming", textsize, c->incoming_packetcounter, c->incoming_netgraph);
-	SCR_DrawNetGraph_DrawGraph(netgraph_x + graphwidth + separator1, netgraph_y, graphwidth, graphheight, graphscale, "outgoing", textsize, c->outgoing_packetcounter, c->outgoing_netgraph);
+	SCR_DrawNetGraph_DrawGraph(netgraph_x                          , netgraph_y, graphwidth, graphheight, graphscale, graphlimit, "incoming", textsize, c->incoming_packetcounter, c->incoming_netgraph);
+	SCR_DrawNetGraph_DrawGraph(netgraph_x + graphwidth + separator1, netgraph_y, graphwidth, graphheight, graphscale, graphlimit, "outgoing", textsize, c->outgoing_packetcounter, c->outgoing_netgraph);
 	index++;
 
 	if (sv.active && shownetgraph.integer >= 2)
@@ -375,8 +382,8 @@ static void SCR_DrawNetGraph (void)
 				continue;
 			netgraph_x = (vid_conwidth.integer + separator2) - (1 + (index % netgraphsperrow)) * (graphwidth * 2 + separator1 + separator2);
 			netgraph_y = (vid_conheight.integer - 48 + separator2) - (1 + (index / netgraphsperrow)) * (graphheight + textsize + separator2);
-			SCR_DrawNetGraph_DrawGraph(netgraph_x                          , netgraph_y, graphwidth, graphheight, graphscale, va(vabuf, sizeof(vabuf), "%s", svs.clients[i].name), textsize, c->outgoing_packetcounter, c->outgoing_netgraph);
-			SCR_DrawNetGraph_DrawGraph(netgraph_x + graphwidth + separator1, netgraph_y, graphwidth, graphheight, graphscale, ""                           , textsize, c->incoming_packetcounter, c->incoming_netgraph);
+			SCR_DrawNetGraph_DrawGraph(netgraph_x                          , netgraph_y, graphwidth, graphheight, graphscale, graphlimit, va(vabuf, sizeof(vabuf), "%s", svs.clients[i].name), textsize, c->outgoing_packetcounter, c->outgoing_netgraph);
+			SCR_DrawNetGraph_DrawGraph(netgraph_x + graphwidth + separator1, netgraph_y, graphwidth, graphheight, graphscale, graphlimit, ""                           , textsize, c->incoming_packetcounter, c->incoming_netgraph);
 			index++;
 		}
 	}
@@ -619,7 +626,7 @@ SCR_DrawInfobar
 */
 static void SCR_DrawInfobar(void)
 {
-	int offset = 30;
+	int offset = 0;
 	offset += SCR_DrawQWDownload(offset);
 	offset += SCR_DrawCurlDownload(offset);
 	if(scr_infobartime_off > 0)
@@ -682,10 +689,13 @@ static void SCR_SetUpToDrawConsole (void)
 {
 	// lines of console to display
 	float conlines;
+#ifdef CONFIG_MENU
 	static int framecounter = 0;
+#endif
 
 	Con_CheckResize ();
 
+#ifdef CONFIG_MENU
 	if (scr_menuforcewhiledisconnected.integer && key_dest == key_game && cls.state == ca_disconnected)
 	{
 		if (framecounter >= 2)
@@ -695,6 +705,7 @@ static void SCR_SetUpToDrawConsole (void)
 	}
 	else
 		framecounter = 0;
+#endif
 
 	if (scr_conforcewhiledisconnected.integer && key_dest == key_game && cls.signon != SIGNONS)
 		key_consoleactive |= KEY_CONSOLEACTIVE_FORCED;
@@ -1083,7 +1094,7 @@ static void R_TimeReport_EndFrame(void)
 		// if we currently have no graph data, reset the graph data entirely
 		if (!cls.r_speeds_graph_data)
 			for (i = 0;i < r_stat_count;i++)
-				cls.r_speeds_graph_datamin[i] = cls.r_speeds_graph_datamax[i] = r_refdef.stats[i];
+				cls.r_speeds_graph_datamin[i] = cls.r_speeds_graph_datamax[i] = 0;
 		if (cls.r_speeds_graph_length != r_speeds_graph_length.integer)
 		{
 			int i, stat, index, d, graph_length, *graph_data;
@@ -1124,6 +1135,7 @@ static void R_TimeReport_EndFrame(void)
 		int numlines;
 		const int *data;
 		float x, y, width, height, scalex, scaley;
+		int range_default = max(r_speeds_graph_maxdefault.integer, 1);
 		int color, stat, stats, index, range_min, range_max;
 		int graph_current, graph_length, *graph_data;
 		int statindex[R_SPEEDS_GRAPH_COLORS];
@@ -1212,13 +1224,11 @@ static void R_TimeReport_EndFrame(void)
 					continue;
 				// prefer to graph stats with 0 base, but if they are
 				// negative we have no choice
-				range_min = min(cls.r_speeds_graph_datamin[stat], 0);
-				range_max = cls.r_speeds_graph_datamax[stat];
+				range_min = cls.r_speeds_graph_datamin[stat];
+				range_max = max(cls.r_speeds_graph_datamax[stat], range_min + range_default);
 				// some stats we specifically override the graph scale on
 				if (stat == r_stat_timedelta)
-					range_max = 100000;
-				if (range_max == range_min)
-					range_max++;
+					range_max = r_speeds_graph_maxtimedelta.integer;
 				scaley = height / (range_max - range_min);
 				// generate lines (2 vertices each)
 				// to deal with incomplete data we walk right to left
@@ -1294,10 +1304,14 @@ static void SCR_SizeDown_f (void)
 	Cvar_SetValue ("viewsize",scr_viewsize.value-10);
 }
 
+#ifdef CONFIG_VIDEO_CAPTURE
 void SCR_CaptureVideo_EndVideo(void);
+#endif
 void CL_Screen_Shutdown(void)
 {
+#ifdef CONFIG_VIDEO_CAPTURE
 	SCR_CaptureVideo_EndVideo();
+#endif
 }
 
 void CL_Screen_Init(void)
@@ -1316,7 +1330,9 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable (&scr_conscroll3_y);
 	Cvar_RegisterVariable (&scr_conbrightness);
 	Cvar_RegisterVariable (&scr_conforcewhiledisconnected);
+#ifdef CONFIG_MENU
 	Cvar_RegisterVariable (&scr_menuforcewhiledisconnected);
+#endif
 	Cvar_RegisterVariable (&scr_loadingscreen_background);
 	Cvar_RegisterVariable (&scr_loadingscreen_scale);
 	Cvar_RegisterVariable (&scr_loadingscreen_scale_base);
@@ -1345,6 +1361,7 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable (&scr_screenshot_name_in_mapdir);
 	Cvar_RegisterVariable (&scr_screenshot_alpha);
 	Cvar_RegisterVariable (&scr_screenshot_timestamp);
+#ifdef CONFIG_VIDEO_CAPTURE
 	Cvar_RegisterVariable (&cl_capturevideo);
 	Cvar_RegisterVariable (&cl_capturevideo_demo_stop);
 	Cvar_RegisterVariable (&cl_capturevideo_printfps);
@@ -1356,6 +1373,7 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable (&cl_capturevideo_number);
 	Cvar_RegisterVariable (&cl_capturevideo_ogg);
 	Cvar_RegisterVariable (&cl_capturevideo_framestep);
+#endif
 	Cvar_RegisterVariable (&r_letterbox);
 	Cvar_RegisterVariable(&r_stereo_angle);
 	Cvar_RegisterVariable(&scr_stipple);
@@ -1374,18 +1392,22 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable(&r_speeds_graph_y);
 	Cvar_RegisterVariable(&r_speeds_graph_width);
 	Cvar_RegisterVariable(&r_speeds_graph_height);
+	Cvar_RegisterVariable(&r_speeds_graph_maxtimedelta);
+	Cvar_RegisterVariable(&r_speeds_graph_maxdefault);
 
 	// if we want no console, turn it off here too
 	if (COM_CheckParm ("-noconsole"))
 		Cvar_SetQuick(&scr_conforcewhiledisconnected, "0");
 
-//	Cmd_AddCommand ("sizeup",SCR_SizeUp_f, "increase view size (increases viewsize cvar)");
-//	Cmd_AddCommand ("sizedown",SCR_SizeDown_f, "decrease view size (decreases viewsize cvar)");
+	Cmd_AddCommand ("sizeup",SCR_SizeUp_f, "increase view size (increases viewsize cvar)");
+	Cmd_AddCommand ("sizedown",SCR_SizeDown_f, "decrease view size (decreases viewsize cvar)");
 	Cmd_AddCommand ("screenshot",SCR_ScreenShot_f, "takes a screenshot of the next rendered frame");
 	Cmd_AddCommand ("envmap", R_Envmap_f, "render a cubemap (skybox) of the current scene");
 	Cmd_AddCommand ("infobar", SCR_InfoBar_f, "display a text in the infobar (usage: infobar expiretime string)");
 
+#ifdef CONFIG_VIDEO_CAPTURE
 	SCR_CaptureVideo_Ogg_Init();
+#endif
 
 	scr_initialized = true;
 }
@@ -1513,6 +1535,7 @@ void SCR_ScreenShot_f (void)
 	Mem_Free (buffer2);
 }
 
+#ifdef CONFIG_VIDEO_CAPTURE
 static void SCR_CaptureVideo_BeginVideo(void)
 {
 	double r, g, b;
@@ -1789,6 +1812,7 @@ static void SCR_CaptureVideo(void)
 	else if (cls.capturevideo.active)
 		SCR_CaptureVideo_EndVideo();
 }
+#endif
 
 /*
 ===============
@@ -1874,7 +1898,7 @@ static void R_Envmap_f (void)
 		r_refdef.view.quality = 1;
 		r_refdef.view.clear = true;
 		R_Mesh_Start();
-		R_RenderView(0.0);
+		R_RenderView();
 		R_Mesh_Finish();
 		SCR_ScreenShot(filename, buffer1, buffer2, 0, vid.height - (r_refdef.view.y + r_refdef.view.height), size, size, envmapinfo[j].flipx, envmapinfo[j].flipy, envmapinfo[j].flipdiagonaly, false, false, false, false);
 	}
@@ -2029,7 +2053,7 @@ qboolean SCR_ScreenShot(char *filename, unsigned char *buffer1, unsigned char *b
 //=============================================================================
 
 int scr_numtouchscreenareas;
-scr_touchscreenarea_t scr_touchscreenareas[16];
+scr_touchscreenarea_t scr_touchscreenareas[128];
 
 static void SCR_DrawTouchscreenOverlay(void)
 {
@@ -2038,7 +2062,7 @@ static void SCR_DrawTouchscreenOverlay(void)
 	cachepic_t *pic;
 	for (i = 0, a = scr_touchscreenareas;i < scr_numtouchscreenareas;i++, a++)
 	{
-		if (vid_touchscreen_outlinealpha.value > 0 && a->rect[0] >= 0 && a->rect[1] >= 0 && a->rect[2] >= 4 && a->rect[3] >= 4)
+		if (developer.integer && vid_touchscreen_outlinealpha.value > 0 && a->rect[0] >= 0 && a->rect[1] >= 0 && a->rect[2] >= 4 && a->rect[3] >= 4)
 		{
 			DrawQ_Fill(a->rect[0] +              2, a->rect[1]                 , a->rect[2] - 4,          1    , 1, 1, 1, vid_touchscreen_outlinealpha.value * (0.5f + 0.5f * a->active), 0);
 			DrawQ_Fill(a->rect[0] +              1, a->rect[1] +              1, a->rect[2] - 2,          1    , 1, 1, 1, vid_touchscreen_outlinealpha.value * (0.5f + 0.5f * a->active), 0);
@@ -2050,14 +2074,23 @@ static void SCR_DrawTouchscreenOverlay(void)
 		pic = a->pic ? Draw_CachePic(a->pic) : NULL;
 		if (pic && pic->tex != r_texture_notexture)
 			DrawQ_Pic(a->rect[0], a->rect[1], Draw_CachePic(a->pic), a->rect[2], a->rect[3], 1, 1, 1, vid_touchscreen_overlayalpha.value * (0.5f + 0.5f * a->active), 0);
+		if (a->text && a->text[0])
+		{
+			int textwidth = DrawQ_TextWidth(a->text, 0, a->textheight, a->textheight, false, FONT_CHAT);
+			DrawQ_String(a->rect[0] + (a->rect[2] - textwidth) * 0.5f, a->rect[1] + (a->rect[3] - a->textheight) * 0.5f, a->text, 0, a->textheight, a->textheight, 1.0f, 1.0f, 1.0f, vid_touchscreen_overlayalpha.value, 0, NULL, false, FONT_CHAT);
+		}
 	}
 }
 
 void R_ClearScreen(qboolean fogcolor)
 {
 	float clearcolor[4];
-	// clear to black
-	Vector4Clear(clearcolor);
+	if (scr_screenshot_alpha.integer)
+		// clear to transparency (so png screenshots can contain alpha channel, useful for building model pictures)
+		Vector4Set(clearcolor, 0.0f, 0.0f, 0.0f, 0.0f);
+	else
+		// clear to opaque black (if we're being composited it might otherwise render as transparent)
+		Vector4Set(clearcolor, 0.0f, 0.0f, 0.0f, 1.0f);
 	if (fogcolor && r_fog_clear.integer)
 	{
 		R_UpdateFog();
@@ -2176,7 +2209,9 @@ float GetFOV();
 		SCR_CheckDrawCenterString();
 	}
 	SCR_DrawNetGraph ();
+#ifdef CONFIG_MENU
 	MR_Draw();
+#endif
 	CL_DrawVideo();
 	R_Shadow_EditLights_DrawSelectedLightProperties();
 
@@ -2683,7 +2718,7 @@ void CL_BeginUpdateScreen()
 
 	loadingscreendone = false;
 
-	if(gamemode == GAME_NEXUIZ || gamemode == GAME_XONOTIC)
+	if(IS_NEXUIZ_DERIVED(gamemode))
 	{
 		// play a bit with the palette (experimental)
 		palette_rgb_pantscolormap[15][0] = (unsigned char) (128 + 127 * sin(cl.time / exp(1.0f) + 0.0f*M_PI/3.0f));
@@ -2715,7 +2750,6 @@ void CL_BeginUpdateScreen()
 	if (scr_viewsize.value > 120)
 		Cvar_Set ("viewsize","120");
 
-
 	// intermission is always full screen
 	if (cl.intermission)
 		sb_lines = 0;
@@ -2741,6 +2775,23 @@ void CL_BeginUpdateScreen()
 
 	SCR_SetUpToDrawConsole();
 
+#ifndef USE_GLES2
+	if (qglDrawBuffer)
+	{
+		CHECKGLERROR
+		qglDrawBuffer(GL_BACK);CHECKGLERROR
+		// set dithering mode
+		if (gl_dither.integer)
+		{
+			qglEnable(GL_DITHER);CHECKGLERROR
+		}
+		else
+		{
+			qglDisable(GL_DITHER);CHECKGLERROR
+		}
+	}
+#endif
+
 	R_Viewport_InitOrtho(&viewport, &identitymatrix, 0, 0, vid.width, vid.height, 0, 0, vid_conwidth.integer, vid_conheight.integer, -10, 100, NULL);
 	R_Mesh_SetRenderTargets(0, NULL, NULL, NULL, NULL, NULL);
 	R_SetViewport(&viewport);
@@ -2754,6 +2805,36 @@ void CL_BeginUpdateScreen()
 
 	// calculate r_refdef.view.quality
 	r_refdef.view.quality = cl_updatescreen_quality;
+
+#ifndef USE_GLES2
+	if (qglPolygonStipple)
+	{
+		if(scr_stipple.integer)
+		{
+			GLubyte stipple[128];
+			int i, s, width, parts;
+			static int frame = 0;
+			++frame;
+	
+			s = scr_stipple.integer;
+			parts = (s & 007);
+			width = (s & 070) >> 3;
+	
+			qglEnable(GL_POLYGON_STIPPLE);CHECKGLERROR // 0x0B42
+			for(i = 0; i < 128; ++i)
+			{
+				int line = i/4;
+				stipple[i] = (((line >> width) + frame) & ((1 << parts) - 1)) ? 0x00 : 0xFF;
+			}
+			qglPolygonStipple(stipple);CHECKGLERROR
+		}
+		else
+		{
+			qglDisable(GL_POLYGON_STIPPLE);CHECKGLERROR
+		}
+	}
+#endif
+	
 }
 
 

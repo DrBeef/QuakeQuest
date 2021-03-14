@@ -608,7 +608,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 #if 1
                 trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS, NULL,
                                      SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_SKY,
-                                     true, false, NULL, false, true);
+									 collision_extendmovelength.value, true, false, NULL, false, true);
 #else
                 trace = CL_TraceBox(vieworg, camboxmins, camboxmaxs, chase_dest, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_SKY, true, false, NULL, false);
 #endif
@@ -626,7 +626,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 #if 1
                         trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS, NULL,
                                              SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY |
-                                             SUPERCONTENTS_SKY, true, false, NULL, false, true);
+                                             SUPERCONTENTS_SKY, collision_extendmovelength.value, true, false, NULL, false, true);
 #else
                         trace = CL_TraceBox(vieworg, camboxmins, camboxmaxs, chase_dest, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_SKY, true, false, NULL, false);
 #endif
@@ -653,7 +653,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
                 chase_dest[2] = vieworg[2] + forward[2] * dist + camup;
                 trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS, NULL,
                                      SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_SKY,
-                                     true, false, NULL, false, true);
+									 collision_extendmovelength.value, true, false, NULL, false, true);
                 VectorMAMAM(1, trace.endpos, 8, forward, 4, trace.plane.normal, vieworg);
             }
         } else {

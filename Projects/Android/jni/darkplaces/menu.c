@@ -19,7 +19,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include <stdbool.h>
 #include "quakedef.h"
+#ifdef CONFIG_CD
 #include "cdaudio.h"
+#endif
 #include "image.h"
 #include "progsvm.h"
 
@@ -75,7 +77,6 @@ void M_Menu_Main_f (void);
 		void M_Menu_Keys_f (void);
 		void M_Menu_Reset_f (void);
 		void M_Menu_Video_f (void);
-		void M_Menu_Controller_f (void);
 	void M_Menu_Help_f (void);
 	void M_Menu_Credits_f (void);
 	void M_Menu_Quit_f (void);
@@ -99,7 +100,6 @@ static void M_Main_Draw (void);
 		static void M_Keys_Draw (void);
 		static void M_Reset_Draw (void);
 		static void M_Video_Draw (void);
-		static void M_Menu_Controller_Draw (void);
 	static void M_Help_Draw (void);
 	static void M_Credits_Draw (void);
 	static void M_Quit_Draw (void);
@@ -124,7 +124,6 @@ static void M_Main_Key (int key, int ascii);
 		static void M_Keys_Key (int key, int ascii);
 		static void M_Reset_Key (int key, int ascii);
 		static void M_Video_Key (int key, int ascii);
-		static void M_Menu_Controller_Key (int key, int ascii);
 	static void M_Help_Key (int key, int ascii);
 	static void M_Credits_Key (int key, int ascii);
 	static void M_Quit_Key (int key, int ascii);
@@ -199,10 +198,8 @@ static void M_Background(int width, int height)
 	menu_height = bound(1.0f, (float)height, vid_conheight.value);
 	menu_x = (vid_conwidth.integer - menu_width) * 0.5;
 	menu_y = (vid_conheight.integer - menu_height) * 0.5;
-
-	//Make the background barely visible when menu active.. this should avoid people
-	//throwing up while the demo is running!
-	DrawQ_Fill(0, 0, vid_conwidth.integer, vid_conheight.integer, 0, 0, 0, 0.75, 0);
+	//DrawQ_Fill(menu_x, menu_y, menu_width, menu_height, 0, 0, 0, 0.5, 0);
+	DrawQ_Fill(0, 0, vid_conwidth.integer, vid_conheight.integer, 0, 0, 0, 0.5, 0);
 }
 
 /*
@@ -410,7 +407,6 @@ static void M_Demo_Key (int k, int ascii)
 
 static int	m_main_cursor;
 static qboolean m_missingdata = false;
-int gameAssetsDownloadStatus = -1;
 
 static int MAIN_ITEMS = 4; // Nehahra: Menu Disable
 
@@ -499,84 +495,14 @@ static void M_Main_Draw (void)
 		const char *s;
 		M_Background(640, 480); //fall back is always to 640x480, this makes it most readable at that.
 		y = 480/3-16;
-
-		if (gameAssetsDownloadStatus == -1)
-		{
-			s = "** YOU NEED TO COPY GAME FILES TO YOUR PHONE **";
-			M_PrintRed_Big ((640-strlen(s)*12)*0.5, (480/3)-16, s);y+=32;
-			s = "Due to copyright, game data files can't be included";M_Print_Big (30, y, s);y+=20;
-			s = "Please download the shareware version from:";M_Print_Big(30, y, s);y+=20;
-			s = "http://bit.ly/1PTsnsb";M_Print_Big(30, y, s);y+=20;
-			s = "or copy the pak files from the full version ";M_Print_Big(30, y, s);y+=20;
-			s = "to the following folder :";M_Print_Big(30, y, s);y+=20;
-			s = "{PHONE_MEMORY} / QQUEST / id1";M_Print_Big(30, y, s);y+=28;
-			s = "Full instructions doc: http://bit.ly/21GHVXI";M_Print_Big(30, y, s);y+=20;
-		}
-		else if (gameAssetsDownloadStatus == 0)
-		{
-			s = "** SHAREWARE DOWNLOAD FAILED **";
-			M_PrintRed_Big((640 - strlen(s) * 12) * 0.5, (480 / 3) - 16, s);
-			y += 32;
-			s = "Please restart QQUEST";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "and the download will try again";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "If you own the full game you can";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "copy the pak files from the full version ";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "to the following folder :";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "{PHONE_MEMORY} / QQUEST / id1";
-			M_Print_Big(30, y, s);
-			y += 28;
-			s = "Full instructions doc: http://bit.ly/21GHVXI";
-			M_Print_Big(30, y, s);
-			y += 20;
-		}
-		else if (gameAssetsDownloadStatus == 1) {
-			s = "** SHAREWARE DOWNLOAD COMPLETED SUCCESSFULLY **";
-			M_PrintRed_Big((640 - strlen(s) * 12) * 0.5, (480 / 3) - 16, s);
-			y += 32;
-			s = "Please restart QQUEST";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "If you own the full game you can";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "copy the pak files from the full version ";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "to the following folder :";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "{PHONE_MEMORY} / QQUEST / id1";
-			M_Print_Big(30, y, s);
-			y += 28;
-			s = "Full instructions doc: http://bit.ly/21GHVXI";
-			M_Print_Big(30, y, s);
-			y += 20;
-		}
-		else if (gameAssetsDownloadStatus == 2)
-		{
-			s = "** GAME FILES NEED TO DOWNLOAD TO YOUR PHONE **";
-			M_PrintRed_Big((640 - strlen(s) * 12) * 0.5, (480 / 3) - 16, s);
-			y += 32;
-			s = "Due to copyright, game data files cannot be included";
-			M_Print_Big(30, y, s);
-			y += 20;
-			s = "The shareware version is downloading.";
-			M_Print_Big(30, y, s);
-		}
-
-		M_Print_Big (640/2 - 128, 480/2 + 128, " ++ Tap Screen to Quit ++");
-
-		M_DrawCharacter(640/2 - 128, 480/2 + 128, 12+((int)(realtime*4)&1));
+		s = "You have reached this menu due to missing or unlocatable content/data";M_PrintRed ((640-strlen(s)*8)*0.5, (480/3)-16, s);y+=8;
+		y+=8;
+		s = "You may consider adding";M_Print ((640-strlen(s)*8)*0.5, y, s);y+=8;
+		s = "-basedir /path/to/game";M_Print ((640-strlen(s)*8)*0.5, y, s);y+=8;
+		s = "to your launch commandline";M_Print ((640-strlen(s)*8)*0.5, y, s);y+=8;
+		M_Print (640/2 - 48, 480/2, "Open Console"); //The console usually better shows errors (failures)
+		M_Print (640/2 - 48, 480/2 + 8, "Quit");
+		M_DrawCharacter(640/2 - 56, 480/2 + (8 * m_main_cursor), 12+((int)(realtime*4)&1));
 		return;
 	}
 
@@ -606,26 +532,22 @@ static void M_Main_Draw (void)
 	M_DrawPic (16, 4, "gfx/qplaque");
 	p = Draw_CachePic ("gfx/ttl_main");
 	M_DrawPic ( (320-p->width)/2, 4, "gfx/ttl_main");
-
-	//M_DrawTextBox(72, 30, 28, 1);
-
-
 // Nehahra
 	if (gamemode == GAME_NEHAHRA)
 	{
 		if (NehGameType == TYPE_BOTH)
-			M_DrawPic (72, 54, "gfx/mainmenu");
+			M_DrawPic (72, 32, "gfx/mainmenu");
 		else if (NehGameType == TYPE_GAME)
-			M_DrawPic (72, 54, "gfx/gamemenu");
+			M_DrawPic (72, 32, "gfx/gamemenu");
 		else
-			M_DrawPic (72, 54, "gfx/demomenu");
+			M_DrawPic (72, 32, "gfx/demomenu");
 	}
 	else
-		M_DrawPic (72, 34, "gfx/mainmenu");
+		M_DrawPic (72, 32, "gfx/mainmenu");
 
 	f = (int)(realtime * 10)%6;
 
-	M_DrawPic (54, 34 + m_main_cursor * 20, va(vabuf, sizeof(vabuf), "gfx/menudot%i", f+1));
+	M_DrawPic (54, 32 + m_main_cursor * 20, va(vabuf, sizeof(vabuf), "gfx/menudot%i", f+1));
 }
 
 
@@ -659,9 +581,20 @@ static void M_Main_Key (int key, int ascii)
 
 		if (m_missingdata)
 		{
-			Host_Quit_f ();
-			key_dest = key_game;
-			m_state = m_none;
+			switch (m_main_cursor)
+			{
+			case 0:
+				if (cls.state == ca_connected)
+				{
+					m_state = m_none;
+					key_dest = key_game;
+				}
+				Con_ToggleConsole_f ();
+				break;
+			case 1:
+				M_Menu_Quit_f ();
+				break;
+			}
 		}
 		else if (gamemode == GAME_NEHAHRA)
 		{
@@ -845,7 +778,6 @@ static void M_Main_Key (int key, int ascii)
 			case 4:
 				M_Menu_Quit_f ();
 				break;
-
 			}
 		}
 	}
@@ -1699,7 +1631,9 @@ static void M_DrawCheckbox (int x, int y, int on)
 }
 
 
-#define OPTIONS_ITEMS 24
+//#define OPTIONS_ITEMS 25 aule was here
+#define OPTIONS_ITEMS 27
+
 
 static int options_cursor;
 
@@ -1715,7 +1649,6 @@ extern dllhandle_t jpeg_dll;
 extern cvar_t gl_texture_anisotropy;
 extern cvar_t r_textshadow;
 extern cvar_t r_hdr_scenebrightness;
-extern cvar_t gl_lightmaps;
 
 static void M_Menu_Options_AdjustSliders (int dir)
 {
@@ -1724,64 +1657,33 @@ static void M_Menu_Options_AdjustSliders (int dir)
 	S_LocalSound ("sound/misc/menu3.wav");
 
 	optnum = 0;
-	if (options_cursor == optnum++) ;
+	     if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
-	else if (options_cursor == optnum++)
-	{
-		int b = bullettime.integer + dir;
-		if (b < 0) b = 2;
-		if (b > 2) b = 0;
-		Cvar_SetValueQuick (&bullettime, b);
-		if (bullettime.integer == 0)
-		{
-			Cvar_SetValueQuick(&slowmo, 1.0f);
-			Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
-		}
-		else if (bullettime.integer == 1)
-		{
-			Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
-		}
-		else if (bullettime.integer == 2)
-		{
-			Cvar_SetValueQuick(&gl_lightmaps, 2.0f);
-		}
-	}
+	else if (options_cursor == optnum++) Cvar_SetValueQuick(&crosshair, bound(0, crosshair.integer + dir, 7));
+	else if (options_cursor == optnum++) Cvar_SetValueQuick(&sensitivity, bound(1, sensitivity.value + dir * 0.5, 50));
+	else if (options_cursor == optnum++) Cvar_SetValueQuick(&m_pitch, -m_pitch.value);
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++)
 	{
-		Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
-	}
-    else if (options_cursor == optnum++) ;
-	else if (options_cursor == optnum++)
-	{
-		cl_movementspeed.value += dir * 10;
-		if (cl_movementspeed.value > 500)
-			cl_movementspeed.value = 500;
-		if (cl_movementspeed.value < 10)
-			cl_movementspeed.value = 10;
-
-		Cvar_SetValueQuick (&cl_movementspeed, cl_movementspeed.value);
+		if (cl_movementspeed.value > 200)
+		{
+			Cvar_SetValueQuick (&cl_movementspeed, 200);
+		}
+		else
+		{
+			Cvar_SetValueQuick (&cl_movementspeed, 400);
+		}
 	}
 	else if (options_cursor == optnum++) Cvar_SetValueQuick(&showfps, !showfps.integer);
+	else if (options_cursor == optnum++) {f = !(showdate.integer && showtime.integer);Cvar_SetValueQuick(&showdate, f);Cvar_SetValueQuick(&showtime, f);}
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) Cvar_SetValueQuick(&r_hdr_scenebrightness, bound(1, r_hdr_scenebrightness.value + dir * 0.0625, 4));
 	else if (options_cursor == optnum++) Cvar_SetValueQuick(&v_contrast, bound(1, v_contrast.value + dir * 0.0625, 4));
 	else if (options_cursor == optnum++) Cvar_SetValueQuick(&v_gamma, bound(0.5, v_gamma.value + dir * 0.0625, 3));
-	else if (options_cursor == optnum++)
-	{
-		if (vr_worldscale.value < 200.0f)
-		{
-			Cvar_SetValueQuick (&vr_worldscale, 400.0f);
-			Cvar_SetValueQuick (&chase_active, 1);
-		}
-		else
-		{
-			Cvar_SetValueQuick (&vr_worldscale, 30.0f);
-			Cvar_SetValueQuick (&chase_active, 0);
-		}
-	}
+	else if (options_cursor == optnum++) Cvar_SetValueQuick(&volume, bound(0, volume.value + dir * 0.0625, 1));
+	else if (options_cursor == optnum++) Cvar_SetValueQuick(&bgmvolume, bound(0, bgmvolume.value + dir * 0.0625, 1));
 }
 
 static int optnum;
@@ -1842,58 +1744,38 @@ static void M_Options_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_ITEMS - visible)) * 8;
 
-    M_Options_PrintCommand( "    --QUAKE QUEST--   ", false);
-	M_Options_PrintCommand( "   Controller Settings", true);
-	M_Options_PrintCommand( "    Open Quake Console", true);
+	M_Options_PrintCommand( "    Customize controls", true);
+	M_Options_PrintCommand( "         Go to console", true);
 	M_Options_PrintCommand( "     Reset to defaults", true);
-	switch (bullettime.integer)
-	{
-		case 0:
-			M_Options_PrintCommand( "     BULLET-TIME Mode: Off", true);
-			break;
-		case 1:
-			M_Options_PrintCommand( "     BULLET-TIME Mode: On", true);
-			break;
-		case 2:
-			M_Options_PrintCommand( "     BULLET-TIME Mode: SUPER", true);
-			break;
-	}
-	M_Options_PrintCommand( "   Key/Button Bindings", true);
-	switch (r_lasersight.integer)
-	{
-		case 0:
-			M_Options_PrintCommand( "          Laser Sight: Disabled", true);
-			break;
-		case 1:
-			M_Options_PrintCommand( "          Laser Sight: Beam", true);
-			break;
-        case 2:
-            M_Options_PrintCommand( "          Laser Sight: Torchlight", true);
-            break;
-	}
-
-	M_Options_PrintCommand( " Positional Tracking: Enabled", false);
-
-	M_Options_PrintSlider(  " Player Movement Speed", true, cl_movementspeed.value, 10, 500);
+	M_Options_PrintCommand( "     Change Video Mode", true);
+	M_Options_PrintSlider(  "             Crosshair", true, crosshair.value, 0, 7);
+	M_Options_PrintSlider(  "           Mouse Speed", true, sensitivity.value, 1, 50);
+	M_Options_PrintCheckbox("          Invert Mouse", true, m_pitch.value < 0);
+	//M_Options_PrintSlider(  "         Field of View", true, scr_fov.integer, 1, 170);
+	M_Options_PrintCheckbox("            Always Run", true, cl_movementspeed.value > 200);
 	M_Options_PrintCheckbox("        Show Framerate", true, showfps.integer);
+	M_Options_PrintCheckbox("    Show Date and Time", true, showdate.integer && showtime.integer);
 	M_Options_PrintCommand( "     Custom Brightness", true);
 	M_Options_PrintSlider(  "       Game Brightness", true, r_hdr_scenebrightness.value, 1, 4);
 	M_Options_PrintSlider(  "            Brightness", true, v_contrast.value, 1, 2);
 	M_Options_PrintSlider(  "                 Gamma", true, v_gamma.value, 0.5, 3);
-	M_Options_PrintCommand( "", true);
+	M_Options_PrintSlider(  "          Sound Volume", snd_initialized.integer, volume.value, 0, 1);
+#ifdef CONFIG_CD
+	M_Options_PrintSlider(  "          Music Volume", cdaudioinitialized.integer, bgmvolume.value, 0, 1);
+#endif
 	M_Options_PrintCommand( "     Customize Effects", true);
 	M_Options_PrintCommand( "       Effects:  Quake", true);
 	M_Options_PrintCommand( "       Effects: Normal", true);
 	M_Options_PrintCommand( "       Effects:   High", true);
-	M_Options_PrintCommand( "    Customize Graphics", true);
+	M_Options_PrintCommand( "    Customize Lighting", true);
 	M_Options_PrintCommand( "      Lighting: Flares", true);
 	M_Options_PrintCommand( "      Lighting: Normal", true);
 	M_Options_PrintCommand( "      Lighting:   High", true);
 	M_Options_PrintCommand( "      Lighting:   Full", true);
-	M_Options_PrintCommand( "     ** Browse Mods **", true);
+	M_Options_PrintCommand( "           Browse Mods", true);
 }
 
-int bufOption = 0;
+
 static void M_Options_Key (int k, int ascii)
 {
 	switch (k)
@@ -1910,74 +1792,47 @@ static void M_Options_Key (int k, int ascii)
 		case 0:
 			break;
 		case 1:
-			M_Menu_Controller_f ();
-			break;
-		case 2:
 			m_state = m_none;
 			key_dest = key_game;
 			Con_ToggleConsole_f ();
 			break;
-		case 3:
+		case 2:
 			M_Menu_Reset_f ();
 			break;
-		case 4:
-			{
-			    int b = bullettime.integer + 1;
-				Cvar_SetValueQuick (&bullettime, b % 3);
-				if (bullettime.integer == 0)
-                {
-                    Cvar_SetValueQuick(&slowmo, 1.0f);
-                    Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
-                }
-                else if (bullettime.integer == 1)
-                {
-                    Cvar_SetValueQuick(&gl_lightmaps, 0.0f);
-                }
-                else if (bullettime.integer == 2)
-                {
-                    Cvar_SetValueQuick(&gl_lightmaps, 2.0f);
-                }
-            }
-		    break;
-		case 5:
-			M_Menu_Keys_f ();
+		case 3:
+			M_Menu_Video_f ();
 			break;
-        case 6:
-			Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
-            break;
-		case 10:
+		case 11:
 			M_Menu_Options_ColorControl_f ();
 			break;
-		case 14:
-			break;
-		case 15: // Customize Effects
+		case 17: // Customize Effects
 			M_Menu_Options_Effects_f ();
 			break;
-		case 16: // Effects: Quake
-			Cbuf_AddText("cl_particles 1;cl_particles_quake 1;cl_particles_quality 1;cl_particles_explosions_shell 0;r_explosionclip 1;cl_stainmaps 0;cl_stainmaps_clearonload 1;cl_particles_bulletimpacts 1;cl_particles_smoke 1;cl_particles_sparks 1;cl_particles_bubbles 1;cl_particles_blood 1;cl_particles_blood_alpha 1;cl_particles_blood_bloodhack 0;cl_beams_polygons 0;cl_beams_instantaimhack 0;cl_beams_quakepositionhack 1;cl_beams_lightatend 0;r_lerpmodels 1;r_lerpsprites 1;r_lerplightstyles 0;gl_polyblend 1;r_skyscroll1 1;r_skyscroll2 2;r_waterwarp 1;r_wateralpha 1;r_waterscroll 1\n");
+		case 18: // Effects: Quake
+			Cbuf_AddText("cl_particles 1;cl_particles_quake 1;cl_particles_quality 1;cl_particles_explosions_shell 0;r_explosionclip 1;cl_stainmaps 0;cl_stainmaps_clearonload 1;cl_decals 0;cl_particles_bulletimpacts 1;cl_particles_smoke 1;cl_particles_sparks 1;cl_particles_bubbles 1;cl_particles_blood 1;cl_particles_blood_alpha 1;cl_particles_blood_bloodhack 0;cl_beams_polygons 0;cl_beams_instantaimhack 0;cl_beams_quakepositionhack 1;cl_beams_lightatend 0;r_lerpmodels 1;r_lerpsprites 1;r_lerplightstyles 0;gl_polyblend 1;r_skyscroll1 1;r_skyscroll2 2;r_waterwarp 1;r_wateralpha 1;r_waterscroll 1\n");
 			break;
-		case 17: // Effects: Normal
-			Cbuf_AddText("cl_particles 1;cl_particles_quake 0;cl_particles_quality 1;cl_particles_explosions_shell 0;r_explosionclip 1;cl_stainmaps 0;cl_stainmaps_clearonload 1;cl_particles_bulletimpacts 1;cl_particles_smoke 1;cl_particles_sparks 1;cl_particles_bubbles 1;cl_particles_blood 1;cl_particles_blood_alpha 1;cl_particles_blood_bloodhack 1;cl_beams_polygons 1;cl_beams_instantaimhack 0;cl_beams_quakepositionhack 1;cl_beams_lightatend 0;r_lerpmodels 1;r_lerpsprites 1;r_lerplightstyles 0;gl_polyblend 1;r_skyscroll1 1;r_skyscroll2 2;r_waterwarp 1;r_wateralpha 1;r_waterscroll 1\n");
+		case 19: // Effects: Normal
+			Cbuf_AddText("cl_particles 1;cl_particles_quake 0;cl_particles_quality 1;cl_particles_explosions_shell 0;r_explosionclip 1;cl_stainmaps 0;cl_stainmaps_clearonload 1;cl_decals 1;cl_particles_bulletimpacts 1;cl_particles_smoke 1;cl_particles_sparks 1;cl_particles_bubbles 1;cl_particles_blood 1;cl_particles_blood_alpha 1;cl_particles_blood_bloodhack 1;cl_beams_polygons 1;cl_beams_instantaimhack 0;cl_beams_quakepositionhack 1;cl_beams_lightatend 0;r_lerpmodels 1;r_lerpsprites 1;r_lerplightstyles 0;gl_polyblend 1;r_skyscroll1 1;r_skyscroll2 2;r_waterwarp 1;r_wateralpha 1;r_waterscroll 1\n");
 			break;
-		case 18: // Effects: High
-			Cbuf_AddText("cl_particles 1;cl_particles_quake 0;cl_particles_quality 2;cl_particles_explosions_shell 0;r_explosionclip 1;cl_stainmaps 1;cl_stainmaps_clearonload 1;cl_particles_bulletimpacts 1;cl_particles_smoke 1;cl_particles_sparks 1;cl_particles_bubbles 1;cl_particles_blood 1;cl_particles_blood_alpha 1;cl_particles_blood_bloodhack 1;cl_beams_polygons 1;cl_beams_instantaimhack 0;cl_beams_quakepositionhack 1;cl_beams_lightatend 0;r_lerpmodels 1;r_lerpsprites 1;r_lerplightstyles 0;gl_polyblend 1;r_skyscroll1 1;r_skyscroll2 2;r_waterwarp 1;r_wateralpha 1;r_waterscroll 1\n");
+		case 20: // Effects: High
+			Cbuf_AddText("cl_particles 1;cl_particles_quake 0;cl_particles_quality 2;cl_particles_explosions_shell 0;r_explosionclip 1;cl_stainmaps 1;cl_stainmaps_clearonload 1;cl_decals 1;cl_particles_bulletimpacts 1;cl_particles_smoke 1;cl_particles_sparks 1;cl_particles_bubbles 1;cl_particles_blood 1;cl_particles_blood_alpha 1;cl_particles_blood_bloodhack 1;cl_beams_polygons 1;cl_beams_instantaimhack 0;cl_beams_quakepositionhack 1;cl_beams_lightatend 0;r_lerpmodels 1;r_lerpsprites 1;r_lerplightstyles 0;gl_polyblend 1;r_skyscroll1 1;r_skyscroll2 2;r_waterwarp 1;r_wateralpha 1;r_waterscroll 1\n");
 			break;
-		case 19:
+		case 21:
 			M_Menu_Options_Graphics_f ();
 			break;
-		case 20: // Lighting: Flares
+		case 22: // Lighting: Flares
 			Cbuf_AddText("r_coronas 1;gl_flashblend 1;r_shadow_gloss 0;r_shadow_realtime_dlight 0;r_shadow_realtime_dlight_shadows 0;r_shadow_realtime_world 0;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 0");
 			break;
-		case 21: // Lighting: Normal
+		case 23: // Lighting: Normal
 			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 0;r_shadow_realtime_world 0;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 0");
 			break;
-		case 22: // Lighting: High
-			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 0;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 0");
+		case 24: // Lighting: High
+			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 0;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 1");
 			break;
-		case 23: // Lighting: Full
-			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 1;r_shadow_realtime_world_lightmaps 1;r_shadow_realtime_world_shadows 1;r_bloom 0");
+		case 25: // Lighting: Full
+			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 1;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 1");
 			break;
-		case 24:
+		case 26:
 			M_Menu_ModList_f ();
 			break;
 		default:
@@ -1990,13 +1845,13 @@ static void M_Options_Key (int k, int ascii)
 		S_LocalSound ("sound/misc/menu1.wav");
 		options_cursor--;
 		if (options_cursor < 0)
-			options_cursor = OPTIONS_ITEMS;
+			options_cursor = OPTIONS_ITEMS-1;
 		break;
 
 	case K_DOWNARROW:
 		S_LocalSound ("sound/misc/menu1.wav");
 		options_cursor++;
-		if (options_cursor > OPTIONS_ITEMS)
+		if (options_cursor >= OPTIONS_ITEMS)
 			options_cursor = 0;
 		break;
 
@@ -2177,7 +2032,7 @@ static void M_Options_Effects_Key (int k, int ascii)
 }
 
 
-#define	OPTIONS_GRAPHICS_ITEMS	21
+#define	OPTIONS_GRAPHICS_ITEMS	20
 
 static int options_graphics_cursor;
 
@@ -2212,8 +2067,7 @@ static void M_Menu_Options_Graphics_AdjustSliders (int dir)
 
 	optnum = 0;
 
-	if (options_graphics_cursor == optnum++) ;
-	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_coronas, bound(0, r_coronas.value + dir * 0.125, 4));
+	     if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_coronas, bound(0, r_coronas.value + dir * 0.125, 4));
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&gl_flashblend, !gl_flashblend.integer);
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_shadow_gloss,							bound(0, r_shadow_gloss.integer + dir, 2));
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_shadow_realtime_dlight,				!r_shadow_realtime_dlight.integer);
@@ -2250,7 +2104,6 @@ static void M_Options_Graphics_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_GRAPHICS_ITEMS - visible)) * 8;
 
-	M_Options_PrintCommand(  "    ", false);
 	M_Options_PrintSlider(  "      Corona Intensity", true, r_coronas.value, 0, 4);
 	M_Options_PrintCheckbox("      Use Only Coronas", true, gl_flashblend.integer);
 	M_Options_PrintSlider(  "            Gloss Mode", true, r_shadow_gloss.integer, 0, 2);
@@ -2990,195 +2843,6 @@ static void M_Reset_Draw (void)
 	M_Print(8 + 4 * (linelength - 11), 16, "Press y / n");
 }
 
-#define	YAWCONTROL_ITEMS	6
-
-static int controllermode_cursor;
-
-void M_Menu_Controller_f (void)
-{
-	key_dest = key_menu;
-	m_state = m_controller;
-	m_entersound = true;
-}
-
-static void M_Menu_Controller_AdjustSliders (int dir)
-{
-	int optnum;
-	S_LocalSound ("sound/misc/menu3.wav");
-
-	optnum = 0;
-
-	if (controllermode_cursor == optnum++) ;
-	else if (controllermode_cursor == optnum++) ;
-	else if (controllermode_cursor == optnum++) ;
-	else if (controllermode_cursor == optnum++) ;
-	else if (controllermode_cursor == optnum++ && vr_yawmode.integer == 1)
-		{
-			float value = 45.0f;
-			if (dir == 1)
-			{
-				if (cl_comfort.value == 30.0f)
-					value = 45.0f;
-				else if (cl_comfort.value == 45.0f)
-					value = 60.0f;
-				else if (cl_comfort.value == 60.0f)
-					value = 90.0f;
-				else if (cl_comfort.value == 90.0f)
-					value = 180.0f;
-				else if (cl_comfort.value == 180.0f)
-					value = 30.0f;
-			}
-			else
-			{
-				if (cl_comfort.value == 30.0f)
-					value = 180.0f;
-				else if (cl_comfort.value == 180.0f)
-					value = 90.0f;
-				else if (cl_comfort.value == 90.0f)
-					value = 60.0f;
-				else if (cl_comfort.value == 60.0f)
-					value = 45.0f;
-				else if (cl_comfort.value == 45.0f)
-					value = 30.0f;
-			}
-
-			Cvar_SetValueQuick (&cl_comfort, value);
-		}
-	else if (controllermode_cursor == optnum++  && vr_yawmode.integer == 2)
-		Cvar_SetValueQuick (&sensitivity, bound(1, (sensitivity.value + (dir * 0.25)), 10));
-}
-
-static void M_Menu_Controller_Key (int key, int ascii)
-{
-	switch (key)
-	{
-	case K_ESCAPE:
-		M_Menu_Main_f ();
-		break;
-
-	case K_DOWNARROW:
-
-		S_LocalSound ("sound/misc/menu1.wav");
-		if (++controllermode_cursor >= YAWCONTROL_ITEMS)
-			controllermode_cursor = 0;
-		break;
-
-	case K_UPARROW:
-		S_LocalSound ("sound/misc/menu1.wav");
-		if (--controllermode_cursor < 0)
-			controllermode_cursor = YAWCONTROL_ITEMS - 1;
-		break;
-
-	case 'a':
-	case K_LEFTARROW:
-		if (controllermode_cursor == 0)
-		{
-			Cvar_SetValueQuick (&cl_trackingmode, 1 - cl_trackingmode.integer);
-		}
-		else if (controllermode_cursor == 1)
-        {
-            Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
-        }
-        else if (controllermode_cursor == 2)
-        {
-            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
-        }
-        else if (controllermode_cursor == 3)
-		{
-			int newYawMode = vr_yawmode.integer;
-			if (--newYawMode < 0)
-				newYawMode = 2;
-
-			Cvar_SetValueQuick (&vr_yawmode, newYawMode);
-		}
-		else
-			M_Menu_Controller_AdjustSliders(-1);
-		break;
-
-	case 'd':
-	case K_RIGHTARROW:
-		if (controllermode_cursor == 0)
-		{
-			Cvar_SetValueQuick (&cl_trackingmode, 1 - cl_trackingmode.integer);
-		}
-		else if (controllermode_cursor == 1)
-        {
-            Cvar_SetValueQuick (&cl_walkdirection, 1 - cl_walkdirection.integer);
-        }
-        else if (controllermode_cursor == 2)
-        {
-            Cvar_SetValueQuick (&cl_righthanded, 1 - cl_righthanded.integer);
-        }
-        else if (controllermode_cursor == 3)
-		{
-			int newYawMode = vr_yawmode.integer;
-			if (++newYawMode > 2)
-				newYawMode = 0;
-
-			Cvar_SetValueQuick (&vr_yawmode, newYawMode);
-		}
-		else
-			M_Menu_Controller_AdjustSliders(1);
-		break;
-
-	default:
-		break;
-	}
-}
-
-static void M_Menu_Controller_Draw (void)
-{
-	int visible;
-	cachepic_t	*p;
-
-	M_Background(320, bound(200, 32 + OPTIONS_ITEMS * 8, vid_conheight.integer));
-
-	M_DrawPic(16, 4, "gfx/qplaque");
-	p = Draw_CachePic ("gfx/p_option");
-	M_DrawPic((320-p->width)/2, 4, "gfx/p_option");
-
-	optnum = 0;
-	optcursor = controllermode_cursor;
-	visible = (int)((menu_height - 32) / 8);
-	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, YAWCONTROL_ITEMS - visible)) * 8;
-
-
-	if (cl_trackingmode.integer == 0)
-		M_Options_PrintCommand("Tracking Mode:     3DoF Weapon", true);
-	else
-		M_Options_PrintCommand("Tracking Mode:     6DoF Weapon", true);
-
-    if (cl_walkdirection.integer == 0)
-        M_Options_PrintCommand("Heading Mode:     Off-hand Controller", true);
-    else
-        M_Options_PrintCommand("Heading Mode:     HMD", true);
-
-    if (cl_righthanded.integer == 0)
-        M_Options_PrintCommand("Controller:     Left Handed", true);
-    else
-        M_Options_PrintCommand("Controller:     Right Handed", true);
-
-	if (vr_yawmode.integer == 0)
-		M_Options_PrintCommand(" Turn Mode:     Swivel-Chair (default)", true);
-	else if (vr_yawmode.integer == 1)
-		M_Options_PrintCommand(" Turn Mode:     Snap-turn", true);
-	else
-		M_Options_PrintCommand(" Turn Mode:     Smooth Turn", true);
-
-	M_Options_PrintSlider(  "        Snap Turn Angle", (vr_yawmode.integer == 1), cl_comfort.value, 30, 180);
-	M_Options_PrintSlider(  "      Smooth Turn Speed", (vr_yawmode.integer == 2), sensitivity.value, 1, 10);
-	if (vr_yawmode.integer >= 2)
-	{
-		M_Options_PrintCommand(" ", true);
-		M_Options_PrintCommand(" ", true);
-		M_Options_PrintCommand("WARNING: Smooth rotation", true);
-		M_Options_PrintCommand("can induce severe nausea in ", true);
-		M_Options_PrintCommand("those not used to it.", true);
-		M_Options_PrintCommand(" ", true);
-		M_Options_PrintCommand("* Use this mode at your own risk! *", true);
-	}
-}
-
 //=============================================================================
 /* VIDEO MENU */
 
@@ -3563,66 +3227,20 @@ void M_Menu_Credits_f (void)
 }
 
 
-static const char *m_credits_message[11];
-static int M_CreditsMessage(const char *line1, const char *line2,
-		const char *line3, const char *line4,
-		const char *line5, const char *line6,
-		const char *line7, const char *line8,
-							const char *line9, const char *line10)
-{
-	int line = 0;
-	m_credits_message[line++] = line1;
-	m_credits_message[line++] = line2;
-	m_credits_message[line++] = line3;
-	m_credits_message[line++] = line4;
-	m_credits_message[line++] = line5;
-	m_credits_message[line++] = line6;
-	m_credits_message[line++] = line7;
-	m_credits_message[line++] = line8;
-	m_credits_message[line++] = line9;
-	m_credits_message[line++] = line10;
-	m_credits_message[line++] = NULL;
-	return 1;
-}
 
 static void M_Credits_Draw (void)
 {
-	M_CreditsMessage(
-            "   QQQ QQQ            QQQ QQQ       ",
-			" QQQQ   QQQQ        QQQQ   QQQQ     ",
-			" QQQ     QQQ        QQQ     QQQ     ",
-			" QQQ     QQQ        QQQ     QQQ     ",
-			" QQQ  QQ QQQ        QQQ  QQ QQQ     ",
-			" QQQQ QQ QQQuake    QQQQ QQ QQQuest ",
-			"   QQQQQQQQ           QQQQQQQQ      ",
-			"     QQQ                QQQ         ",
-   			"      Q                  Q          ",
-	  		"      Q                  Q   v1.4.9 ");
-
-	int i, l, linelength, firstline, lastline, lines;
-	for (i = 0, linelength = 0, firstline = 9999, lastline = -1;m_credits_message[i];i++)
-	{
-		if ((l = (int)strlen(m_credits_message[i])))
-		{
-			if (firstline > i)
-				firstline = i;
-			if (lastline < i)
-				lastline = i;
-			if (linelength < l)
-				linelength = l;
-		}
-	}
-	lines = (lastline - firstline) + 1;
-	M_Background(linelength * 8 + 16, lines * 8 + 16);
-	M_DrawTextBox(0, -48, linelength, lines); //this is less obtrusive than hacking up the M_DrawTextBox function
-	for (i = 0, l = firstline;i < lines;i++, l++)
-		M_Print(12 /*+ 4 * (linelength - strlen(m_credits_message[l]))*/, -40 + 8 * i, m_credits_message[l]);
+	M_Background(640, 480);
+	M_DrawPic (0, 0, "gfx/creditsmiddle");
+	M_Print (640/2 - 14/2*8, 236, "Coming soon...");
+	M_DrawPic (0, 0, "gfx/creditstop");
+	M_DrawPic (0, 433, "gfx/creditsbottom");
 }
 
 
 static void M_Credits_Key (int key, int ascii)
 {
-	M_Menu_Main_f ();
+		M_Menu_Main_f ();
 }
 
 //=============================================================================
@@ -3649,6 +3267,12 @@ static int M_QuitMessage(const char *line1, const char *line2, const char *line3
 
 static int M_ChooseQuitMessage(int request)
 {
+	if (m_missingdata)
+	{
+		// frag related quit messages are pointless for a fallback menu, so use something generic
+		if (request-- == 0) return M_QuitMessage("Are you sure you want to quit?","Press Y to quit, N to stay",NULL,NULL,NULL,NULL,NULL,NULL);
+		return 0;
+	}
 	switch (gamemode)
 	{
 	case GAME_NORMAL:
@@ -3741,12 +3365,12 @@ static void M_Quit_Key (int key, int ascii)
 		}
 		break;
 
+	case 'Y':
+	case 'y':
+		Host_Quit_f ();
+		break;
+
 	default:
-		{
-			Host_Quit_f ();
-			key_dest = key_game;
-			m_state = m_none;
-		}
 		break;
 	}
 }
@@ -4866,8 +4490,10 @@ static void M_ServerList_Draw (void)
 	char vabuf[1024];
 
 	// use as much vertical space as available
-	M_Background(480, 400);
-
+	if (gamemode == GAME_TRANSFUSION)
+		M_Background(640, vid_conheight.integer - 80);
+	else
+		M_Background(640, vid_conheight.integer);
 	// scroll the list as the cursor moves
 	ServerList_GetPlayerStatistics(&numplayers, &maxplayers);
 	s = va(vabuf, sizeof(vabuf), "%i/%i masters %i/%i servers %i/%i players", masterreplycount, masterquerycount, serverreplycount, serverquerycount, numplayers, maxplayers);
@@ -5204,7 +4830,6 @@ static void M_Init (void)
 	Cmd_AddCommand ("menu_keys", M_Menu_Keys_f, "open the key binding menu");
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f, "open the video options menu");
 	Cmd_AddCommand ("menu_reset", M_Menu_Reset_f, "open the reset to defaults menu");
-	Cmd_AddCommand ("menu_reset", M_Menu_Controller_f, "open the yaw/pitch control menu");
 	Cmd_AddCommand ("menu_mods", M_Menu_ModList_f, "open the mods browser menu");
 	Cmd_AddCommand ("help", M_Menu_Help_f, "open the help menu");
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f, "open the quit menu");
@@ -5291,10 +4916,6 @@ void M_Draw (void)
 
 	case m_video:
 		M_Video_Draw ();
-		break;
-
-	case m_controller:
-		M_Menu_Controller_Draw ();
 		break;
 
 	case m_help:
@@ -5441,10 +5062,6 @@ void M_KeyEvent (int key, int ascii, qboolean downevent)
 		M_Video_Key (key, ascii);
 		return;
 
-	case m_controller:
-		M_Menu_Controller_Key (key, ascii);
-		return;
-
 	case m_help:
 		M_Help_Key (key, ascii);
 		return;
@@ -5478,6 +5095,11 @@ void M_KeyEvent (int key, int ascii, qboolean downevent)
 
 static void M_NewMap(void)
 {
+}
+
+static int M_GetServerListEntryCategory(const serverlist_entry_t *entry)
+{
+	return 0;
 }
 
 void M_Shutdown(void)
@@ -5769,6 +5391,8 @@ static void MP_Draw (void)
 
 	// FIXME: this really shouldnt error out lest we have a very broken refdef state...?
 	// or does it kill the server too?
+	PRVM_G_FLOAT(OFS_PARM0) = vid.width;
+	PRVM_G_FLOAT(OFS_PARM1) = vid.height;
 	prog->ExecuteProgram(prog, PRVM_menufunction(m_draw),"m_draw() required");
 
 	// TODO: imo this should be moved into scene, too [1/27/2008 Andreas]
@@ -5792,11 +5416,29 @@ static void MP_NewMap(void)
 		prog->ExecuteProgram(prog, PRVM_menufunction(m_newmap),"m_newmap() required");
 }
 
+const serverlist_entry_t *serverlist_callbackentry = NULL;
+static int MP_GetServerListEntryCategory(const serverlist_entry_t *entry)
+{
+	prvm_prog_t *prog = MVM_prog;
+	serverlist_callbackentry = entry;
+	if (PRVM_menufunction(m_gethostcachecategory))
+	{
+		prog->globals.fp[OFS_PARM0] = (prvm_vec_t) -1;
+		prog->ExecuteProgram(prog, PRVM_menufunction(m_gethostcachecategory),"m_gethostcachecategory(float entry) required");
+		serverlist_callbackentry = NULL;
+		return prog->globals.fp[OFS_RETURN];
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 static void MP_Shutdown (void)
 {
 	prvm_prog_t *prog = MVM_prog;
-
-	prog->ExecuteProgram(prog, PRVM_menufunction(m_shutdown),"m_shutdown() required");
+	if (prog->loaded)
+		prog->ExecuteProgram(prog, PRVM_menufunction(m_shutdown),"m_shutdown() required");
 
 	// reset key_dest
 	key_dest = key_game;
@@ -5852,6 +5494,7 @@ void (*MR_Draw) (void);
 void (*MR_ToggleMenu) (int mode);
 void (*MR_Shutdown) (void);
 void (*MR_NewMap) (void);
+int (*MR_GetServerListEntryCategory) (const serverlist_entry_t *entry);
 
 void MR_SetRouting(qboolean forceold)
 {
@@ -5864,6 +5507,7 @@ void MR_SetRouting(qboolean forceold)
 		MR_ToggleMenu = M_ToggleMenu;
 		MR_Shutdown = M_Shutdown;
 		MR_NewMap = M_NewMap;
+		MR_GetServerListEntryCategory = M_GetServerListEntryCategory;
 		M_Init();
 	}
 	else
@@ -5874,6 +5518,7 @@ void MR_SetRouting(qboolean forceold)
 		MR_ToggleMenu = MP_ToggleMenu;
 		MR_Shutdown = MP_Shutdown;
 		MR_NewMap = MP_NewMap;
+		MR_GetServerListEntryCategory = MP_GetServerListEntryCategory;
 		MP_Init();
 	}
 }

@@ -1158,7 +1158,6 @@ void R_Viewport_InitRectSideView(r_viewport_t *v, const matrix4x4_t *cameramatri
 
 void R_SetViewport(const r_viewport_t *v)
 {
-	float m[16];
 	gl_viewport = *v;
 
 	// FIXME: v_flipped_state is evil, this probably breaks somewhere
@@ -1173,14 +1172,17 @@ void R_SetViewport(const r_viewport_t *v)
 	case RENDERPATH_GL13:
 	case RENDERPATH_GL11:
 	case RENDERPATH_GLES1:
-#ifdef GL_PROJECTION
-		CHECKGLERROR
-		qglViewport(v->x, v->y, v->width, v->height);CHECKGLERROR
-		// Load the projection matrix into OpenGL
-		qglMatrixMode(GL_PROJECTION);CHECKGLERROR
-		Matrix4x4_ToArrayFloatGL(&gl_projectionmatrix, m);
-		qglLoadMatrixf(m);CHECKGLERROR
-		qglMatrixMode(GL_MODELVIEW);CHECKGLERROR
+#ifndef USE_GLES2
+		{
+			float m[16];
+			CHECKGLERROR
+			qglViewport(v->x, v->y, v->width, v->height);CHECKGLERROR
+			// Load the projection matrix into OpenGL
+			qglMatrixMode(GL_PROJECTION);CHECKGLERROR
+			Matrix4x4_ToArrayFloatGL(&gl_projectionmatrix, m);
+			qglLoadMatrixf(m);CHECKGLERROR
+			qglMatrixMode(GL_MODELVIEW);CHECKGLERROR
+		}
 #endif
 		break;
 	case RENDERPATH_D3D9:
@@ -1248,8 +1250,10 @@ static void GL_BindUBO(int bufferobject)
 	if (gl_state.uniformbufferobject != bufferobject)
 	{
 		gl_state.uniformbufferobject = bufferobject;
+#ifdef GL_UNIFORM_BUFFER
 		CHECKGLERROR
 		qglBindBufferARB(GL_UNIFORM_BUFFER, bufferobject);CHECKGLERROR
+#endif
 	}
 }
 
@@ -1273,10 +1277,11 @@ int R_Mesh_CreateFramebufferObject(rtexture_t *depthtexture, rtexture_t *colorte
 #ifdef USE_GLES2
 			// FIXME: separate stencil attachment on GLES
 			if (depthtexture  && depthtexture->texnum ) qglFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT  , depthtexture->gltexturetypeenum , depthtexture->texnum , 0);CHECKGLERROR
+			if (depthtexture  && depthtexture->renderbuffernum ) qglFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT  , GL_RENDERBUFFER, depthtexture->renderbuffernum );CHECKGLERROR
 #else
 			if (depthtexture  && depthtexture->texnum ) qglFramebufferTexture2D(GL_FRAMEBUFFER, depthtexture->glisdepthstencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT  , depthtexture->gltexturetypeenum , depthtexture->texnum , 0);CHECKGLERROR
+			if (depthtexture  && depthtexture->renderbuffernum ) qglFramebufferRenderbuffer(GL_FRAMEBUFFER, depthtexture->glisdepthstencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT  , GL_RENDERBUFFER, depthtexture->renderbuffernum );CHECKGLERROR
 #endif
-			if (depthtexture  && depthtexture->renderbuffernum ) qglFramebufferRenderbuffer(GL_FRAMEBUFFER, /*depthtexture->glisdepthstencil ? GL_DEPTH_STENCIL_ATTACHMENT : */GL_DEPTH_ATTACHMENT  , GL_RENDERBUFFER, depthtexture->renderbuffernum );CHECKGLERROR
 			if (colortexture  && colortexture->texnum ) qglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , colortexture->gltexturetypeenum , colortexture->texnum , 0);CHECKGLERROR
 			if (colortexture2 && colortexture2->texnum) qglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1 , colortexture2->gltexturetypeenum, colortexture2->texnum, 0);CHECKGLERROR
 			if (colortexture3 && colortexture3->texnum) qglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2 , colortexture3->gltexturetypeenum, colortexture3->texnum, 0);CHECKGLERROR
@@ -1604,13 +1609,20 @@ static void GL_Backend_ResetState(void)
 	case RENDERPATH_GL11:
 	case RENDERPATH_GL13:
 	case RENDERPATH_GLES1:
-#ifdef GL_ALPHA_TEST
+#ifndef USE_GLES2
 		CHECKGLERROR
 
 		qglColorMask(1, 1, 1, 1);CHECKGLERROR
 		qglAlphaFunc(gl_state.alphafunc, gl_state.alphafuncvalue);CHECKGLERROR
 		qglDisable(GL_ALPHA_TEST);CHECKGLERROR
-		qglBlendFunc(gl_state.blendfunc1, gl_state.blendfunc2);CHECKGLERROR
+		if (qglBlendFuncSeparate)
+		{
+			qglBlendFuncSeparate(gl_state.blendfunc1, gl_state.blendfunc2, GL_ZERO, GL_ONE);CHECKGLERROR // ELUAN: Adreno 225 (and others) compositing workaround
+		}
+		else
+		{
+			qglBlendFunc(gl_state.blendfunc1, gl_state.blendfunc2);CHECKGLERROR
+		}
 		qglDisable(GL_BLEND);CHECKGLERROR
 		qglCullFace(gl_state.cullface);CHECKGLERROR
 		qglDisable(GL_CULL_FACE);CHECKGLERROR
@@ -1742,10 +1754,10 @@ void GL_ActiveTexture(unsigned int num)
 		case RENDERPATH_GL20:
 		case RENDERPATH_GLES1:
 		case RENDERPATH_GLES2:
-			if (1)
+			if (qglActiveTexture)
 			{
 				CHECKGLERROR
-				glActiveTexture(GL_TEXTURE0 + gl_state.unit);
+				qglActiveTexture(GL_TEXTURE0 + gl_state.unit);
 				CHECKGLERROR
 			}
 			break;
@@ -1769,12 +1781,14 @@ void GL_ClientActiveTexture(unsigned int num)
 		case RENDERPATH_GL11:
 		case RENDERPATH_GL13:
 		case RENDERPATH_GLES1:
-			if (1)
+#ifndef USE_GLES2
+			if (qglActiveTexture)
 			{
 				CHECKGLERROR
 				qglClientActiveTexture(GL_TEXTURE0 + gl_state.clientunit);
 				CHECKGLERROR
 			}
+#endif
 			break;
 		case RENDERPATH_D3D9:
 		case RENDERPATH_D3D10:
@@ -1805,7 +1819,14 @@ void GL_BlendFunc(int blendfunc1, int blendfunc2)
 		case RENDERPATH_GLES1:
 		case RENDERPATH_GLES2:
 			CHECKGLERROR
-			qglBlendFunc(gl_state.blendfunc1, gl_state.blendfunc2);CHECKGLERROR
+			if (qglBlendFuncSeparate)
+			{
+				qglBlendFuncSeparate(gl_state.blendfunc1, gl_state.blendfunc2, GL_ZERO, GL_ONE);CHECKGLERROR // ELUAN: Adreno 225 (and others) compositing workaround
+			}
+			else
+			{
+				qglBlendFunc(gl_state.blendfunc1, gl_state.blendfunc2);CHECKGLERROR
+			}
 			if (gl_state.blend != blendenable)
 			{
 				gl_state.blend = blendenable;
@@ -2046,7 +2067,7 @@ void R_SetStencilSeparate(qboolean enable, int writemask, int frontfail, int fro
 		}
 		else if (vid.support.ext_stencil_two_side)
 		{
-#ifdef GL_STENCIL_TEST_TWO_SIDE_EXT
+#if defined(GL_STENCIL_TEST_TWO_SIDE_EXT) && !defined(USE_GLES2)
 			qglEnable(GL_STENCIL_TEST_TWO_SIDE_EXT);CHECKGLERROR
 			qglActiveStencilFaceEXT(GL_FRONT);CHECKGLERROR
 			qglStencilMask(writemask);CHECKGLERROR
@@ -2414,9 +2435,11 @@ void GL_Color(float cr, float cg, float cb, float ca)
 		case RENDERPATH_GL11:
 		case RENDERPATH_GL13:
 		case RENDERPATH_GLES1:
+#ifndef USE_GLES2
 			CHECKGLERROR
 			qglColor4f(gl_state.color4f[0], gl_state.color4f[1], gl_state.color4f[2], gl_state.color4f[3]);
 			CHECKGLERROR
+#endif
 			break;
 		case RENDERPATH_D3D9:
 		case RENDERPATH_D3D10:
@@ -2510,7 +2533,8 @@ void GL_ScissorTest(int state)
 
 void GL_Clear(int mask, const float *colorvalue, float depthvalue, int stencilvalue)
 {
-	static const float blackcolor[4] = {0, 0, 0, 0};
+	// opaque black - if you want transparent black, you'll need to pass in a colorvalue
+	static const float blackcolor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	// prevent warnings when trying to clear a buffer that does not exist
 	if (!colorvalue)
 		colorvalue = blackcolor;
@@ -2575,8 +2599,30 @@ void GL_ReadPixelsBGRA(int x, int y, int width, int height, unsigned char *outpi
 	case RENDERPATH_GLES1:
 	case RENDERPATH_GLES2:
 		CHECKGLERROR
+#ifndef GL_BGRA
+		{
+			int i;
+			int r;
+		//	int g;
+			int b;
+		//	int a;
+			qglReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, outpixels);CHECKGLERROR
+			for (i = 0;i < width * height * 4;i += 4)
+			{
+				r = outpixels[i+0];
+		//		g = outpixels[i+1];
+				b = outpixels[i+2];
+		//		a = outpixels[i+3];
+				outpixels[i+0] = b;
+		//		outpixels[i+1] = g;
+				outpixels[i+2] = r;
+		//		outpixels[i+3] = a;
+			}
+		}
+#else
 		qglReadPixels(x, y, width, height, GL_BGRA, GL_UNSIGNED_BYTE, outpixels);CHECKGLERROR
-		break;
+#endif
+			break;
 	case RENDERPATH_D3D9:
 #ifdef SUPPORTD3D
 		{
@@ -2698,7 +2744,7 @@ unsigned int GL_Backend_CompileProgram(int vertexstrings_count, const char **ver
 	if (vertexstrings_count && !GL_Backend_CompileShader(programobject, GL_VERTEX_SHADER, "vertex", vertexstrings_count, vertexstrings_list))
 		goto cleanup;
 
-#ifdef GL_GEOMETRY_SHADER
+#if defined(GL_GEOMETRY_SHADER) && !defined(USE_GLES2)
 	if (geometrystrings_count && !GL_Backend_CompileShader(programobject, GL_GEOMETRY_SHADER, "geometry", geometrystrings_count, geometrystrings_list))
 		goto cleanup;
 #endif
@@ -2709,10 +2755,13 @@ unsigned int GL_Backend_CompileProgram(int vertexstrings_count, const char **ver
 	qglLinkProgram(programobject);CHECKGLERROR
 	qglGetProgramiv(programobject, GL_LINK_STATUS, &programlinked);CHECKGLERROR
 	qglGetProgramInfoLog(programobject, sizeof(linklog), NULL, linklog);CHECKGLERROR
+
 	if (linklog[0])
 	{
+
 		if (strstr(linklog, "error") || strstr(linklog, "ERROR") || strstr(linklog, "Error") || strstr(linklog, "WARNING") || strstr(linklog, "warning") || strstr(linklog, "Warning") || developer_extra.integer)
 			Con_DPrintf("program link log:\n%s\n", linklog);
+
 		// software vertex shader is ok but software fragment shader is WAY
 		// too slow, fail program if so.
 		// NOTE: this string might be ATI specific, but that's ok because the
@@ -2722,8 +2771,10 @@ unsigned int GL_Backend_CompileProgram(int vertexstrings_count, const char **ver
 		if (strstr(linklog, "fragment shader will run in software"))
 			programlinked = false;
 	}
+
 	if (!programlinked)
 		goto cleanup;
+
 	return programobject;
 cleanup:
 	qglDeleteProgram(programobject);CHECKGLERROR
@@ -2752,7 +2803,6 @@ void R_Mesh_Draw(int firstvertex, int numvertices, int firsttriangle, int numtri
 			Con_DPrintf("R_Mesh_Draw(%d, %d, %d, %d, %8p, %8p, %8x, %8p, %8p, %8x);\n", firstvertex, numvertices, firsttriangle, numtriangles, (void *)element3i, (void *)element3i_indexbuffer, (int)element3i_bufferoffset, (void *)element3s, (void *)element3s_indexbuffer, (int)element3s_bufferoffset);
 		return;
 	}
-
 	// adjust the pointers for firsttriangle
 	if (element3i)
 		element3i += firsttriangle * 3;
@@ -2762,7 +2812,6 @@ void R_Mesh_Draw(int firstvertex, int numvertices, int firsttriangle, int numtri
 		element3s += firsttriangle * 3;
 	if (element3s_indexbuffer)
 		element3s_bufferoffset += firsttriangle * 3 * sizeof(*element3s);
-
 	switch(vid.renderpath)
 	{
 	case RENDERPATH_GL11:
@@ -3328,10 +3377,19 @@ void R_Mesh_UpdateMeshBuffer(r_meshbuffer_t *buffer, const void *data, size_t si
 			GL_BindEBO(buffer->bufferobject);
 		else
 			GL_BindVBO(buffer->bufferobject);
-		if (subdata)
-			qglBufferSubDataARB(buffer->isuniformbuffer ? GL_UNIFORM_BUFFER : (buffer->isindexbuffer ? GL_ELEMENT_ARRAY_BUFFER : GL_ARRAY_BUFFER), offset, size, data);
-		else
-			qglBufferDataARB(buffer->isuniformbuffer ? GL_UNIFORM_BUFFER : (buffer->isindexbuffer ? GL_ELEMENT_ARRAY_BUFFER : GL_ARRAY_BUFFER), size, data, buffer->isdynamic ? GL_STREAM_DRAW : GL_STATIC_DRAW);
+
+		{
+			int buffertype;
+			buffertype = buffer->isindexbuffer ? GL_ELEMENT_ARRAY_BUFFER : GL_ARRAY_BUFFER;
+#ifdef GL_UNIFORM_BUFFER
+			if (buffer->isuniformbuffer)
+				buffertype = GL_UNIFORM_BUFFER;
+#endif
+			if (subdata)
+				qglBufferSubDataARB(buffertype, offset, size, data);
+			else
+				qglBufferDataARB(buffertype, size, data, buffer->isdynamic ? GL_STREAM_DRAW : GL_STATIC_DRAW);
+		}
 		if (buffer->isuniformbuffer)
 			GL_BindUBO(0);
 		break;
@@ -3500,6 +3558,7 @@ void R_Mesh_VertexPointer(int components, int gltype, size_t stride, const void 
 	case RENDERPATH_GL11:
 	case RENDERPATH_GL13:
 	case RENDERPATH_GLES1:
+#ifndef USE_GLES2
 		if (gl_state.pointer_vertex_components != components || gl_state.pointer_vertex_gltype != gltype || gl_state.pointer_vertex_stride != stride || gl_state.pointer_vertex_pointer != pointer || gl_state.pointer_vertex_vertexbuffer != vertexbuffer || gl_state.pointer_vertex_offset != bufferoffset)
 		{
 			int bufferobject = vertexbuffer ? vertexbuffer->bufferobject : 0;
@@ -3513,6 +3572,7 @@ void R_Mesh_VertexPointer(int components, int gltype, size_t stride, const void 
 			GL_BindVBO(bufferobject);
 			qglVertexPointer(components, gltype, stride, bufferobject ? (void *)bufferoffset : pointer);CHECKGLERROR
 		}
+#endif
 		break;
 	case RENDERPATH_GL20:
 	case RENDERPATH_GLES2:
@@ -3548,7 +3608,7 @@ void R_Mesh_ColorPointer(int components, int gltype, size_t stride, const void *
 	case RENDERPATH_GL11:
 	case RENDERPATH_GL13:
 	case RENDERPATH_GLES1:
-#ifdef GL_MODELVIEW
+#ifndef USE_GLES2
 		CHECKGLERROR
 		if (pointer)
 		{
@@ -3646,7 +3706,7 @@ void R_Mesh_TexCoordPointer(unsigned int unitnum, int components, int gltype, si
 	case RENDERPATH_GL11:
 	case RENDERPATH_GL13:
 	case RENDERPATH_GLES1:
-#ifdef GL_MODELVIEW
+#ifndef USE_GLES2
 		CHECKGLERROR
 		if (pointer)
 		{
@@ -3986,7 +4046,6 @@ void R_Mesh_TexBind(unsigned int unitnum, rtexture_t *tex)
 
 void R_Mesh_TexMatrix(unsigned int unitnum, const matrix4x4_t *matrix)
 {
-	gltextureunit_t *unit = gl_state.units + unitnum;
 	switch(vid.renderpath)
 	{
 	case RENDERPATH_GL11:
@@ -3997,6 +4056,7 @@ void R_Mesh_TexMatrix(unsigned int unitnum, const matrix4x4_t *matrix)
 #ifdef GL_MODELVIEW
 		if (matrix && matrix->m[3][3])
 		{
+			gltextureunit_t *unit = gl_state.units + unitnum;
 			// texmatrix specified, check if it is different
 			if (!unit->texmatrixenabled || memcmp(&unit->matrix, matrix, sizeof(matrix4x4_t)))
 			{
@@ -4014,6 +4074,7 @@ void R_Mesh_TexMatrix(unsigned int unitnum, const matrix4x4_t *matrix)
 		else
 		{
 			// no texmatrix specified, revert to identity
+			gltextureunit_t *unit = gl_state.units + unitnum;
 			if (unit->texmatrixenabled)
 			{
 				unit->texmatrixenabled = false;
@@ -4038,6 +4099,7 @@ void R_Mesh_TexMatrix(unsigned int unitnum, const matrix4x4_t *matrix)
 
 void R_Mesh_TexCombine(unsigned int unitnum, int combinergb, int combinealpha, int rgbscale, int alphascale)
 {
+#if defined(GL_TEXTURE_ENV) && !defined(USE_GLES2)
 	gltextureunit_t *unit = gl_state.units + unitnum;
 	CHECKGLERROR
 	switch(vid.renderpath)
@@ -4048,7 +4110,6 @@ void R_Mesh_TexCombine(unsigned int unitnum, int combinergb, int combinealpha, i
 		break;
 	case RENDERPATH_GL13:
 	case RENDERPATH_GLES1:
-#ifdef GL_TEXTURE_ENV
 		// GL_ARB_texture_env_combine
 		if (!combinergb)
 			combinergb = GL_MODULATE;
@@ -4103,11 +4164,9 @@ void R_Mesh_TexCombine(unsigned int unitnum, int combinergb, int combinealpha, i
 				qglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, unit->combine);CHECKGLERROR
 			}
 		}
-#endif
 		break;
 	case RENDERPATH_GL11:
 		// normal GL texenv
-#ifdef GL_TEXTURE_ENV
 		if (!combinergb)
 			combinergb = GL_MODULATE;
 		if (unit->combine != combinergb)
@@ -4116,7 +4175,6 @@ void R_Mesh_TexCombine(unsigned int unitnum, int combinergb, int combinealpha, i
 			GL_ActiveTexture(unitnum);
 			qglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, unit->combine);CHECKGLERROR
 		}
-#endif
 		break;
 	case RENDERPATH_D3D9:
 	case RENDERPATH_D3D10:
@@ -4125,6 +4183,7 @@ void R_Mesh_TexCombine(unsigned int unitnum, int combinergb, int combinealpha, i
 	case RENDERPATH_SOFT:
 		break;
 	}
+#endif
 }
 
 void R_Mesh_ResetTextureState(void)

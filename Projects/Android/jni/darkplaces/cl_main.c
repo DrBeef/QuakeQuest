@@ -173,7 +173,7 @@ void CL_ClearState(void)
 		cl.entities[i].state_current = defaultstate;
 	}
 
-	if (gamemode == GAME_NEXUIZ || gamemode == GAME_XONOTIC)
+	if (IS_NEXUIZ_DERIVED(gamemode))
 	{
 		VectorSet(cl.playerstandmins, -16, -16, -24);
 		VectorSet(cl.playerstandmaxs, 16, 16, 45);
@@ -269,6 +269,11 @@ void CL_SetInfo(const char *key, const char *value, qboolean send, qboolean allo
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "rate \"%s\"", value));
+		}
+		else if (!strcasecmp(key, "rate_burstsize"))
+		{
+			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
+			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "rate_burstsize \"%s\"", value));
 		}
 	}
 }
@@ -385,9 +390,9 @@ void CL_Disconnect(void)
 			Con_DPrint("Sending clc_disconnect\n");
 			MSG_WriteByte(&buf, clc_disconnect);
 		}
-		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, false);
-		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, false);
-		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, false);
+		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
+		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
+		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
 		NetConn_Close(cls.netcon);
 		cls.netcon = NULL;
 	}
@@ -425,7 +430,9 @@ void CL_EstablishConnection(const char *host, int firstarg)
 		return;
 
 	// clear menu's connect error message
+#ifdef CONFIG_MENU
 	M_Update_Return_Reason("");
+#endif
 	cls.demonum = -1;
 
 	// stop demo loop in case this fails
@@ -459,12 +466,16 @@ void CL_EstablishConnection(const char *host, int firstarg)
 			*cls.connect_userinfo = 0;
 		}
 
+#ifdef CONFIG_MENU
 		M_Update_Return_Reason("Trying to connect...");
+#endif
 	}
 	else
 	{
 		Con_Print("Unable to find a suitable network socket to connect to server.\n");
+#ifdef CONFIG_MENU
 		M_Update_Return_Reason("No network");
+#endif
 	}
 }
 
@@ -696,7 +707,7 @@ void CL_Effect(vec3_t org, int modelindex, int startframe, int framecount, float
 	}
 }
 
-void CL_AllocLightFlash(entity_render_t *ent, matrix4x4_t *matrix, float radius, float red, float green, float blue, float decay, float lifetime, int cubemapnum, int style, int shadowenable, vec_t corona, vec_t coronasizescale, vec_t ambientscale, vec_t diffusescale, vec_t specularscale, int flags)
+void CL_AllocLightFlash(entity_render_t *ent, matrix4x4_t *matrix, float radius, float red, float green, float blue, float decay, float lifetime, char *cubemapname, int style, int shadowenable, vec_t corona, vec_t coronasizescale, vec_t ambientscale, vec_t diffusescale, vec_t specularscale, int flags)
 {
 	int i;
 	dlight_t *dl;
@@ -733,10 +744,9 @@ void CL_AllocLightFlash(entity_render_t *ent, matrix4x4_t *matrix, float radius,
 		dl->die = cl.time + lifetime;
 	else
 		dl->die = 0;
-	if (cubemapnum > 0)
-		dpsnprintf(dl->cubemapname, sizeof(dl->cubemapname), "cubemaps/%i", cubemapnum);
-	else
-		dl->cubemapname[0] = 0;
+	dl->cubemapname[0] = 0;
+	if (cubemapname && cubemapname[0])
+		strlcpy(dl->cubemapname, cubemapname, sizeof(dl->cubemapname));
 	dl->style = style;
 	dl->shadow = shadowenable;
 	dl->corona = corona;
@@ -1209,15 +1219,15 @@ static void CL_UpdateNetworkEntityTrail(entity_t *e)
 	{
 		if (e->render.effects & EF_BRIGHTFIELD)
 		{
-			if (gamemode == GAME_NEXUIZ || gamemode == GAME_XONOTIC)
+			if (IS_NEXUIZ_DERIVED(gamemode))
 				trailtype = EFFECT_TR_NEXUIZPLASMA;
 			else
 				CL_EntityParticles(e);
 		}
 		if (e->render.effects & EF_FLAME)
-			CL_ParticleTrail(EFFECT_EF_FLAME, bound(0, cl.time - cl.oldtime, 0.1), origin, origin, vec3_origin, vec3_origin, NULL, 0, false, true, NULL, NULL);
+			CL_ParticleTrail(EFFECT_EF_FLAME, bound(0, cl.time - cl.oldtime, 0.1), origin, origin, vec3_origin, vec3_origin, NULL, 0, false, true, NULL, NULL, 1);
 		if (e->render.effects & EF_STARDUST)
-			CL_ParticleTrail(EFFECT_EF_STARDUST, bound(0, cl.time - cl.oldtime, 0.1), origin, origin, vec3_origin, vec3_origin, NULL, 0, false, true, NULL, NULL);
+			CL_ParticleTrail(EFFECT_EF_STARDUST, bound(0, cl.time - cl.oldtime, 0.1), origin, origin, vec3_origin, vec3_origin, NULL, 0, false, true, NULL, NULL, 1);
 	}
 	if (e->render.internaleffects & (INTEF_FLAG1QW | INTEF_FLAG2QW))
 	{
@@ -1251,7 +1261,7 @@ static void CL_UpdateNetworkEntityTrail(entity_t *e)
 	// do trails
 	if (e->render.flags & RENDER_GLOWTRAIL)
 		trailtype = EFFECT_TR_GLOWTRAIL;
-	if (e->state_current.traileffectnum)
+	if (e->state_current.traileffectnum && e->state_current.traileffectnum < MAX_PARTICLEEFFECTNAME)
 		trailtype = (effectnameindex_t)e->state_current.traileffectnum;
 	// check if a trail is allowed (it is not after a teleport for example)
 	if (trailtype && e->persistent.trail_allowed)
@@ -1264,7 +1274,7 @@ static void CL_UpdateNetworkEntityTrail(entity_t *e)
 			len = 1.0f / len;
 		VectorScale(vel, len, vel);
 		// pass time as count so that trails that are time based (such as an emitter) will emit properly as long as they don't use trailspacing
-		CL_ParticleTrail(trailtype, bound(0, cl.time - cl.oldtime, 0.1), e->persistent.trail_origin, origin, vel, vel, e, e->state_current.glowcolor, false, true, NULL, NULL);
+		CL_ParticleTrail(trailtype, bound(0, cl.time - cl.oldtime, 0.1), e->persistent.trail_origin, origin, vel, vel, e, e->state_current.glowcolor, false, true, NULL, NULL, 1);
 	}
 	// now that the entity has survived one trail update it is allowed to
 	// leave a real trail on later frames
@@ -1436,7 +1446,7 @@ static void CL_LinkNetworkEntity(entity_t *e)
 	{
 		if (e->render.effects & EF_BRIGHTFIELD)
 		{
-			if (gamemode == GAME_NEXUIZ || gamemode == GAME_XONOTIC)
+			if (IS_NEXUIZ_DERIVED(gamemode))
 				trailtype = EFFECT_TR_NEXUIZPLASMA;
 		}
 		if (e->render.effects & EF_DIMLIGHT)
@@ -1469,9 +1479,9 @@ static void CL_LinkNetworkEntity(entity_t *e)
 			dlightcolor[2] += 1.50f;
 		}
 		if (e->render.effects & EF_FLAME)
-			CL_ParticleTrail(EFFECT_EF_FLAME, 1, origin, origin, vec3_origin, vec3_origin, NULL, 0, true, false, NULL, NULL);
+			CL_ParticleTrail(EFFECT_EF_FLAME, 1, origin, origin, vec3_origin, vec3_origin, NULL, 0, true, false, NULL, NULL, 1);
 		if (e->render.effects & EF_STARDUST)
-			CL_ParticleTrail(EFFECT_EF_STARDUST, 1, origin, origin, vec3_origin, vec3_origin, NULL, 0, true, false, NULL, NULL);
+			CL_ParticleTrail(EFFECT_EF_STARDUST, 1, origin, origin, vec3_origin, vec3_origin, NULL, 0, true, false, NULL, NULL, 1);
 	}
 	// muzzleflash fades over time, and is offset a bit
 	if (e->persistent.muzzleflash > 0 && r_refdef.scene.numlights < MAX_DLIGHTS)
@@ -1481,7 +1491,7 @@ static void CL_LinkNetworkEntity(entity_t *e)
 		trace_t trace;
 		matrix4x4_t tempmatrix;
 		Matrix4x4_Transform(&e->render.matrix, muzzleflashorigin, v2);
-		trace = CL_TraceLine(origin, v2, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, true, false, NULL, false, false);
+		trace = CL_TraceLine(origin, v2, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, collision_extendmovelength.value, true, false, NULL, false, false);
 		Matrix4x4_Normalize(&tempmatrix, &e->render.matrix);
 		Matrix4x4_SetOrigin(&tempmatrix, trace.endpos[0], trace.endpos[1], trace.endpos[2]);
 		Matrix4x4_Scale(&tempmatrix, 150, 1);
@@ -1550,10 +1560,10 @@ static void CL_LinkNetworkEntity(entity_t *e)
 	// do trail light
 	if (e->render.flags & RENDER_GLOWTRAIL)
 		trailtype = EFFECT_TR_GLOWTRAIL;
-	if (e->state_current.traileffectnum)
+	if (e->state_current.traileffectnum && e->state_current.traileffectnum < MAX_PARTICLEEFFECTNAME)
 		trailtype = (effectnameindex_t)e->state_current.traileffectnum;
 	if (trailtype)
-		CL_ParticleTrail(trailtype, 1, origin, origin, vec3_origin, vec3_origin, NULL, e->state_current.glowcolor, true, false, NULL, NULL);
+		CL_ParticleTrail(trailtype, 1, origin, origin, vec3_origin, vec3_origin, NULL, e->state_current.glowcolor, true, false, NULL, NULL, 1);
 
 	// don't show entities with no modelindex (note: this still shows
 	// entities which have a modelindex that resolved to a NULL model)
@@ -1755,7 +1765,7 @@ void CL_LaserSight_CalculatePositions(vec3_t start, vec3_t end)
 
     VectorSet(temp, 65536, 0, 0);
     Matrix4x4_Transform(&gunOrientationMatrix, temp, end);
-    trace = CL_TraceLine(gunorg, end, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, true, false, NULL, true, true);
+    trace = CL_TraceLine(gunorg, end, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, collision_extendmovelength.value, true, false, NULL, true, true);
 
     VectorCopy(trace.endpos, end);
     VectorCopy(gunorg, start);

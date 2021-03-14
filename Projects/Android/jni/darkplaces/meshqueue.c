@@ -77,7 +77,7 @@ void R_MeshQueue_RenderTransparent(void)
 	if (r_transparent_sortarraysize.integer < 1 || r_transparent_sortarraysize.integer > 32768)
 		Cvar_SetValueQuick(&r_transparent_sortarraysize, bound(1, r_transparent_sortarraysize.integer, 32768));
 	if (r_transparent_sortmindist.integer < 1 || r_transparent_sortmindist.integer >= r_transparent_sortmaxdist.integer)
-		Cvar_SetValueQuick(&r_transparent_sortmindist, 1);
+		Cvar_SetValueQuick(&r_transparent_sortmindist, 0);
 	if (r_transparent_sortmaxdist.integer < r_transparent_sortmindist.integer || r_transparent_sortmaxdist.integer > 32768)
 		Cvar_SetValueQuick(&r_transparent_sortmaxdist, bound(r_transparent_sortmindist.integer, r_transparent_sortmaxdist.integer, 32768));
 

@@ -878,7 +878,7 @@ static qboolean Curl_Begin(const char *URL, const char *extraheaders, double max
 		if(loadtype != LOADTYPE_NONE)
 			Host_Error("Curl_Begin: loadtype and buffer are both set");
 
-	if(!curl_dll)
+	if(!curl_dll || !cl_curl_enabled.integer)
 	{
 		return false;
 	}
@@ -1226,7 +1226,7 @@ void Curl_Run(void)
 	if(maxspeed > 0)
 	{
 		double bytes = bytes_sent + bytes_received; // maybe smoothen a bit?
-		curltime = realtime + bytes / (cl_curl_maxspeed.value * 1024.0);
+		curltime = realtime + bytes / (maxspeed * 1024.0);
 		bytes_sent = 0;
 		bytes_received = 0;
 	}

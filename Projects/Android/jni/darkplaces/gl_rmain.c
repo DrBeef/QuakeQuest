@@ -142,14 +142,14 @@ cvar_t r_shadows_shadowmapscale = {CVAR_SAVE, "r_shadows_shadowmapscale", "1", "
 cvar_t r_shadows_shadowmapbias = {CVAR_SAVE, "r_shadows_shadowmapbias", "-1", "sets shadowmap bias for fake shadows. -1 sets the value of r_shadow_shadowmapping_bias. Needs shadowmapping ON."};
 cvar_t r_q1bsp_skymasking = {0, "r_q1bsp_skymasking", "1", "allows sky polygons in quake1 maps to obscure other geometry"};
 cvar_t r_polygonoffset_submodel_factor = {0, "r_polygonoffset_submodel_factor", "0", "biases depth values of world submodels such as doors, to prevent z-fighting artifacts in Quake maps"};
-cvar_t r_polygonoffset_submodel_offset = {0, "r_polygonoffset_submodel_offset", "0", "biases depth values of world submodels such as doors, to prevent z-fighting artifacts in Quake maps"};//changed default 14 to 0 to fix Tegra Z-buffer depth
+cvar_t r_polygonoffset_submodel_offset = {0, "r_polygonoffset_submodel_offset", "14", "biases depth values of world submodels such as doors, to prevent z-fighting artifacts in Quake maps"};
 cvar_t r_polygonoffset_decals_factor = {0, "r_polygonoffset_decals_factor", "0", "biases depth values of decals to prevent z-fighting artifacts"};
 cvar_t r_polygonoffset_decals_offset = {0, "r_polygonoffset_decals_offset", "-14", "biases depth values of decals to prevent z-fighting artifacts"};
 cvar_t r_fog_exp2 = {0, "r_fog_exp2", "0", "uses GL_EXP2 fog (as in Nehahra) rather than realistic GL_EXP fog"};
 cvar_t r_fog_clear = {0, "r_fog_clear", "1", "clears renderbuffer with fog color before render starts"};
 cvar_t r_drawfog = {CVAR_SAVE, "r_drawfog", "1", "allows one to disable fog rendering"};
 cvar_t r_transparentdepthmasking = {CVAR_SAVE, "r_transparentdepthmasking", "0", "enables depth writes on transparent meshes whose materially is normally opaque, this prevents seeing the inside of a transparent mesh"};
-cvar_t r_transparent_sortmindist = {CVAR_SAVE, "r_transparent_sortmindist", "1", "lower distance limit for transparent sorting"};
+cvar_t r_transparent_sortmindist = {CVAR_SAVE, "r_transparent_sortmindist", "0", "lower distance limit for transparent sorting"};
 cvar_t r_transparent_sortmaxdist = {CVAR_SAVE, "r_transparent_sortmaxdist", "32768", "upper distance limit for transparent sorting"};
 cvar_t r_transparent_sortarraysize = {CVAR_SAVE, "r_transparent_sortarraysize", "4096", "number of distance-sorting layers"};
 cvar_t r_celshading = {CVAR_SAVE, "r_celshading", "0", "cartoon-style light shading (OpenGL 2.x only)"}; // FIXME remove OpenGL 2.x only once implemented for DX9
@@ -201,7 +201,7 @@ cvar_t r_glsl_postprocess_uservec2_enable = {CVAR_SAVE, "r_glsl_postprocess_user
 cvar_t r_glsl_postprocess_uservec3_enable = {CVAR_SAVE, "r_glsl_postprocess_uservec3_enable", "1", "enables postprocessing uservec3 usage, creates USERVEC1 define (only useful if default.glsl has been customized)"};
 cvar_t r_glsl_postprocess_uservec4_enable = {CVAR_SAVE, "r_glsl_postprocess_uservec4_enable", "1", "enables postprocessing uservec4 usage, creates USERVEC1 define (only useful if default.glsl has been customized)"};
 
-cvar_t r_water = {CVAR_SAVE, "r_water", "1", "whether to use reflections and refraction on water surfaces (note: r_wateralpha must be set below 1)"};
+cvar_t r_water = {CVAR_SAVE, "r_water", "0", "whether to use reflections and refraction on water surfaces (note: r_wateralpha must be set below 1)"};
 cvar_t r_water_clippingplanebias = {CVAR_SAVE, "r_water_clippingplanebias", "1", "a rather technical setting which avoids black pixels around water edges"};
 cvar_t r_water_resolutionmultiplier = {CVAR_SAVE, "r_water_resolutionmultiplier", "0.5", "multiplier for screen resolution when rendering refracted/reflected scenes, 1 is full quality, lower values are faster"};
 cvar_t r_water_refractdistort = {CVAR_SAVE, "r_water_refractdistort", "0.01", "how much water refractions shimmer"};
@@ -213,7 +213,7 @@ cvar_t r_water_fbo = {CVAR_SAVE, "r_water_fbo", "1", "enables use of render to t
 
 cvar_t r_lerpsprites = {CVAR_SAVE, "r_lerpsprites", "0", "enables animation smoothing on sprites"};
 cvar_t r_lerpmodels = {CVAR_SAVE, "r_lerpmodels", "1", "enables animation smoothing on models"};
-cvar_t r_lerplightstyles = {CVAR_SAVE, "r_lerplightstyles", "1", "enable animation smoothing on flickering lights"};
+cvar_t r_lerplightstyles = {CVAR_SAVE, "r_lerplightstyles", "0", "enable animation smoothing on flickering lights"};
 cvar_t r_waterscroll = {CVAR_SAVE, "r_waterscroll", "1", "makes water scroll around, value controls how much"};
 
 cvar_t r_bloom = {CVAR_SAVE, "r_bloom", "0", "enables bloom effect (makes bright pixels affect neighboring pixels)"};
@@ -899,8 +899,9 @@ enum
 	SHADERSTATICPARM_SHADOWSAMPLER = 10, ///< sampler
 	SHADERSTATICPARM_CELSHADING = 11, ///< celshading (alternative diffuse and specular math)
 	SHADERSTATICPARM_CELOUTLINES = 12, ///< celoutline (depth buffer analysis to produce outlines)
+	SHADERSTATICPARM_FXAA = 13 ///< fast approximate anti aliasing
 };
-#define SHADERSTATICPARMS_COUNT 13
+#define SHADERSTATICPARMS_COUNT 14
 
 static const char *shaderstaticparmstrings_list[SHADERSTATICPARMS_COUNT];
 static int shaderstaticparms_count = 0;
@@ -912,7 +913,7 @@ extern qboolean r_shadow_shadowmapsampler;
 extern int r_shadow_shadowmappcf;
 qboolean R_CompileShader_CheckStaticParms(void)
 {
-	static int r_compileshader_staticparms_save[1];
+	static int r_compileshader_staticparms_save[(SHADERSTATICPARMS_COUNT + 0x1F) >> 5];
 	memcpy(r_compileshader_staticparms_save, r_compileshader_staticparms, sizeof(r_compileshader_staticparms));
 	memset(r_compileshader_staticparms, 0, sizeof(r_compileshader_staticparms));
 
@@ -934,6 +935,8 @@ qboolean R_CompileShader_CheckStaticParms(void)
 		if (r_glsl_postprocess_uservec4_enable.integer)
 			R_COMPILESHADER_STATICPARM_ENABLE(SHADERSTATICPARM_POSTPROCESS_USERVEC4);
 	}
+	if (r_fxaa.integer)
+		R_COMPILESHADER_STATICPARM_ENABLE(SHADERSTATICPARM_FXAA);
 	if (r_glsl_offsetmapping_lod.integer && r_glsl_offsetmapping_lod_distance.integer > 0)
 		R_COMPILESHADER_STATICPARM_ENABLE(SHADERSTATICPARM_OFFSETMAPPING_USELOD);
 
@@ -974,6 +977,7 @@ static void R_CompileShader_AddStaticParms(unsigned int mode, unsigned int permu
 	R_COMPILESHADER_STATICPARM_EMIT(SHADERSTATICPARM_SHADOWSAMPLER, "USESHADOWSAMPLER");
 	R_COMPILESHADER_STATICPARM_EMIT(SHADERSTATICPARM_CELSHADING, "USECELSHADING");
 	R_COMPILESHADER_STATICPARM_EMIT(SHADERSTATICPARM_CELOUTLINES, "USECELOUTLINES");
+	R_COMPILESHADER_STATICPARM_EMIT(SHADERSTATICPARM_FXAA, "USEFXAA");
 }
 
 /// information about each possible shader permutation
@@ -1181,6 +1185,26 @@ static void R_GLSL_CompilePermutation(r_glsl_permutation_t *p, unsigned int mode
 		// look up all the uniform variable names we care about, so we don't
 		// have to look them up every time we set them
 
+#if 0
+		// debugging aid
+		{
+			GLint activeuniformindex = 0;
+			GLint numactiveuniforms = 0;
+			char uniformname[128];
+			GLsizei uniformnamelength = 0;
+			GLint uniformsize = 0;
+			GLenum uniformtype = 0;
+			memset(uniformname, 0, sizeof(uniformname));
+			qglGetProgramiv(p->program, GL_ACTIVE_UNIFORMS, &numactiveuniforms);
+			Con_Printf("Shader has %i uniforms\n", numactiveuniforms);
+			for (activeuniformindex = 0;activeuniformindex < numactiveuniforms;activeuniformindex++)
+			{
+				qglGetActiveUniform(p->program, activeuniformindex, sizeof(uniformname) - 1, &uniformnamelength, &uniformsize, &uniformtype, uniformname);
+				Con_Printf("Uniform %i name \"%s\" size %i type %i\n", (int)activeuniformindex, uniformname, (int)uniformsize, (int)uniformtype);
+			}
+		}
+#endif
+
 		p->loc_Texture_First              = qglGetUniformLocation(p->program, "Texture_First");
 		p->loc_Texture_Second             = qglGetUniformLocation(p->program, "Texture_Second");
 		p->loc_Texture_GammaRamps         = qglGetUniformLocation(p->program, "Texture_GammaRamps");
@@ -1329,15 +1353,19 @@ static void R_GLSL_CompilePermutation(r_glsl_permutation_t *p, unsigned int mode
 		if (p->loc_Texture_ReflectCube     >= 0) {p->tex_Texture_ReflectCube      = sampler;qglUniform1i(p->loc_Texture_ReflectCube     , sampler);sampler++;}
 		if (p->loc_Texture_BounceGrid      >= 0) {p->tex_Texture_BounceGrid       = sampler;qglUniform1i(p->loc_Texture_BounceGrid      , sampler);sampler++;}
 		// get the uniform block indices so we can bind them
+#ifndef USE_GLES2 /* FIXME: GLES3 only */
 		if (vid.support.arb_uniform_buffer_object)
 			p->ubiloc_Skeletal_Transform12_UniformBlock = qglGetUniformBlockIndex(p->program, "Skeletal_Transform12_UniformBlock");
 		else
+#endif
 			p->ubiloc_Skeletal_Transform12_UniformBlock = -1;
 		// clear the uniform block bindings
 		p->ubibind_Skeletal_Transform12_UniformBlock = -1;
 		// bind the uniform blocks in use
 		ubibind = 0;
+#ifndef USE_GLES2 /* FIXME: GLES3 only */
 		if (p->ubiloc_Skeletal_Transform12_UniformBlock >= 0) {p->ubibind_Skeletal_Transform12_UniformBlock = ubibind;qglUniformBlockBinding(p->program, p->ubiloc_Skeletal_Transform12_UniformBlock, ubibind);ubibind++;}
+#endif
 		// we're done compiling and setting up the shader, at least until it is used
 		CHECKGLERROR
 		Con_DPrintf("^5GLSL shader %s compiled (%i textures).\n", permutationname, sampler);
@@ -1359,7 +1387,10 @@ static void R_SetupShader_SetPermutationGLSL(unsigned int mode, unsigned int per
 		if (!r_glsl_permutation->program)
 		{
 			if (!r_glsl_permutation->compiled)
+			{
+				Con_DPrintf("Compiling shader mode %u permutation %u\n", mode, permutation);
 				R_GLSL_CompilePermutation(perm, mode, permutation);
+			}
 			if (!r_glsl_permutation->program)
 			{
 				// remove features until we find a valid permutation
@@ -2086,7 +2117,9 @@ void R_SetupShader_DepthOrShadow(qboolean notrippy, qboolean depthrgb, qboolean 
 	case RENDERPATH_GL20:
 	case RENDERPATH_GLES2:
 		R_SetupShader_SetPermutationGLSL(SHADERMODE_DEPTH_OR_SHADOW, permutation);
+#ifndef USE_GLES2 /* FIXME: GLES3 only */
 		if (r_glsl_permutation->ubiloc_Skeletal_Transform12_UniformBlock >= 0 && rsurface.batchskeletaltransform3x4buffer) qglBindBufferRange(GL_UNIFORM_BUFFER, r_glsl_permutation->ubibind_Skeletal_Transform12_UniformBlock, rsurface.batchskeletaltransform3x4buffer->bufferobject, rsurface.batchskeletaltransform3x4offset, rsurface.batchskeletaltransform3x4size);
+#endif
 		break;
 	case RENDERPATH_GL13:
 	case RENDERPATH_GLES1:
@@ -2744,7 +2777,9 @@ void R_SetupShader_Surface(const vec3_t lightcolorbase, qboolean modellighting, 
 		if (rsurface.batchskeletaltransform3x4buffer)
 			permutation |= SHADERPERMUTATION_SKELETAL;
 		R_SetupShader_SetPermutationGLSL(mode, permutation);
+#ifndef USE_GLES2 /* FIXME: GLES3 only */
 		if (r_glsl_permutation->ubiloc_Skeletal_Transform12_UniformBlock >= 0 && rsurface.batchskeletaltransform3x4buffer) qglBindBufferRange(GL_UNIFORM_BUFFER, r_glsl_permutation->ubibind_Skeletal_Transform12_UniformBlock, rsurface.batchskeletaltransform3x4buffer->bufferobject, rsurface.batchskeletaltransform3x4offset, rsurface.batchskeletaltransform3x4size);
+#endif
 		if (r_glsl_permutation->loc_ModelToReflectCube >= 0) {Matrix4x4_ToArrayFloatGL(&rsurface.matrix, m16f);qglUniformMatrix4fv(r_glsl_permutation->loc_ModelToReflectCube, 1, false, m16f);}
 		if (mode == SHADERMODE_LIGHTSOURCE)
 		{
@@ -4026,9 +4061,11 @@ static void gl_main_start(void)
 		r_loadnormalmap = true;
 		r_loadgloss = true;
 		r_loadfog = false;
+#ifdef GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT
 		if (vid.support.arb_uniform_buffer_object)
 			qglGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &r_uniformbufferalignment);
-		break;
+#endif
+			break;
 	case RENDERPATH_GL13:
 	case RENDERPATH_GLES1:
 		Cvar_SetValueQuick(&r_textureunits, vid.texunits);
@@ -4096,6 +4133,27 @@ static void gl_main_start(void)
 	r_texture_numcubemaps = 0;
 
 	r_refdef.fogmasktable_density = 0;
+
+#ifdef __ANDROID__
+	// For Steelstorm Android
+	// FIXME CACHE the program and reload
+	// FIXME see possible combinations for SS:BR android
+	Con_DPrintf("Compiling most used shaders for SS:BR android... START\n");
+	R_SetupShader_SetPermutationGLSL(0, 12);
+	R_SetupShader_SetPermutationGLSL(0, 13);
+	R_SetupShader_SetPermutationGLSL(0, 8388621);
+	R_SetupShader_SetPermutationGLSL(3, 0);
+	R_SetupShader_SetPermutationGLSL(3, 2048);
+	R_SetupShader_SetPermutationGLSL(5, 0);
+	R_SetupShader_SetPermutationGLSL(5, 2);
+	R_SetupShader_SetPermutationGLSL(5, 2048);
+	R_SetupShader_SetPermutationGLSL(5, 8388608);
+	R_SetupShader_SetPermutationGLSL(11, 1);
+	R_SetupShader_SetPermutationGLSL(11, 2049);
+	R_SetupShader_SetPermutationGLSL(11, 8193);
+	R_SetupShader_SetPermutationGLSL(11, 10241);
+	Con_DPrintf("Compiling most used shaders for SS:BR android... END\n");
+#endif
 }
 
 static void gl_main_shutdown(void)
@@ -4113,7 +4171,7 @@ static void gl_main_shutdown(void)
 	case RENDERPATH_GL20:
 	case RENDERPATH_GLES1:
 	case RENDERPATH_GLES2:
-#ifdef GL_SAMPLES_PASSED_ARB
+#if defined(GL_SAMPLES_PASSED_ARB) && !defined(USE_GLES2)
 		if (r_maxqueries)
 			qglDeleteQueriesARB(r_maxqueries, r_queries);
 #endif
@@ -4381,6 +4439,13 @@ void GL_Main_Init(void)
 	Cvar_RegisterVariable(&r_batch_dynamicbuffer);
 	if (gamemode == GAME_NEHAHRA || gamemode == GAME_TENEBRAE)
 		Cvar_SetValue("r_fullbrights", 0);
+#ifdef DP_MOBILETOUCH
+	// GLES devices have terrible depth precision in general, so...
+	Cvar_SetValueQuick(&r_nearclip, 4);
+	Cvar_SetValueQuick(&r_farclip_base, 4096);
+	Cvar_SetValueQuick(&r_farclip_world, 0);
+	Cvar_SetValueQuick(&r_useinfinitefarclip, 0);
+#endif
 	R_RegisterModule("GL_Main", gl_main_start, gl_main_shutdown, gl_main_newmap, NULL, NULL);
 }
 
@@ -4430,7 +4495,11 @@ void GL_Init (void)
 	VID_CheckExtensions();
 
 	// LordHavoc: report supported extensions
+#ifdef CONFIG_MENU
 	Con_DPrintf("\nQuakeC extensions for server and client: %s\nQuakeC extensions for menu: %s\n", vm_sv_extensions, vm_m_extensions );
+#else
+	Con_DPrintf("\nQuakeC extensions for server and client: %s\n", vm_sv_extensions );
+#endif
 
 	// clear to black (loading plaque will be seen over this)
 	GL_Clear(GL_COLOR_BUFFER_BIT, NULL, 1.0f, 128);
@@ -4445,9 +4514,6 @@ int R_CullBox(const vec3_t mins, const vec3_t maxs)
 		return false;
 	for (i = 0;i < r_refdef.view.numfrustumplanes;i++)
 	{
-		// skip nearclip plane, it often culls portals when you are very close, and is almost never useful
-		if (i == 4)
-			continue;
 		p = r_refdef.view.frustum + i;
 		switch(p->signbits)
 		{
@@ -5165,18 +5231,20 @@ static void R_View_UpdateEntityVisible (void)
 	int samples;
 	entity_render_t *ent;
 
-	renderimask = r_refdef.envmap                                    ? (RENDER_EXTERIORMODEL | RENDER_VIEWMODEL)
-		: r_fb.water.hideplayer                                      ? (RENDER_EXTERIORMODEL | RENDER_VIEWMODEL)
-		: (chase_active.integer || r_fb.water.renderingscene)  ? RENDER_VIEWMODEL
-		:                                                          RENDER_EXTERIORMODEL;
+	if (r_refdef.envmap || r_fb.water.hideplayer)
+		renderimask = RENDER_EXTERIORMODEL | RENDER_VIEWMODEL;
+	else if (chase_active.integer || r_fb.water.renderingscene)
+		renderimask = RENDER_VIEWMODEL;
+	else
+		renderimask = RENDER_EXTERIORMODEL;
 	if (!r_drawviewmodel.integer)
 		renderimask |= RENDER_VIEWMODEL;
 	if (!r_drawexteriormodel.integer)
 		renderimask |= RENDER_EXTERIORMODEL;
+	memset(r_refdef.viewcache.entityvisible, 0, r_refdef.scene.numentities);
 	if (r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->brush.BoxTouchingVisibleLeafs)
 	{
 		// worldmodel can check visibility
-		memset(r_refdef.viewcache.entityvisible, 0, r_refdef.scene.numentities);
 		for (i = 0;i < r_refdef.scene.numentities;i++)
 		{
 			ent = r_refdef.scene.entities[i];
@@ -5192,7 +5260,9 @@ static void R_View_UpdateEntityVisible (void)
 		for (i = 0;i < r_refdef.scene.numentities;i++)
 		{
 			ent = r_refdef.scene.entities[i];
-			r_refdef.viewcache.entityvisible[i] = !(ent->flags & renderimask) && ((ent->model && ent->model->type == mod_sprite && (ent->model->sprite.sprnum_type == SPR_LABEL || ent->model->sprite.sprnum_type == SPR_LABEL_SCALE)) || !R_CullBox(ent->mins, ent->maxs));
+			if (!(ent->flags & renderimask))
+			if (!R_CullBox(ent->mins, ent->maxs) || (ent->model && ent->model->type == mod_sprite && (ent->model->sprite.sprnum_type == SPR_LABEL || ent->model->sprite.sprnum_type == SPR_LABEL_SCALE)))
+				r_refdef.viewcache.entityvisible[i] = true;
 		}
 	}
 	if(r_cullentities_trace.integer && r_refdef.scene.worldmodel->brush.TraceLineOfSight && !r_refdef.view.useclipplane && !r_trippy.integer)
@@ -5658,7 +5728,9 @@ void R_EntityMatrix(const matrix4x4_t *matrix)
 		case RENDERPATH_GL11:
 		case RENDERPATH_GL13:
 		case RENDERPATH_GLES1:
+#ifndef USE_GLES2
 			qglLoadMatrixf(gl_modelview16f);CHECKGLERROR
+#endif
 			break;
 		case RENDERPATH_SOFT:
 			DPSOFTRAST_UniformMatrix4fv(DPSOFTRAST_UNIFORM_ModelViewProjectionMatrixM1, 1, false, gl_modelviewprojection16f);
@@ -6111,7 +6183,7 @@ static void R_Water_ProcessPlanes(int fbo, rtexture_t *depthtexture, rtexture_t 
 					memset(r_refdef.viewcache.world_pvsbits, 0xFF, r_refdef.scene.worldmodel->brush.num_pvsclusterbytes);
 			}
 
-			r_fb.water.hideplayer = r_water_hideplayer.integer >= 2;
+			r_fb.water.hideplayer = ((r_water_hideplayer.integer >= 2) && !chase_active.integer);
 			R_ResetViewRendering3D(p->fbo_reflection, r_fb.water.depthtexture, p->texture_reflection);
 			R_ClearScreen(r_refdef.fogenabled);
 			if(r_water_scissormode.integer & 2)
@@ -6140,7 +6212,7 @@ static void R_Water_ProcessPlanes(int fbo, rtexture_t *depthtexture, rtexture_t 
 					continue; // FIXME the plane then still may get rendered but with broken texture, but it sure won't be visible
 			}
 
-			r_fb.water.hideplayer = r_water_hideplayer.integer >= 1;
+			r_fb.water.hideplayer = ((r_water_hideplayer.integer >= 1) && !chase_active.integer);
 
 			r_refdef.view.clipplane = p->plane;
 			VectorNegate(r_refdef.view.clipplane.normal, r_refdef.view.clipplane.normal);
@@ -6366,7 +6438,7 @@ static void R_Bloom_StartFrame(void)
 		Cvar_SetValueQuick(&r_damageblur, 0);
 	}
 
-	if (!(r_glsl_postprocess.integer || (r_glsl_saturation.value != 1) || (v_glslgamma.integer && !vid_gammatables_trivial))
+	if (!((r_glsl_postprocess.integer || r_fxaa.integer) || (r_glsl_saturation.value != 1) || (v_glslgamma.integer && !vid_gammatables_trivial))
 	 && !r_bloom.integer
 	 && (R_Stereo_Active() || (r_motionblur.value <= 0 && r_damageblur.value <= 0))
 	 && !useviewfbo
@@ -7130,7 +7202,7 @@ R_RenderView
 */
 int dpsoftrast_test;
 extern cvar_t r_shadow_bouncegrid;
-void R_RenderView()
+void R_RenderView(void)
 {
 	matrix4x4_t originalmatrix = r_refdef.view.matrix, offsetmatrix;
 	int fbo;
@@ -7546,7 +7618,7 @@ static const unsigned short bboxelements[36] =
 	1, 0, 2, 1, 2, 3,
 };
 
-void R_DrawBBoxMesh(vec3_t mins, vec3_t maxs, float cr, float cg, float cb, float ca)
+static void R_DrawBBoxMesh(vec3_t mins, vec3_t maxs, float cr, float cg, float cb, float ca)
 {
 	int i;
 	float *v, *c, f1, f2, vertex3f[8*3], color4f[8*4];
@@ -8005,10 +8077,22 @@ static float R_EvaluateQ3WaveFunc(q3wavefunc_t func, const float *parms)
 static void R_tcMod_ApplyToMatrix(matrix4x4_t *texmatrix, q3shaderinfo_layer_tcmod_t *tcmod, int currentmaterialflags)
 {
 	int w, h, idx;
-	double f;
-	double offsetd[2];
+	float shadertime;
+	float f;
+	float offsetd[2];
 	float tcmat[12];
 	matrix4x4_t matrix, temp;
+	// if shadertime exceeds about 9 hours (32768 seconds), just wrap it,
+	// it's better to have one huge fixup every 9 hours than gradual
+	// degradation over time which looks consistently bad after many hours.
+	//
+	// tcmod scroll in particular suffers from this degradation which can't be
+	// effectively worked around even with floor() tricks because we don't
+	// know if tcmod scroll is the last tcmod being applied, and for clampmap
+	// a workaround involving floor() would be incorrect anyway...
+	shadertime = rsurface.shadertime;
+	if (shadertime >= 32768.0f)
+		shadertime -= floor(rsurface.shadertime * (1.0f / 32768.0f)) * 32768.0f;
 	switch(tcmod->tcmod)
 	{
 		case Q3TCMOD_COUNT:
@@ -8024,16 +8108,17 @@ static void R_tcMod_ApplyToMatrix(matrix4x4_t *texmatrix, q3shaderinfo_layer_tcm
 			Matrix4x4_CreateTranslate(&matrix, 0, 0, 0);
 			break;
 		case Q3TCMOD_ROTATE:
-			f = tcmod->parms[0] * rsurface.shadertime;
 			Matrix4x4_CreateTranslate(&matrix, 0.5, 0.5, 0);
-			Matrix4x4_ConcatRotate(&matrix, (f / 360 - floor(f / 360)) * 360, 0, 0, 1);
+			Matrix4x4_ConcatRotate(&matrix, tcmod->parms[0] * rsurface.shadertime, 0, 0, 1);
 			Matrix4x4_ConcatTranslate(&matrix, -0.5, -0.5, 0);
 			break;
 		case Q3TCMOD_SCALE:
 			Matrix4x4_CreateScale3(&matrix, tcmod->parms[0], tcmod->parms[1], 1);
 			break;
 		case Q3TCMOD_SCROLL:
-			// extra care is needed because of precision breakdown with large values of time
+			// this particular tcmod is a "bug for bug" compatible one with regards to
+			// Quake3, the wrapping is unnecessary with our shadetime fix but quake3
+			// specifically did the wrapping and so we must mimic that...
 			offsetd[0] = tcmod->parms[0] * rsurface.shadertime;
 			offsetd[1] = tcmod->parms[1] * rsurface.shadertime;
 			Matrix4x4_CreateTranslate(&matrix, offsetd[0] - floor(offsetd[0]), offsetd[1] - floor(offsetd[1]), 0);
@@ -10081,77 +10166,80 @@ void RSurf_PrepareVerticesForBatch(int batchneed, int texturenumsurfaces, const 
 		}
 	}
 
+	if (rsurface.batchtexcoordtexture2f)
+	{
 	// generate texcoords based on the chosen texcoord source
-	switch(rsurface.texture->tcgen.tcgen)
-	{
-	default:
-	case Q3TCGEN_TEXTURE:
-		break;
-	case Q3TCGEN_LIGHTMAP:
-//		rsurface.batchtexcoordtexture2f = R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
-//		rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
-//		rsurface.batchtexcoordtexture2f_bufferoffset = 0;
-		if (rsurface.batchtexcoordlightmap2f)
-			memcpy(rsurface.batchtexcoordlightmap2f, rsurface.batchtexcoordtexture2f, batchnumvertices * sizeof(float[2]));
-		break;
-	case Q3TCGEN_VECTOR:
-//		rsurface.batchtexcoordtexture2f = R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
-//		rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
-//		rsurface.batchtexcoordtexture2f_bufferoffset = 0;
-		for (j = 0;j < batchnumvertices;j++)
+		switch(rsurface.texture->tcgen.tcgen)
 		{
-			rsurface.batchtexcoordtexture2f[j*2+0] = DotProduct(rsurface.batchvertex3f + 3*j, rsurface.texture->tcgen.parms);
-			rsurface.batchtexcoordtexture2f[j*2+1] = DotProduct(rsurface.batchvertex3f + 3*j, rsurface.texture->tcgen.parms + 3);
+		default:
+		case Q3TCGEN_TEXTURE:
+			break;
+		case Q3TCGEN_LIGHTMAP:
+	//		rsurface.batchtexcoordtexture2f = R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
+	//		rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
+	//		rsurface.batchtexcoordtexture2f_bufferoffset = 0;
+			if (rsurface.batchtexcoordlightmap2f)
+				memcpy(rsurface.batchtexcoordtexture2f, rsurface.batchtexcoordlightmap2f, batchnumvertices * sizeof(float[2]));
+			break;
+		case Q3TCGEN_VECTOR:
+	//		rsurface.batchtexcoordtexture2f = R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
+	//		rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
+	//		rsurface.batchtexcoordtexture2f_bufferoffset = 0;
+			for (j = 0;j < batchnumvertices;j++)
+			{
+				rsurface.batchtexcoordtexture2f[j*2+0] = DotProduct(rsurface.batchvertex3f + 3*j, rsurface.texture->tcgen.parms);
+				rsurface.batchtexcoordtexture2f[j*2+1] = DotProduct(rsurface.batchvertex3f + 3*j, rsurface.texture->tcgen.parms + 3);
+			}
+			break;
+		case Q3TCGEN_ENVIRONMENT:
+			// make environment reflections using a spheremap
+			rsurface.batchtexcoordtexture2f = (float *)R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
+			rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
+			rsurface.batchtexcoordtexture2f_bufferoffset = 0;
+			for (j = 0;j < batchnumvertices;j++)
+			{
+				// identical to Q3A's method, but executed in worldspace so
+				// carried models can be shiny too
+
+				float viewer[3], d, reflected[3], worldreflected[3];
+
+				VectorSubtract(rsurface.localvieworigin, rsurface.batchvertex3f + 3*j, viewer);
+				// VectorNormalize(viewer);
+
+				d = DotProduct(rsurface.batchnormal3f + 3*j, viewer);
+
+				reflected[0] = rsurface.batchnormal3f[j*3+0]*2*d - viewer[0];
+				reflected[1] = rsurface.batchnormal3f[j*3+1]*2*d - viewer[1];
+				reflected[2] = rsurface.batchnormal3f[j*3+2]*2*d - viewer[2];
+				// note: this is proportinal to viewer, so we can normalize later
+
+				Matrix4x4_Transform3x3(&rsurface.matrix, reflected, worldreflected);
+				VectorNormalize(worldreflected);
+
+				// note: this sphere map only uses world x and z!
+				// so positive and negative y will LOOK THE SAME.
+				rsurface.batchtexcoordtexture2f[j*2+0] = 0.5 + 0.5 * worldreflected[1];
+				rsurface.batchtexcoordtexture2f[j*2+1] = 0.5 - 0.5 * worldreflected[2];
+			}
+			break;
 		}
-		break;
-	case Q3TCGEN_ENVIRONMENT:
-		// make environment reflections using a spheremap
-		rsurface.batchtexcoordtexture2f = (float *)R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
-		rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
-		rsurface.batchtexcoordtexture2f_bufferoffset = 0;
-		for (j = 0;j < batchnumvertices;j++)
+		// the only tcmod that needs software vertex processing is turbulent, so
+		// check for it here and apply the changes if needed
+		// and we only support that as the first one
+		// (handling a mixture of turbulent and other tcmods would be problematic
+		//  without punting it entirely to a software path)
+		if (rsurface.texture->tcmods[0].tcmod == Q3TCMOD_TURBULENT)
 		{
-			// identical to Q3A's method, but executed in worldspace so
-			// carried models can be shiny too
-
-			float viewer[3], d, reflected[3], worldreflected[3];
-
-			VectorSubtract(rsurface.localvieworigin, rsurface.batchvertex3f + 3*j, viewer);
-			// VectorNormalize(viewer);
-
-			d = DotProduct(rsurface.batchnormal3f + 3*j, viewer);
-
-			reflected[0] = rsurface.batchnormal3f[j*3+0]*2*d - viewer[0];
-			reflected[1] = rsurface.batchnormal3f[j*3+1]*2*d - viewer[1];
-			reflected[2] = rsurface.batchnormal3f[j*3+2]*2*d - viewer[2];
-			// note: this is proportinal to viewer, so we can normalize later
-
-			Matrix4x4_Transform3x3(&rsurface.matrix, reflected, worldreflected);
-			VectorNormalize(worldreflected);
-
-			// note: this sphere map only uses world x and z!
-			// so positive and negative y will LOOK THE SAME.
-			rsurface.batchtexcoordtexture2f[j*2+0] = 0.5 + 0.5 * worldreflected[1];
-			rsurface.batchtexcoordtexture2f[j*2+1] = 0.5 - 0.5 * worldreflected[2];
-		}
-		break;
-	}
-	// the only tcmod that needs software vertex processing is turbulent, so
-	// check for it here and apply the changes if needed
-	// and we only support that as the first one
-	// (handling a mixture of turbulent and other tcmods would be problematic
-	//  without punting it entirely to a software path)
-	if (rsurface.texture->tcmods[0].tcmod == Q3TCMOD_TURBULENT)
-	{
-		amplitude = rsurface.texture->tcmods[0].parms[1];
-		animpos = rsurface.texture->tcmods[0].parms[2] + rsurface.shadertime * rsurface.texture->tcmods[0].parms[3];
-//		rsurface.batchtexcoordtexture2f = R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
-//		rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
-//		rsurface.batchtexcoordtexture2f_bufferoffset = 0;
-		for (j = 0;j < batchnumvertices;j++)
-		{
-			rsurface.batchtexcoordtexture2f[j*2+0] += amplitude * sin(((rsurface.batchvertex3f[j*3+0] + rsurface.batchvertex3f[j*3+2]) * 1.0 / 1024.0f + animpos) * M_PI * 2);
-			rsurface.batchtexcoordtexture2f[j*2+1] += amplitude * sin(((rsurface.batchvertex3f[j*3+1]                                ) * 1.0 / 1024.0f + animpos) * M_PI * 2);
+			amplitude = rsurface.texture->tcmods[0].parms[1];
+			animpos = rsurface.texture->tcmods[0].parms[2] + rsurface.shadertime * rsurface.texture->tcmods[0].parms[3];
+	//		rsurface.batchtexcoordtexture2f = R_FrameData_Alloc(batchnumvertices * sizeof(float[2]));
+	//		rsurface.batchtexcoordtexture2f_vertexbuffer = NULL;
+	//		rsurface.batchtexcoordtexture2f_bufferoffset = 0;
+			for (j = 0;j < batchnumvertices;j++)
+			{
+				rsurface.batchtexcoordtexture2f[j*2+0] += amplitude * sin(((rsurface.batchvertex3f[j*3+0] + rsurface.batchvertex3f[j*3+2]) * 1.0 / 1024.0f + animpos) * M_PI * 2);
+				rsurface.batchtexcoordtexture2f[j*2+1] += amplitude * sin(((rsurface.batchvertex3f[j*3+1]                                ) * 1.0 / 1024.0f + animpos) * M_PI * 2);
+			}
 		}
 	}
 
@@ -12249,10 +12337,9 @@ extern cvar_t mod_collision_bih;
 static void R_DrawDebugModel(void)
 {
 	entity_render_t *ent = rsurface.entity;
-	int i, j, k, l, flagsmask;
+	int i, j, flagsmask;
 	const msurface_t *surface;
 	dp_model_t *model = ent->model;
-	vec3_t v;
 
 	if (!sv.active  && !cls.demoplayback && ent != r_refdef.scene.worldentity)
 		return;
@@ -12384,6 +12471,8 @@ static void R_DrawDebugModel(void)
 
 	if (r_shownormals.value != 0 && qglBegin)
 	{
+		int l, k;
+		vec3_t v;
 		if (r_showdisabledepthtest.integer)
 		{
 			GL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

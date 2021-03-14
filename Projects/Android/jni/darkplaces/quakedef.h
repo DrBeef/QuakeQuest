@@ -51,6 +51,10 @@ extern char engineversion[128];
 
 #define MAX_NUM_ARGVS	50
 
+#define CONFIG_MENU             1
+#define CONFIG_VIDEO_CAPTURE    0
+#define CONFIG_CD               1
+
 #ifdef DP_SMALLMEMORY
 #define	MAX_INPUTLINE			1024
 #define	CON_TEXTSIZE			16384
@@ -91,7 +95,7 @@ extern char engineversion[128];
 #define	MAX_CUBEMAPS			1024
 #define	MAX_EXPLOSIONS			8
 #define	MAX_DLIGHTS				16
-#define	MAX_CACHED_PICS			1024 // this is 144 bytes each (or 152 on 64bit)
+#define	MAX_CACHED_PICS			2048 // this is 144 bytes each (or 152 on 64bit)
 #define	CACHEPICHASHSIZE		256
 #define	MAX_PARTICLEEFFECTNAME	256
 #define	MAX_PARTICLEEFFECTINFO	1024
@@ -160,10 +164,10 @@ extern char engineversion[128];
 #define	MAX_CUBEMAPS			1024 ///< max number of cubemap textures loaded for light filters
 #define	MAX_EXPLOSIONS			64 ///< max number of explosion shell effects active at once (not particle related)
 #define	MAX_DLIGHTS				256 ///< max number of dynamic lights (rocket flashes, etc) in scene at once
-#define	MAX_CACHED_PICS			1024 ///< max number of 2D pics loaded at once
+#define	MAX_CACHED_PICS			2048 ///< max number of 2D pics loaded at once
 #define	CACHEPICHASHSIZE		256 ///< number of hash buckets for accelerating 2D pic name lookups
-#define	MAX_PARTICLEEFFECTNAME	256 ///< maximum number of unique names of particle effects (for particleeffectnum)
-#define	MAX_PARTICLEEFFECTINFO	4096 ///< maximum number of unique particle effects (each name may associate with several of these)
+#define	MAX_PARTICLEEFFECTNAME	4096 ///< maximum number of unique names of particle effects (for particleeffectnum)
+#define	MAX_PARTICLEEFFECTINFO	8192 ///< maximum number of unique particle effects (each name may associate with several of these)
 #define	MAX_PARTICLETEXTURES	256 ///< maximum number of unique particle textures in the particle font
 #define	MAXCLVIDEOS				65 ///< maximum number of video streams being played back at once (1 is reserved for the playvideo command)
 #define	MAX_DYNAMIC_TEXTURE_COUNT	64 ///< maximum number of dynamic textures (web browsers, playvideo, etc)
@@ -187,7 +191,7 @@ extern char engineversion[128];
 #define	MAX_ENITIES_INITIAL		256 ///< initial size of cl.entities
 #define	MAX_STATICENTITIES		1024 ///< limit on size of cl.static_entities
 #define	MAX_EFFECTS				256 ///< limit on size of cl.effects
-#define	MAX_BEAMS				256 ///< limit on size of cl.beams
+#define	MAX_BEAMS				4096 ///< limit on size of cl.beams
 #define	MAX_TEMPENTITIES		4096 ///< max number of temporary models visible per frame (certain sprite effects, certain types of CSQC entities also use this)
 #define SERVERLIST_TOTALSIZE		2048 ///< max servers in the server list
 #define SERVERLIST_ANDMASKCOUNT		16 ///< max items in server list AND mask
@@ -396,7 +400,9 @@ extern char engineversion[128];
 #include "input.h"
 #include "keys.h"
 #include "console.h"
+#ifdef CONFIG_MENU
 #include "menu.h"
+#endif
 #include "csprogs.h"
 
 extern qboolean noclip_anglehack;
@@ -420,7 +426,10 @@ extern cvar_t sessionid;
 # define DP_OS_NAME		"Android"
 # define DP_OS_STR		"android"
 # define USE_GLES2		1
+//# define LINK_TO_ZLIB	1
 # define LINK_TO_LIBVORBIS 1
+# define DP_MOBILETOUCH	1
+//# define DP_FREETYPE_STATIC 1
 
 #if defined(__GNUC__)
 # if defined(__i386__)

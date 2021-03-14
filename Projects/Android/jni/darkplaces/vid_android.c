@@ -480,6 +480,19 @@ void QC_Analog(int enable,float x,float y)
 	analogy=y;
 }
 
+void QC_MouseEvent(float delta, float dx, float dy)
+{
+	in_mouse_x = (dx*delta);
+	//in_windowmouse_x += (dx*delta);
+	//if (in_windowmouse_x < 0) in_windowmouse_x=0;
+	//if (in_windowmouse_x > andrw - 1) in_windowmouse_x=andrw-1;
+
+	in_mouse_y = (dy*delta);
+	//in_windowmouse_y += (dy*delta);
+	//if (in_windowmouse_y < 0) in_windowmouse_y=0;
+	//if (in_windowmouse_y > andrw - 1) in_windowmouse_y=andrw-1;
+}
+
 void QC_MotionEvent(float delta, float dx, float dy)
 {
 	static bool canAdjust = true;

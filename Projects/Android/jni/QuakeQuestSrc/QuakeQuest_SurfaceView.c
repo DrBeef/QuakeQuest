@@ -168,6 +168,7 @@ extern void QC_SetCallbacks(void *init_audio, void *write_audio);
 extern void QC_SetResolution(int width, int height);
 extern void QC_Analog(int enable,float x,float y);
 extern void QC_MotionEvent(float delta, float dx, float dy);
+extern void QC_MouseEvent(float delta, float dx, float dy);
 extern int main (int argc, char **argv);
 extern	int			key_consoleactive;
 
@@ -197,7 +198,7 @@ void jni_initAudio(void *buffer, int size)
 
 void jni_writeAudio(int offset, int length)
 {
-	ALOGV("Calling: jni_writeAudio");
+	//ALOGV("Calling: jni_writeAudio");
 	if (audioBuffer==0) return;
     JNIEnv *env;
     if (((*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4))<0)
@@ -274,6 +275,10 @@ void QC_exit(int exitCode)
 
 vec3_t hmdorientation;
 extern float gunangles[3];
+
+float gunangles_last[3];
+float gunangles_delta[3];
+
 float weaponOffset[3];
 float weaponVelocity[3];
 
@@ -1034,8 +1039,8 @@ static void ovrRenderer_RenderFrame( ovrRenderer * renderer, const ovrJava * jav
     //Use hmd position for world position
     setWorldPosition(positionHmd.x, positionHmd.y, positionHmd.z);
 
-    ALOGV("        HMD-Yaw: %f", hmdorientation[YAW]);
-    ALOGV("        HMD-Position: %f, %f, %f", positionHmd.x, positionHmd.y, positionHmd.z);
+    //ALOGV("        HMD-Yaw: %f", hmdorientation[YAW]);
+    //ALOGV("        HMD-Position: %f, %f, %f", positionHmd.x, positionHmd.y, positionHmd.z);
 
     //Set move information - if showing menu, don't pass head orientation through
     if (m_state == m_none)
@@ -1673,6 +1678,12 @@ static void ovrApp_HandleInput( ovrApp * app )
             //Set gun angles
             const ovrQuatf quatRemote = dominantRemoteTracking->HeadPose.Pose.Orientation;
             QuatToYawPitchRoll(quatRemote, vr_weaponpitchadjust.value, gunangles);
+            VectorSubtract(gunangles_last, gunangles, gunangles_delta);
+            //__android_log_print(ANDROID_LOG_INFO, "WrathQuest", "Last Values: %f %f %f\n", gunangles_last[YAW], gunangles_last[PITCH], gunangles_last[ROLL]);
+            //__android_log_print(ANDROID_LOG_INFO, "WrathQuest", "New Values: %f %f %f\n", gunangles[YAW], gunangles[PITCH], gunangles[ROLL]);
+            //__android_log_print(ANDROID_LOG_INFO, "WrathQuest", "DELTA VALUES: %f %f %f\n", gunangles_delta[YAW], gunangles_delta[PITCH], gunangles_delta[ROLL]);
+            VectorCopy(gunangles, gunangles_last);
+			//__android_log_print(ANDROID_LOG_INFO, "WrathQuest", "LAST VALUES (new): %f %f %f\n", gunangles_last[YAW], gunangles_last[PITCH], gunangles_last[ROLL]);
 
             gunangles[YAW] += yawOffset;
 
@@ -1697,10 +1708,10 @@ static void ovrApp_HandleInput( ovrApp * app )
 
         //Right-hand specific stuff
         {
-            ALOGE("        Right-Controller-Position: %f, %f, %f",
+            /*ALOGE("        Right-Controller-Position: %f, %f, %f",
                   rightRemoteTracking.HeadPose.Pose.Position.x,
                   rightRemoteTracking.HeadPose.Pose.Position.y,
-                  rightRemoteTracking.HeadPose.Pose.Position.z);
+                  rightRemoteTracking.HeadPose.Pose.Position.z);*/
 
             //This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
             //player is facing for positional tracking
@@ -1719,8 +1730,6 @@ static void ovrApp_HandleInput( ovrApp * app )
             oldtime = t;
             if (delta > 1000)
                 delta = 1000;
-            QC_MotionEvent(delta, rightTrackedRemoteState_new.Joystick.x,
-                           rightTrackedRemoteState_new.Joystick.y);
 
             if (bigScreen != 0) {
 
@@ -1741,6 +1750,20 @@ static void ovrApp_HandleInput( ovrApp * app )
                     QC_KeyEvent(rightJoyState, K_UPARROW, 0);
                 }
 
+                //BaggyG work around
+				if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) !=
+					(leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
+
+					int state;
+					state = (leftTrackedRemoteState_new.Buttons & ovrButton_X) > 0 ? 1 : 0;
+					QC_KeyEvent(state,'B', 'B');
+					QC_KeyEvent(state,'a', 'a');
+					QC_KeyEvent(state,'g', 'g');
+					QC_KeyEvent(state,'g', 'g');
+					QC_KeyEvent(state,'y', 'y');
+					QC_KeyEvent(state,'G', 'G');
+                }
+
                 //Click an option
                 handleTrackedControllerButton(&rightTrackedRemoteState_new,
                                               &rightTrackedRemoteState_old, ovrButton_A, K_ENTER);
@@ -1748,7 +1771,17 @@ static void ovrApp_HandleInput( ovrApp * app )
                 //Back button
                 handleTrackedControllerButton(&rightTrackedRemoteState_new,
                                               &rightTrackedRemoteState_old, ovrButton_B, K_ESCAPE);
+
+                if (!textInput) {
+                    //GB New Mouse Control
+                    QC_MouseEvent(delta, gunangles_delta[YAW], -gunangles_delta[PITCH]);
+                }
+
             } else {
+
+
+                QC_MotionEvent(delta, rightTrackedRemoteState_new.Joystick.x, rightTrackedRemoteState_new.Joystick.y);
+
                 //Jump
                 handleTrackedControllerButton(&rightTrackedRemoteState_new,
                                               &rightTrackedRemoteState_old, ovrButton_A, K_SPACE);
@@ -1792,10 +1825,10 @@ static void ovrApp_HandleInput( ovrApp * app )
 
         //Left-hand specific stuff
         {
-            ALOGE("        Left-Controller-Position: %f, %f, %f",
+            /*ALOGE("        Left-Controller-Position: %f, %f, %f",
                   leftRemoteTracking.HeadPose.Pose.Position.x,
                   leftRemoteTracking.HeadPose.Pose.Position.y,
-                  leftRemoteTracking.HeadPose.Pose.Position.z);
+                  leftRemoteTracking.HeadPose.Pose.Position.z);*/
 
             //Menu button
             handleTrackedControllerButton(&leftTrackedRemoteState_new, &leftTrackedRemoteState_old,
@@ -1851,20 +1884,23 @@ static void ovrApp_HandleInput( ovrApp * app )
 
 #ifndef NDEBUG
             //Give all weapons and all ammo and god mode
+            /*
             if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
                 (leftTrackedRemoteState_new.Buttons & ovrButton_X) !=
                 (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
                 Cbuf_InsertText("God\n");
                 Cbuf_InsertText("Impulse 9\n");
                 breakHere = 1;
-            }
+            }*/
 #endif
 
+            //GB Hijacking to show console
             //Toggle text input
             if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
                 (leftTrackedRemoteState_new.Buttons & ovrButton_Y) !=
                 (leftTrackedRemoteState_old.Buttons & ovrButton_Y)) {
-                textInput = !textInput;
+                //textInput = !textInput;
+				Cbuf_InsertText("toggleconsole\n");
             }
 
 
@@ -1874,18 +1910,6 @@ static void ovrApp_HandleInput( ovrApp * app )
         QC_Analog(true, remote_movementSideways + positional_movementSideways,
                   remote_movementForward + positional_movementForward);
 
-
-	    if (bullettime.integer)
-        {
-            float speed = powf(sqrtf(powf(leftTrackedRemoteState_new.Joystick.x, 2) + powf(leftTrackedRemoteState_new.Joystick.y, 2)), 1.1f);
-            float movement = sqrtf(powf(positionDeltaThisFrame[0] * 80.0f, 2) + powf(positionDeltaThisFrame[1] * 80.0f, 2) + powf(positionDeltaThisFrame[2] * 80.0f, 2));
-            float weaponMovement = sqrtf(powf(weaponVelocity[0], 2) + powf(weaponVelocity[1], 2) + powf(weaponVelocity[2], 2));
-
-            float maximum = max(max(speed, movement), weaponMovement);
-
-            speed = bound(0.12f, maximum, 1.0f);
-            Cvar_SetValueQuick(&slowmo, speed);
-        }
     }
 }
 
@@ -2769,6 +2793,6 @@ JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onSurfaceDestroyed
 
 JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_requestAudioData(JNIEnv *env, jclass c, jlong handle)
 {
-	ALOGV("Calling: QC_GetAudio");
+	//ALOGV("Calling: QC_GetAudio");
 	QC_GetAudio();
 }

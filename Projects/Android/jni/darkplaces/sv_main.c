@@ -48,7 +48,6 @@ cvar_t pr_checkextension = {CVAR_READONLY, "pr_checkextension", "1", "indicates 
 cvar_t samelevel = {CVAR_NOTIFY, "samelevel","0", "repeats same level if level ends (due to timelimit or someone hitting an exit)"};
 cvar_t skill = {0, "skill","1", "difficulty level of game, affects monster layouts in levels, 0 = easy, 1 = normal, 2 = hard, 3 = nightmare (same layout as hard but monsters fire twice)"};
 cvar_t slowmo = {0, "slowmo", "1.0", "controls game speed, 0.5 is half speed, 2 is double speed"};
-cvar_t bullettime = {0, "bullettime", "0", "Whether bullet-time mode is enabled"};
 
 cvar_t sv_accelerate = {0, "sv_accelerate", "1000", "rate at which a player accelerates to sv_maxspeed"};
 cvar_t sv_aim = {CVAR_SAVE, "sv_aim", "2", "maximum cosine angle for quake's vertical autoaim, a value above 1 completely disables the autoaim, quake used 0.93"};
@@ -159,6 +158,12 @@ cvar_t saved1 = {CVAR_SAVE, "saved1", "0", "unused cvar in quake that is saved t
 cvar_t saved2 = {CVAR_SAVE, "saved2", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
 cvar_t saved3 = {CVAR_SAVE, "saved3", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
 cvar_t saved4 = {CVAR_SAVE, "saved4", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
+cvar_t saved5 = {CVAR_SAVE, "saved5", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
+cvar_t saved6 = {CVAR_SAVE, "saved6", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
+cvar_t saved7 = {CVAR_SAVE, "saved7", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
+cvar_t saved8 = {CVAR_SAVE, "saved8", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
+cvar_t saved9 = {CVAR_SAVE, "saved9", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
+cvar_t saved0 = {CVAR_SAVE, "saved0", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
 cvar_t savedgamecfg = {CVAR_SAVE, "savedgamecfg", "0", "unused cvar in quake that is saved to config.cfg on exit, can be used by mods"};
 cvar_t scratch1 = {0, "scratch1", "0", "unused cvar in quake, can be used by mods"};
 cvar_t scratch2 = {0,"scratch2", "0", "unused cvar in quake, can be used by mods"};
@@ -458,7 +463,6 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&samelevel);
 	Cvar_RegisterVariable (&skill);
 	Cvar_RegisterVariable (&slowmo);
-	Cvar_RegisterVariable (&bullettime);
 	Cvar_RegisterVariable (&sv_accelerate);
 	Cvar_RegisterVariable (&sv_aim);
 	Cvar_RegisterVariable (&sv_airaccel_qw);
@@ -568,6 +572,12 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&saved2);
 	Cvar_RegisterVariable (&saved3);
 	Cvar_RegisterVariable (&saved4);
+	Cvar_RegisterVariable (&saved5);
+	Cvar_RegisterVariable (&saved6);
+	Cvar_RegisterVariable (&saved7);
+	Cvar_RegisterVariable (&saved8);
+	Cvar_RegisterVariable (&saved9);
+	Cvar_RegisterVariable (&saved0);
 	Cvar_RegisterVariable (&savedgamecfg);
 	Cvar_RegisterVariable (&scratch1);
 	Cvar_RegisterVariable (&scratch2);
@@ -914,7 +924,6 @@ void SV_SendServerinfo (client_t *client)
 	{
 		client->csqcentityscope[i] = 0;
 		client->csqcentitysendflags[i] = 0xFFFFFF;
-		client->csqcentityglobalhistory[i] = 0;
 	}
 	for (i = 0;i < NUM_CSQCENTITYDB_FRAMES;i++)
 	{
@@ -2214,7 +2223,7 @@ void SV_WriteClientdataToMessage (client_t *client, prvm_edict_t *ent, sizebuf_t
 		MSG_WriteByte (msg, stats[STAT_NAILS]);
 		MSG_WriteByte (msg, stats[STAT_ROCKETS]);
 		MSG_WriteByte (msg, stats[STAT_CELLS]);
-		if (gamemode == GAME_HIPNOTIC || gamemode == GAME_ROGUE || gamemode == GAME_QUOTH || gamemode == GAME_NEXUIZ)
+		if (gamemode == GAME_HIPNOTIC || gamemode == GAME_ROGUE || gamemode == GAME_QUOTH || IS_OLDNEXUIZ_DERIVED(gamemode))
 		{
 			for (i = 0;i < 32;i++)
 				if (stats[STAT_ACTIVEWEAPON] & (1<<i))
@@ -2293,6 +2302,7 @@ static void SV_SendClientDatagram (client_t *client)
 	sizebuf_t msg;
 	int stats[MAX_CL_STATS];
 	static unsigned char sv_sendclientdatagram_buf[NET_MAXMESSAGE];
+	double timedelta;
 
 	// obey rate limit by limiting packet frequency if the packet size
 	// limiting fails
@@ -2340,13 +2350,31 @@ static void SV_SendClientDatagram (client_t *client)
 		//
 		// at very low rates (or very small sys_ticrate) the packet size is
 		// not reduced below 128, but packets may be sent less often
-		maxsize = (int)(clientrate * GetSysTicrate());
+
+		// how long are bursts?
+		timedelta = host_client->rate_burstsize / (double)client->rate;
+
+		// how much of the burst do we keep reserved?
+		timedelta *= 1 - net_burstreserve.value;
+
+		// only try to use excess time
+		timedelta = bound(0, realtime - host_client->netconnection->cleartime, timedelta);
+
+		// but we know next packet will be in sys_ticrate, so we can use up THAT bandwidth
+		timedelta += GetSysTicrate();
+
+		// note: packet overhead (not counted in maxsize) is 28 bytes
+		maxsize = (int)(clientrate * timedelta) - 28;
+
+		// put it in sound bounds
 		maxsize = bound(128, maxsize, 1400);
 		maxsize2 = 1400;
+
 		// csqc entities can easily exceed 128 bytes, so disable throttling in
 		// mods that use csqc (they are likely to use less bandwidth anyway)
-		if (sv.csqc_progsize > 0)
+		if((net_usesizelimit.integer == 1) ? (sv.csqc_progsize > 0) : (net_usesizelimit.integer < 1))
 			maxsize = maxsize2;
+
 		break;
 	}
 
@@ -2429,7 +2457,7 @@ static void SV_SendClientDatagram (client_t *client)
 	SV_WriteDemoMessage(client, &msg, false);
 
 // send the datagram
-	NetConn_SendUnreliableMessage (client->netconnection, &msg, sv.protocol, clientrate, client->sendsignon == 2);
+	NetConn_SendUnreliableMessage (client->netconnection, &msg, sv.protocol, clientrate, client->rate_burstsize, client->sendsignon == 2);
 	if (client->sendsignon == 1 && !client->netconnection->message.cursize)
 		client->sendsignon = 2; // prevent reliable until client sends prespawn (this is the keepalive phase)
 }
@@ -2460,7 +2488,9 @@ static void SV_UpdateToReliableMessages (void)
 		if (name == NULL)
 			name = "";
 		// always point the string back at host_client->name to keep it safe
-		strlcpy (host_client->name, name, sizeof (host_client->name));
+		//strlcpy (host_client->name, name, sizeof (host_client->name));
+		if (name != host_client->name) // prevent buffer overlap SIGABRT on Mac OSX
+			strlcpy (host_client->name, name, sizeof (host_client->name));
 		PRVM_serveredictstring(host_client->edict, netname) = PRVM_SetEngineString(prog, host_client->name);
 		if (strcmp(host_client->old_name, host_client->name))
 		{
@@ -2490,7 +2520,9 @@ static void SV_UpdateToReliableMessages (void)
 		if (model == NULL)
 			model = "";
 		// always point the string back at host_client->name to keep it safe
-		strlcpy (host_client->playermodel, model, sizeof (host_client->playermodel));
+		//strlcpy (host_client->playermodel, model, sizeof (host_client->playermodel));
+		if (model != host_client->playermodel) // prevent buffer overlap SIGABRT on Mac OSX
+			strlcpy (host_client->playermodel, model, sizeof (host_client->playermodel));
 		PRVM_serveredictstring(host_client->edict, playermodel) = PRVM_SetEngineString(prog, host_client->playermodel);
 
 		// NEXUIZ_PLAYERSKIN
@@ -2498,7 +2530,9 @@ static void SV_UpdateToReliableMessages (void)
 		if (skin == NULL)
 			skin = "";
 		// always point the string back at host_client->name to keep it safe
-		strlcpy (host_client->playerskin, skin, sizeof (host_client->playerskin));
+		//strlcpy (host_client->playerskin, skin, sizeof (host_client->playerskin));
+		if (skin != host_client->playerskin) // prevent buffer overlap SIGABRT on Mac OSX
+			strlcpy (host_client->playerskin, skin, sizeof (host_client->playerskin));
 		PRVM_serveredictstring(host_client->edict, playerskin) = PRVM_SetEngineString(prog, host_client->playerskin);
 
 		// TODO: add an extension name for this [1/17/2008 Black]
@@ -2519,7 +2553,7 @@ static void SV_UpdateToReliableMessages (void)
 
 		// frags
 		host_client->frags = (int)PRVM_serveredictfloat(host_client->edict, frags);
-		if(gamemode == GAME_NEXUIZ || gamemode == GAME_XONOTIC)
+		if(IS_OLDNEXUIZ_DERIVED(gamemode))
 			if(!host_client->begun && host_client->netconnection)
 				host_client->frags = -666;
 		if (host_client->old_frags != host_client->frags)
@@ -2998,7 +3032,7 @@ int SV_ParticleEffectIndex(const char *name)
 				{
 					if (argc == 2)
 					{
-						for (effectnameindex = 1;effectnameindex < SV_MAX_PARTICLEEFFECTNAME;effectnameindex++)
+						for (effectnameindex = 1;effectnameindex < MAX_PARTICLEEFFECTNAME;effectnameindex++)
 						{
 							if (sv.particleeffectname[effectnameindex][0])
 							{
@@ -3012,7 +3046,7 @@ int SV_ParticleEffectIndex(const char *name)
 							}
 						}
 						// if we run out of names, abort
-						if (effectnameindex == SV_MAX_PARTICLEEFFECTNAME)
+						if (effectnameindex == MAX_PARTICLEEFFECTNAME)
 						{
 							Con_Printf("%s:%i: too many effects!\n", filename, linenumber);
 							break;
@@ -3024,7 +3058,7 @@ int SV_ParticleEffectIndex(const char *name)
 		}
 	}
 	// search for the name
-	for (effectnameindex = 1;effectnameindex < SV_MAX_PARTICLEEFFECTNAME && sv.particleeffectname[effectnameindex][0];effectnameindex++)
+	for (effectnameindex = 1;effectnameindex < MAX_PARTICLEEFFECTNAME && sv.particleeffectname[effectnameindex][0];effectnameindex++)
 		if (!strcmp(sv.particleeffectname[effectnameindex], name))
 			return effectnameindex;
 	// return 0 if we couldn't find it
@@ -3308,10 +3342,7 @@ void SV_SpawnServer (const char *server)
 	else
 	{
 		// open server port
-		//NetConn_OpenServerPorts(true);
-
-		//Just use the loop connection
-		NetConn_OpenServerPorts(0);
+		NetConn_OpenServerPorts(true);
 	}
 
 //
@@ -3622,11 +3653,7 @@ static void SVVM_free_edict(prvm_prog_t *prog, prvm_edict_t *ed)
 	e = PRVM_NUM_FOR_EDICT(ed);
 	sv.csqcentityversion[e] = 0;
 	for (i = 0;i < svs.maxclients;i++)
-	{
-		if (svs.clients[i].csqcentityscope[e])
-			svs.clients[i].csqcentityscope[e] = 1; // removed, awaiting send
 		svs.clients[i].csqcentitysendflags[e] = 0xFFFFFF;
-	}
 }
 
 static void SVVM_count_edicts(prvm_prog_t *prog)
