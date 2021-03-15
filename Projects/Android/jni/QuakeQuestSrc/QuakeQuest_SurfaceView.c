@@ -1476,16 +1476,16 @@ static void weaponHaptics()
 				break;
 			case IT_LIGHTNING:
 			{
-				hapticInterval = 10;
+				hapticInterval = 100;
 				hapticLevel = lhrandom(0.0, 0.8f);
-				hapticLength = 10;
+				hapticLength = 80;
 			}
 				break;
 			case IT_SUPER_LIGHTNING:
 			{
-				hapticInterval = 10;
+				hapticInterval = 100;
 				hapticLevel = lhrandom(0.3, 1.0f);
-				hapticLength = 10;
+				hapticLength = 60;
 			}
 				break;
 			case IT_AXE:
@@ -1849,22 +1849,53 @@ static void ovrApp_HandleInput( ovrApp * app )
                                               ovrButton_Trigger, K_MOUSE1);
             }
 
-#ifndef NDEBUG
-            //Give all weapons and all ammo and god mode
-            if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
-                (leftTrackedRemoteState_new.Buttons & ovrButton_X) !=
-                (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
-                Cbuf_InsertText("God\n");
-                Cbuf_InsertText("Impulse 9\n");
-                breakHere = 1;
+            static bool canUseQuickSave = false;
+            if (canUseQuickSave)
+            {
+                if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
+                    (leftTrackedRemoteState_new.Buttons & ovrButton_X) !=
+                    (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
+                    Cbuf_InsertText("save quick\n");
+
+                    //Vibrate to let user know they successfully saved
+					SCR_CenterPrint("Quick Saved");
+                    Android_Vibrate(500, cl_righthanded.integer ? 0 : 1, 1.0);
+                }
+
+                if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
+                    (leftTrackedRemoteState_new.Buttons & ovrButton_Y) !=
+                    (leftTrackedRemoteState_old.Buttons & ovrButton_Y)) {
+                    Cbuf_InsertText("load quick");
+                }
             }
+            else {
+#ifndef NDEBUG
+                //Give all weapons and all ammo and god mode
+                if ((leftTrackedRemoteState_new.Buttons & ovrButton_X) &&
+                    (leftTrackedRemoteState_new.Buttons & ovrButton_X) !=
+                    (leftTrackedRemoteState_old.Buttons & ovrButton_X)) {
+                    Cbuf_InsertText("God\n");
+                    Cbuf_InsertText("Impulse 9\n");
+                    breakHere = 1;
+                }
 #endif
 
-            //Toggle text input
-            if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
-                (leftTrackedRemoteState_new.Buttons & ovrButton_Y) !=
-                (leftTrackedRemoteState_old.Buttons & ovrButton_Y)) {
-                textInput = !textInput;
+                //Toggle text input
+                if ((leftTrackedRemoteState_new.Buttons & ovrButton_Y) &&
+                    (leftTrackedRemoteState_new.Buttons & ovrButton_Y) !=
+                    (leftTrackedRemoteState_old.Buttons & ovrButton_Y)) {
+                    textInput = !textInput;
+                }
+            }
+
+            if (offHandRemoteTracking->Status & (VRAPI_TRACKING_STATUS_POSITION_TRACKED | VRAPI_TRACKING_STATUS_POSITION_VALID)) {
+                canUseQuickSave = false;
+            }
+            else if (!canUseQuickSave) {
+                canUseQuickSave = true;
+
+                //Vibrate to let user know they can quick save
+                Android_Vibrate(500, cl_righthanded.integer ? 0 : 1, 1.0);
             }
 
 
