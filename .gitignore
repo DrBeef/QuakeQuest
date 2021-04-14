@@ -27,7 +27,6 @@ $RECYCLE.BIN/
 *.class
 projects/Android/build/*
 projects/Android/.idea/*
-projects/Android/jni/SupportLibs/*
 Projects/Android/.cxx/*
 *.json
 Projects/Android/.externalNativeBuild/*

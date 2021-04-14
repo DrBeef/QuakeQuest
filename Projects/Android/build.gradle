@@ -24,8 +24,12 @@ android {
         }
     }
       minSdkVersion 24
-      targetSdkVersion 26
+      targetSdkVersion 29
   }
+
+    task prepareKotlinBuildScriptModel {
+
+    }
 
   sourceSets {
     main {
@@ -41,12 +45,12 @@ android {
         targetCompatibility = '1.8'
     }
     compileSdkVersion = 26
-    buildToolsVersion = '29.0.1'
+    buildToolsVersion = '29.0.2'
 }
 
 dependencies {
-    implementation "com.android.support:support-compat:24.2.0"
-    implementation "com.android.support:support-core-utils:24.2.0"
+    implementation "com.android.support:support-compat:26.1.0"
+    implementation "com.android.support:support-core-utils:26.1.0"
 }
 
 repositories {
