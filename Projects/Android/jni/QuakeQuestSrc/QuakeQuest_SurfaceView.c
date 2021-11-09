@@ -1286,7 +1286,7 @@ int right_grid = 0;
 char right_lower[3][10] = {"236987415", "+-)]&[(?0", { K_F1, K_F2, K_F3, K_F4, K_F5, K_F6, K_F7, K_F8, 0}};
 char right_shift[3][10] = {"\"*:|._~/#", "%^}>,<{\\@", { 0, K_F9, 0, K_F12, 0, K_F10, 0, K_F11, 0}};
 
-char left_grid_map[2][3][3][8] = {
+char left_grid_map[2][3][3][9] = {
     {
         {
                 "a  b  c", "j  k  l", "s  t  u"
@@ -1313,7 +1313,7 @@ char left_grid_map[2][3][3][8] = {
 };
 
 
-char right_grid_map[2][3][3][8] = {
+char right_grid_map[2][3][3][9] = {
         {
                 {
                         "1  2  3", "?  +  -", "F1 F2 F3"
