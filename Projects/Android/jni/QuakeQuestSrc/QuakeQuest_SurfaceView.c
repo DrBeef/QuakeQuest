@@ -276,6 +276,7 @@ vec3_t hmdorientation;
 extern float gunangles[3];
 float weaponOffset[3];
 float weaponVelocity[3];
+qboolean weapon_stabilised;
 
 float vrFOV;
 
@@ -1282,8 +1283,8 @@ int left_grid = 0;
 char left_lower[3][10] = {"bcfihgdae", "klorqpmjn", "tuwzyxvs "};
 char left_shift[3][10] = {"BCFIHGDAE", "KLORQPMJN", "TUWZYXVS "};
 int right_grid = 0;
-char right_lower[2][10] = {"236987415", "+-)]&[(?0"};
-char right_shift[2][10] = {"\"*:|._~/#", "%^}>,<{\\@"};
+char right_lower[3][10] = {"236987415", "+-)]&[(?0", { K_F1, K_F2, K_F3, K_F4, K_F5, K_F6, K_F7, K_F8, 0}};
+char right_shift[3][10] = {"\"*:|._~/#", "%^}>,<{\\@", { 0, K_F9, 0, K_F12, 0, K_F10, 0, K_F11, 0}};
 
 char left_grid_map[2][3][3][8] = {
     {
@@ -1312,27 +1313,27 @@ char left_grid_map[2][3][3][8] = {
 };
 
 
-char right_grid_map[2][3][2][8] = {
+char right_grid_map[2][3][3][8] = {
         {
                 {
-                        "1  2  3", "?  +  -"
+                        "1  2  3", "?  +  -", "F1 F2 F3"
                 },
                 {
-                        "4  5  6", "(  0  )"
+                        "4  5  6", "(  0  )", "F8    F4"
                 },
                 {
-                        "7  8  9", "[  &  ]"
+                        "7  8  9", "[  &  ]", "F7 F6 F5"
                 },
         },
         {
                 {
-                        "/  \"  *", "\\  %  ^"
+                        "/  \"  *", "\\  %  ^", "   F9   "
                 },
                 {
-                        "~  #  :", "{  @  }"
+                        "~  #  :", "{  @  }",   "F12  F10"
                 },
                 {
-                        "_  .  |", "<  ,  >"
+                        "_  .  |", "<  ,  >",    "  F11   "
                 },
         }
 };
@@ -1501,6 +1502,10 @@ static void weaponHaptics()
 		{
 			timeLastHaptic = timeNow;
 			Android_Vibrate(hapticLength, cl_righthanded.integer ? 1 : 0, hapticLevel);
+			if (weapon_stabilised)
+            {
+                Android_Vibrate(hapticLength, cl_righthanded.integer ? 0 : 1, hapticLevel);
+            }
 		}
 	}
 }
@@ -1588,7 +1593,7 @@ static void ovrApp_HandleInput( ovrApp * app )
         if ((rightTrackedRemoteState_new.Buttons & ovrButton_GripTrigger) &&
             (rightTrackedRemoteState_new.Buttons & ovrButton_GripTrigger) !=
             (rightTrackedRemoteState_old.Buttons & ovrButton_GripTrigger)) {
-            right_grid = (++right_grid) % 2;
+            right_grid = (++right_grid) % 3;
         }
 
         char left_char;
@@ -1654,7 +1659,15 @@ static void ovrApp_HandleInput( ovrApp * app )
         rightTrackedRemoteState_old = rightTrackedRemoteState_new;
 
     } else {
+		float distance = sqrtf(powf(offHandRemoteTracking->HeadPose.Pose.Position.x - dominantRemoteTracking->HeadPose.Pose.Position.x, 2) +
+							   powf(offHandRemoteTracking->HeadPose.Pose.Position.y - dominantRemoteTracking->HeadPose.Pose.Position.y, 2) +
+							   powf(offHandRemoteTracking->HeadPose.Pose.Position.z - dominantRemoteTracking->HeadPose.Pose.Position.z, 2));
+
         //dominant hand stuff first
+        weapon_stabilised = distance < 0.5f &&
+                (offHandTrackedRemoteState->Buttons & ovrButton_GripTrigger) &&
+                cl.stats[STAT_ACTIVEWEAPON] != IT_AXE;
+
         {
             weaponOffset[0] = dominantRemoteTracking->HeadPose.Pose.Position.x - hmdPosition[0];
             weaponOffset[1] = dominantRemoteTracking->HeadPose.Pose.Position.y - hmdPosition[1];
@@ -1673,6 +1686,18 @@ static void ovrApp_HandleInput( ovrApp * app )
             //Set gun angles
             const ovrQuatf quatRemote = dominantRemoteTracking->HeadPose.Pose.Orientation;
             QuatToYawPitchRoll(quatRemote, vr_weaponpitchadjust.value, gunangles);
+
+            if (weapon_stabilised)
+            {
+                float z = offHandRemoteTracking->HeadPose.Pose.Position.z - dominantRemoteTracking->HeadPose.Pose.Position.z;
+                float x = offHandRemoteTracking->HeadPose.Pose.Position.x - dominantRemoteTracking->HeadPose.Pose.Position.x;
+                float y = offHandRemoteTracking->HeadPose.Pose.Position.y - dominantRemoteTracking->HeadPose.Pose.Position.y;
+                float zxDist = length(x, z);
+
+                if (zxDist != 0.0f && z != 0.0f) {
+                    VectorSet(gunangles, -degrees(atanf(y / zxDist)),  -degrees(atan2f(x, -z)), gunangles[ROLL]);
+                }
+            }
 
             gunangles[YAW] += yawOffset;
 
@@ -2199,11 +2224,11 @@ void * AppThreadFunction( void * parm )
     //AmmarkoV : Query Refresh rates and select maximum..!
     //----------------------------------------------------------------------------------------------------------- 
     int numberOfRefreshRates = vrapi_GetSystemPropertyInt(&java,VRAPI_SYS_PROP_NUM_SUPPORTED_DISPLAY_REFRESH_RATES);
-    float refreshRatesArray[16]; //Refresh rates are currently (12/2020) the following 4 : 60.0 / 72.0 / 80.0 / 90.0 
+    float refreshRatesArray[16];
     if (numberOfRefreshRates > 16 ) { numberOfRefreshRates = 16; }
     vrapi_GetSystemPropertyFloatArray(&java, VRAPI_SYS_PROP_SUPPORTED_DISPLAY_REFRESH_RATES,&refreshRatesArray[0], numberOfRefreshRates);
     for (int i = 0; i < numberOfRefreshRates; i++) {
-                                                     //ALOGV("Supported refresh rate : %s Hz", refreshRatesArray[i]);
+                                                     //ALOGV("Supported refresh rate : %g Hz", refreshRatesArray[i]);
                                                      if (maximumSupportedFramerate<refreshRatesArray[i])
                                                          {
                                                              maximumSupportedFramerate=refreshRatesArray[i];
@@ -2214,7 +2239,8 @@ void * AppThreadFunction( void * parm )
           ALOGV("Soft limiting to 90.0 Hz as per John carmack's request ( https://www.onlinepeeps.org/oculus-quest-2-according-to-carmack-in-the-future-also-at-120-hz/ );P");
           maximumSupportedFramerate=90.0; 
         }
-    //----------------------------------------------------------------------------------------------------------- 
+
+    //-----------------------------------------------------------------------------------------------------------
 
 
 	ovrEgl_CreateContext( &appState.Egl, NULL );
@@ -2387,9 +2413,8 @@ void * AppThreadFunction( void * parm )
             }
 #endif
 
-            //Set 90hz mode for Quest 2
             if (hmdType == VRAPI_DEVICE_TYPE_OCULUSQUEST2) {
-                vrapi_SetDisplayRefreshRate(appState.Ovr, 90);
+                ovrResult result = vrapi_SetDisplayRefreshRate(appState.Ovr,maximumSupportedFramerate);
             }
 
 			// Get the HMD pose, predicted for the middle of the time period during which
