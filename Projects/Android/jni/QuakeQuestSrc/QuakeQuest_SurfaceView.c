@@ -89,10 +89,11 @@ PFNEGLGETSYNCATTRIBKHRPROC		eglGetSyncAttribKHR;
 //Let's go to the maximum!
 int CPU_LEVEL			= 4;
 int GPU_LEVEL			= 4;
+int REFRESH			    = -1;
 int NUM_MULTI_SAMPLES	= 1;
 float SS_MULTIPLIER    = 1.2f;
 
-float maximumSupportedFramerate=60.0; //The lowest default framerate
+float selectedFramerate=60.0; //The lowest default framerate
 
 extern float worldPosition[3];
 float hmdPosition[3];
@@ -127,6 +128,7 @@ float degrees(float rad) {
 struct arg_dbl *ss;
 struct arg_int *cpu;
 struct arg_int *gpu;
+struct arg_int *refresh;
 struct arg_dbl *msaa;
 struct arg_end *end;
 
@@ -174,74 +176,8 @@ extern	int			key_consoleactive;
 static bool quake_initialised = false;
 
 static JavaVM *jVM;
-static jobject audioBuffer=0;
-static jobject audioCallbackObj=0;
 static jobject qquestCallbackObj=0;
 
-jmethodID android_initAudio;
-jmethodID android_writeAudio;
-jmethodID android_pauseAudio;
-jmethodID android_resumeAudio;
-jmethodID android_terminateAudio;
-
-void jni_initAudio(void *buffer, int size)
-{
-	ALOGV("Calling: jni_initAudio");
-    JNIEnv *env;
-    jobject tmp;
-    (*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4);
-    tmp = (*env)->NewDirectByteBuffer(env, buffer, size);
-    audioBuffer = (jobject)(*env)->NewGlobalRef(env, tmp);
-    return (*env)->CallVoidMethod(env, audioCallbackObj, android_initAudio, size);
-}
-
-void jni_writeAudio(int offset, int length)
-{
-	ALOGV("Calling: jni_writeAudio");
-	if (audioBuffer==0) return;
-    JNIEnv *env;
-    if (((*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4))<0)
-    {
-    	(*jVM)->AttachCurrentThread(jVM,&env, NULL);
-    }
-    (*env)->CallVoidMethod(env, audioCallbackObj, android_writeAudio, audioBuffer, offset, length);
-}
-
-void jni_pauseAudio()
-{
-	ALOGV("Calling: jni_pauseAudio");
-	if (audioBuffer==0) return;
-    JNIEnv *env;
-    if (((*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4))<0)
-    {
-    	(*jVM)->AttachCurrentThread(jVM,&env, NULL);
-    }
-    (*env)->CallVoidMethod(env, audioCallbackObj, android_pauseAudio);
-}
-
-void jni_resumeAudio()
-{
-	ALOGV("Calling: jni_resumeAudio");
-	if (audioBuffer==0) return;
-    JNIEnv *env;
-    if (((*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4))<0)
-    {
-    	(*jVM)->AttachCurrentThread(jVM,&env, NULL);
-    }
-    (*env)->CallVoidMethod(env, audioCallbackObj, android_resumeAudio);
-}
-
-void jni_terminateAudio()
-{
-	ALOGV("Calling: jni_terminateAudio");
-	if (audioBuffer==0) return;
-    JNIEnv *env;
-    if (((*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4))<0)
-    {
-    	(*jVM)->AttachCurrentThread(jVM,&env, NULL);
-    }
-    (*env)->CallVoidMethod(env, audioCallbackObj, android_terminateAudio);
-}
 
 //Timing stuff for joypad control
 static long oldtime=0;
@@ -1202,8 +1138,8 @@ static void ovrApp_HandleVrModeChanges( ovrApp * app )
 			if ( app->Ovr != NULL )
 			{
                 //AmmarkoV : Set our refresh rate..!
-                ovrResult result = vrapi_SetDisplayRefreshRate(app->Ovr,maximumSupportedFramerate);
-                if (result == ovrSuccess) { ALOGV("Changed refresh rate. %f Hz",maximumSupportedFramerate); } else 
+                ovrResult result = vrapi_SetDisplayRefreshRate(app->Ovr, selectedFramerate);
+                if (result == ovrSuccess) { ALOGV("Changed refresh rate. %f Hz", selectedFramerate); } else
                                           { ALOGV("Failed to change refresh rate to 90Hz Result=%d",result); }
 
 				vrapi_SetClockLevels( app->Ovr, app->CpuLevel, app->GpuLevel );
@@ -1729,8 +1665,8 @@ static void ovrApp_HandleInput( ovrApp * app )
 
             //This section corrects for the fact that the controller actually controls direction of movement, but we want to move relative to the direction the
             //player is facing for positional tracking
-            float multiplier = /*arbitrary value that works ->*/
-                    2300.0f / (cl_movementspeed.value * ((offHandTrackedRemoteState->Buttons & ovrButton_Trigger) ? cl_movespeedkey.value : 1.0f));
+            float multiplier = (float)(2300.0f * (selectedFramerate / 72.0) ) /
+                               (cl_movementspeed.value * ((offHandTrackedRemoteState->Buttons & ovrButton_Trigger) ? cl_movespeedkey.value : 1.0f));
 
             vec2_t v;
             rotateAboutOrigin(-positionDeltaThisFrame[0] * multiplier,
@@ -2227,18 +2163,39 @@ void * AppThreadFunction( void * parm )
     float refreshRatesArray[16];
     if (numberOfRefreshRates > 16 ) { numberOfRefreshRates = 16; }
     vrapi_GetSystemPropertyFloatArray(&java, VRAPI_SYS_PROP_SUPPORTED_DISPLAY_REFRESH_RATES,&refreshRatesArray[0], numberOfRefreshRates);
-    for (int i = 0; i < numberOfRefreshRates; i++) {
-                                                     //ALOGV("Supported refresh rate : %g Hz", refreshRatesArray[i]);
-                                                     if (maximumSupportedFramerate<refreshRatesArray[i])
-                                                         {
-                                                             maximumSupportedFramerate=refreshRatesArray[i];
-                                                         }
-                                                   }
-    if (maximumSupportedFramerate>90.0)
+    bool foundRefresh = false;
+    for (int i = 0; i < numberOfRefreshRates; i++)
+    {
+    	//Select the max framerate
+        if (selectedFramerate < refreshRatesArray[i])
+         {
+             selectedFramerate = refreshRatesArray[i];
+         }
+
+        //If users supplied refresh on the command line make sure it is one of the valid ones
+        if (REFRESH == refreshRatesArray[i])
         {
-          ALOGV("Soft limiting to 90.0 Hz as per John carmack's request ( https://www.onlinepeeps.org/oculus-quest-2-according-to-carmack-in-the-future-also-at-120-hz/ );P");
-          maximumSupportedFramerate=90.0; 
+            foundRefresh = true;
         }
+    }
+
+    //User supplied invalid (or didn't set it)
+    if (!foundRefresh)
+    {
+        REFRESH = -1;
+    }
+
+    if (REFRESH == -1) {
+    	//Cap to 90fps for Quest 2
+        if (selectedFramerate > 90.0) {
+            ALOGV("Soft limiting to 90.0 Hz as per John carmack's request ( https://www.onlinepeeps.org/oculus-quest-2-according-to-carmack-in-the-future-also-at-120-hz/ );P");
+            selectedFramerate = 90.0;
+        }
+    }
+    else
+    {
+        selectedFramerate = REFRESH;
+    }
 
     //-----------------------------------------------------------------------------------------------------------
 
@@ -2302,13 +2259,11 @@ void * AppThreadFunction( void * parm )
 				case MESSAGE_ON_RESUME:
 				{
 					//If we get here, then user has opted not to quit
-					jni_resumeAudio();
 					appState.Resumed = true;
 					break;
 				}
 				case MESSAGE_ON_PAUSE:
 				{
-					jni_pauseAudio();
 					appState.Resumed = false;
 					break;
 				}
@@ -2414,7 +2369,7 @@ void * AppThreadFunction( void * parm )
 #endif
 
             if (hmdType == VRAPI_DEVICE_TYPE_OCULUSQUEST2) {
-                ovrResult result = vrapi_SetDisplayRefreshRate(appState.Ovr,maximumSupportedFramerate);
+                ovrResult result = vrapi_SetDisplayRefreshRate(appState.Ovr, selectedFramerate);
             }
 
 			// Get the HMD pose, predicted for the middle of the time period during which
@@ -2534,7 +2489,6 @@ void * AppThreadFunction( void * parm )
             } else	if (runStatus == 2)
             {
                 Host_Shutdown();
-                jni_terminateAudio();
                 runStatus++;
             } else if (runStatus == 3)
             {
@@ -2605,6 +2559,7 @@ JNIEXPORT jlong JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onCreate( JNIEnv 
 			ss   = arg_dbl0("s", "supersampling", "<double>", "super sampling value (e.g. 1.0)"),
             cpu   = arg_int0("c", "cpu", "<int>", "CPU perf index 1-3 (default: 2)"),
             gpu   = arg_int0("g", "gpu", "<int>", "GPU perf index 1-3 (default: 3)"),
+            refresh = arg_int0("r", "refresh", "<int>", "Refresh Rate (default: Quest 1: 72, Quest 2: 90)"),
             msaa   = arg_dbl0("m", "msaa", "<int>", "msaa value 1-4 (default 1)"), // Don't think this actually works
 			end     = arg_end(20)
 	};
@@ -2649,6 +2604,11 @@ JNIEXPORT jlong JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onCreate( JNIEnv 
             GPU_LEVEL = gpu->ival[0];
         }
 
+        if (refresh->count > 0 && refresh->ival[0] > 0 && refresh->ival[0] <= 120)
+        {
+            REFRESH = refresh->ival[0];
+        }
+
         if (msaa->count > 0 && msaa->dval[0] > 0 && msaa->dval[0] < 5)
         {
             NUM_MULTI_SAMPLES = msaa->dval[0];
@@ -2667,20 +2627,9 @@ JNIEXPORT jlong JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onCreate( JNIEnv 
 }
 
 
-JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_setCallbackObjects(JNIEnv *env, jobject obj, jobject obj1, jobject obj2)
+JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_setCallbackObjects(JNIEnv *env, jobject obj, jobject obj2)
 {
-    jclass audioCallbackClass;
-
     (*jVM)->GetEnv(jVM, (void**) &env, JNI_VERSION_1_4);
-
-	audioCallbackObj = (jobject)(*env)->NewGlobalRef(env, obj1);
-	audioCallbackClass = (*env)->GetObjectClass(env, audioCallbackObj);
-
-    android_initAudio = (*env)->GetMethodID(env,audioCallbackClass,"initAudio","(I)V");
-    android_writeAudio = (*env)->GetMethodID(env,audioCallbackClass,"writeAudio","(Ljava/nio/ByteBuffer;II)V");
-    android_pauseAudio = (*env)->GetMethodID(env,audioCallbackClass,"pauseAudio","()V");
-    android_resumeAudio = (*env)->GetMethodID(env,audioCallbackClass,"resumeAudio","()V");
-    android_terminateAudio = (*env)->GetMethodID(env,audioCallbackClass,"terminateAudio","()V");
 
 	jclass qquestCallbackClass;
 
@@ -2823,8 +2772,3 @@ JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_onSurfaceDestroyed
 	appThread->NativeWindow = NULL;
 }
 
-JNIEXPORT void JNICALL Java_com_drbeef_quakequest_GLES3JNILib_requestAudioData(JNIEnv *env, jclass c, jlong handle)
-{
-	ALOGV("Calling: QC_GetAudio");
-	QC_GetAudio();
-}

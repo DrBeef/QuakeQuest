@@ -8,7 +8,7 @@ include $(CLEAR_VARS)
 
 LOCAL_CFLAGS			:= -std=c99
 LOCAL_MODULE			:= quakequest
-LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL		# include default libraries
+LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL -lOpenSLES		# include default libraries
 
 LOCAL_C_INCLUDES := ../QuakeQuestSrc/ \
 ../darkplaces/ \
@@ -17,12 +17,13 @@ $(SUPPORT_LIBS)/liboggvorbis/include
 LOCAL_SHARED_LIBRARIES	:= vrapi libvorbis libogg libvorbis-jni
 
 SRC_SND_COMMON := \
+	darkplaces/snd_opensl.c \
 	darkplaces/snd_main.c \
 	darkplaces/snd_mem.c \
 	darkplaces/snd_mix.c \
 	darkplaces/snd_ogg.c \
+	darkplaces/snd_modplug.c \
 	darkplaces/snd_wav.c \
-	darkplaces/snd_modplug.c
 
 
 ###### Common objects and flags #####
@@ -128,7 +129,6 @@ LOCAL_SRC_FILES := \
 	darkplaces/sys_linux.c \
 	darkplaces/vid_android.c \
 	darkplaces/thread_pthread.c \
-	darkplaces/snd_android.c  \
 	$(SRC_SND_COMMON) \
 	$(SRC_COMMON)
 

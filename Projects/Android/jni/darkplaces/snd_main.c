@@ -23,10 +23,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "snd_main.h"
 #include "snd_ogg.h"
-#include "snd_modplug.h"
 #include "csprogs.h"
 #include "cl_collision.h"
+#ifdef CONFIG_CD
 #include "cdaudio.h"
+#endif
 
 
 #define SND_MIN_SPEED 8000
@@ -326,7 +327,7 @@ static void S_SoundList_f (void)
 		{
 			unsigned int size;
 
-			size = sfx->memsize;
+			size = (unsigned int)sfx->memsize;
 			Con_Printf ("%c%c%c(%5iHz %2db %6s) %8i : %s\n",
 						(sfx->loopstart < sfx->total_length) ? 'L' : ' ',
 						(sfx->flags & SFXFLAG_STREAMED) ? 'S' : ' ',
@@ -915,7 +916,6 @@ void S_Init(void)
 	memset(channels, 0, MAX_CHANNELS * sizeof(channel_t));
 
 	OGG_OpenLibrary ();
-	ModPlug_OpenLibrary ();
 }
 
 
@@ -929,7 +929,6 @@ Shutdown and free all resources
 void S_Terminate (void)
 {
 	S_Shutdown ();
-	ModPlug_CloseLibrary ();
 	OGG_CloseLibrary ();
 
 	// Free all SFXs
@@ -1494,7 +1493,7 @@ static void SND_Spatialize_WithSfx(channel_t *ch, qboolean isstatic, sfx_t *sfx)
 			if (snd_spatialization_occlusion.integer)
 			{
 				if(snd_spatialization_occlusion.integer & 1)
-					if(listener_pvs)
+					if(listener_pvs && cl.worldmodel)
 					{
 						int cluster = cl.worldmodel->brush.PointInLeaf(cl.worldmodel, ch->origin)->clusterindex;
 						if(cluster >= 0 && cluster < 8 * listener_pvsbytes && !CHECKPVSBIT(listener_pvs, cluster))
@@ -1821,8 +1820,10 @@ void S_StopAllSounds (void)
 	if (snd_renderbuffer == NULL)
 		return;
 
+#ifdef CONFIG_CD
 	// stop CD audio because it may be using a faketrack
 	CDAudio_Stop();
+#endif
 
 	if (simsound || SndSys_LockRenderBuffer ())
 	{

@@ -49,8 +49,6 @@ import android.support.v4.content.ContextCompat;
 
 	private final boolean m_asynchronousTracking = false;
 	
-	public static QQUESTAudioCallback mAudio;
-
 	@Override protected void onCreate( Bundle icicle )
 	{
 		Log.v( TAG, "----------------------------------------------------------------" );
@@ -140,12 +138,8 @@ import android.support.v4.content.ContextCompat;
 		copy_asset("/sdcard/QuakeQuest/id1", "config.cfg");
 		copy_asset("/sdcard/QuakeQuest", "commandline.txt");
 
-		if (mAudio==null)
-		{
-			mAudio = new QQUESTAudioCallback();
-		}
 		
-		GLES3JNILib.setCallbackObjects(mAudio, this);
+		GLES3JNILib.setCallbackObjects(this);
 
 		//Read these from a file and pass through
 		commandLineParams = new String("quake");

@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 		package="com.drbeef.quakequest"
 		android:versionCode="18"
-		android:versionName="1.4.10"
+		android:versionName="1.4.11"
 		android:installLocation="auto" >
 
 	<!-- Tell the system this app requires OpenGL ES 3.1. -->
