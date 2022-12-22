@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 		package="com.drbeef.quakequest"
-		android:versionCode="18"
-		android:versionName="1.4.11"
+		android:versionCode="20"
+		android:versionName="1.5.1"
 		android:installLocation="auto" >
 
 	<!-- Tell the system this app requires OpenGL ES 3.1. -->
@@ -11,25 +11,25 @@
 	<uses-feature android:name="android.hardware.vr.headtracking" android:version="1"
 				  android:required="true" />
 
-	<!-- Network access needed for OVRMonitor -->
 	<uses-permission android:name="android.permission.INTERNET" />
-	<!-- Volume Control -->
 	<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+	
 	<application
 		android:allowBackup="false"
 		android:icon="@drawable/ic_qquest"
 		android:label="@string/quakequest"
 		android:extractNativeLibs="true">
 
+		<!-- META QUEST -->
 		<meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only"/>
         <meta-data android:name="com.oculus.supportedDevices" android:value="quest|quest2"/>
-		<!-- The activity is the built-in NativeActivity framework class. -->
-		<!-- launchMode is set to singleTask because there should never be multiple copies of the app running. -->
-		<!-- Theme.Black.NoTitleBar.Fullscreen gives solid black instead of a (bad stereoscopic) gradient on app transition. -->
-        <!-- If targeting API level 24+, configChanges should additionally include 'density'. -->
-        <!-- If targeting API level 24+, android:resizeableActivity="false" should be added. -->
+
+
+		<!-- PICO XR -->
+		<meta-data android:name="pvr.app.type" android:value="vr" />
+
 		<activity
 				android:name="com.drbeef.quakequest.GLES3JNIActivity"
 				android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"

@@ -6,15 +6,21 @@ LOCAL_PATH:= $(call my-dir)
 #--------------------------------------------------------
 include $(CLEAR_VARS)
 
-LOCAL_CFLAGS			:= -std=c99
+# Uncomment for the correct headset - slight changes required in OpenXR implementation
+#OPENXR_HMD = -DMETA_QUEST
+OPENXR_HMD = -DPICO_XR
+
+LOCAL_CFLAGS			:= $(OPENXR_HMD)
 LOCAL_MODULE			:= quakequest
 LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL -lOpenSLES		# include default libraries
 
 LOCAL_C_INCLUDES := ../QuakeQuestSrc/ \
-../darkplaces/ \
-$(SUPPORT_LIBS)/liboggvorbis/include
+    ../darkplaces/ \
+    $(SUPPORT_LIBS)/liboggvorbis/include \
+    $(TOP_DIR)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/include
 
-LOCAL_SHARED_LIBRARIES	:= vrapi libvorbis libogg libvorbis-jni
+
+LOCAL_SHARED_LIBRARIES	:= openxr_loader libvorbis libogg libvorbis-jni
 
 SRC_SND_COMMON := \
 	darkplaces/snd_opensl.c \
@@ -121,7 +127,9 @@ SRC_COMMON := \
 SRC_QUEST := \
 	QuakeQuestSrc/argtable3.c \
 	QuakeQuestSrc/QuakeQuest_SurfaceView.c \
-	QuakeQuestSrc/VrCompositor.c \
+	QuakeQuestSrc/OpenXrInput_MetaQuest.c \
+	QuakeQuestSrc/OpenXrInput_PicoXR.c \
+	QuakeQuestSrc/TBXR_Common.c \
 
 LOCAL_SRC_FILES := \
 	$(SRC_QUEST) \
@@ -135,4 +143,4 @@ LOCAL_SRC_FILES := \
 include $(BUILD_SHARED_LIBRARY)
 include $(SUPPORT_LIBS)/liboggvorbis/Android.mk
 
-$(call import-module,VrApi/Projects/AndroidPrebuilt/jni)
+$(call import-module,OpenXR/Projects/AndroidPrebuilt/jni)

@@ -15,21 +15,18 @@ android {
     applicationId "com.drbeef." + project.archivesBaseName
 
     // override app plugin abiFilters for both 32 and 64-bit support
-    externalNativeBuild {
-        ndk {
-                abiFilters 'arm64-v8a'
-        }
-        ndkBuild {
-                abiFilters 'arm64-v8a'
-        }
-    }
+      externalNativeBuild {
+          ndk {
+              abiFilters 'arm64-v8a'
+          }
+          ndkBuild {
+              abiFilters 'arm64-v8a'
+          }
+      }
+
       minSdkVersion 26
       targetSdkVersion 26
   }
-
-    task prepareKotlinBuildScriptModel {
-
-    }
 
   sourceSets {
     main {
@@ -45,12 +42,13 @@ android {
         targetCompatibility = '1.8'
     }
     compileSdkVersion = 26
-    buildToolsVersion = '29.0.2'
+    buildToolsVersion = '29.0.1'
 }
 
 dependencies {
     implementation "com.android.support:support-compat:26.1.0"
     implementation "com.android.support:support-core-utils:26.1.0"
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
 }
 
 repositories {

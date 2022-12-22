@@ -3,6 +3,7 @@
 #include "cl_collision.h"
 #include "dpsoftrast.h"
 #include "glquake.h"
+#include <stdbool.h>
 
 // on GLES we have to use some proper #define's
 #ifndef GL_FRAMEBUFFER
@@ -916,6 +917,7 @@ void R_Viewport_InitOrtho(r_viewport_t *v, const matrix4x4_t *cameramatrix, int 
 #endif
 }
 
+bool VR_GetVRProjection(int eye, float zNear, float zFar, float* projection);
 void R_Viewport_InitPerspective(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float nearclip, float farclip, const float *nearplane)
 {
 	matrix4x4_t tempmatrix, basematrix;
@@ -955,10 +957,11 @@ void R_Viewport_InitPerspective(r_viewport_t *v, const matrix4x4_t *cameramatrix
 		m[12] = -m[12];
 	}
 
+	VR_GetVRProjection(r_stereo_side, nearclip, farclip, m);
 	Matrix4x4_FromArrayFloatGL(&v->projectmatrix, m);
 }
 
-void R_Viewport_InitPerspectiveInfinite(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float nearclip, const float *nearplane)
+void R_Viewport_InitPerspectiveInfinite(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float nearclip, const float *nearplane, const int allowwaterclippingplane)
 {
 	matrix4x4_t tempmatrix, basematrix;
 	const float nudge = 1.0 - 1.0 / (1<<23);
@@ -996,6 +999,11 @@ void R_Viewport_InitPerspectiveInfinite(r_viewport_t *v, const matrix4x4_t *came
 		m[4] = -m[4];
 		m[8] = -m[8];
 		m[12] = -m[12];
+	}
+
+	if (allowwaterclippingplane)
+	{
+		VR_GetVRProjection(r_stereo_side, nearclip, 8192, m);
 	}
 
 	Matrix4x4_FromArrayFloatGL(&v->projectmatrix, m);
@@ -2629,6 +2637,9 @@ void GL_ReadPixelsBGRA(int x, int y, int width, int height, unsigned char *outpi
 void R_Mesh_Start(void)
 {
 	BACKENDACTIVECHECK
+	//Get the current fbo
+	qglGetIntegerv(GL_FRAMEBUFFER_BINDING, &gl_state.defaultframebufferobject);
+
 	R_Mesh_SetRenderTargets(0, NULL, NULL, NULL, NULL, NULL);
 	R_Mesh_SetUseVBO();
 	if (gl_printcheckerror.integer && !gl_paranoid.integer)

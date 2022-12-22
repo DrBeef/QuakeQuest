@@ -138,9 +138,6 @@ import android.support.v4.content.ContextCompat;
 		copy_asset("/sdcard/QuakeQuest/id1", "config.cfg");
 		copy_asset("/sdcard/QuakeQuest", "commandline.txt");
 
-		
-		GLES3JNILib.setCallbackObjects(this);
-
 		//Read these from a file and pass through
 		commandLineParams = new String("quake");
 
@@ -209,13 +206,16 @@ import android.support.v4.content.ContextCompat;
 		}
 	}
 
+	public void shutdown() {
+		System.exit(0);
+	}
 
 	@Override protected void onStart()
 	{
 		Log.v( TAG, "GLES3JNIActivity::onStart()" );
 		super.onStart();
 
-		GLES3JNILib.onStart( mNativeHandle );
+		GLES3JNILib.onStart( mNativeHandle, this );
 	}
 
 	@Override protected void onResume()

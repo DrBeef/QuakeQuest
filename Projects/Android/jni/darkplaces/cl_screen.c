@@ -2116,8 +2116,10 @@ float GetFOV();
 		r_refdef.view.ortho_x = atan(r_refdef.view.frustum_x) * (360.0 / M_PI); // abused as angle by VM_CL_R_SetView
 		r_refdef.view.ortho_y = atan(r_refdef.view.frustum_y) * (360.0 / M_PI); // abused as angle by VM_CL_R_SetView
 
-		if(!CL_VM_UpdateView(r_stereo_side ? 0.0 : max(0.0, cl.time - cl.oldtime)))
-			R_RenderView();
+		if(r_stereo_side == 0)
+			CL_VM_UpdateView(max(0.0, cl.time - cl.oldtime));
+
+		R_RenderView();
 	}
 
 	r_refdef.view.width = vid.width;
@@ -2749,7 +2751,9 @@ void CL_BeginUpdateScreen()
 	GL_DepthMask(true);
 
 	R_ClearScreen(false);
-	r_refdef.view.clear = false;
+
+	//For some reason, with this line in it breaks the left eye rendering on OpenXR, I HAVE NO IDEA WHY!?!
+	//r_refdef.view.clear = false;
 	r_refdef.view.isoverlay = false;
 
 	// calculate r_refdef.view.quality
