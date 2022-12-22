@@ -126,7 +126,7 @@ SRC_COMMON := \
 
 SRC_QUEST := \
 	QuakeQuestSrc/argtable3.c \
-	QuakeQuestSrc/QuakeQuest_SurfaceView.c \
+	QuakeQuestSrc/QuakeQuest_OpenXR.c \
 	QuakeQuestSrc/OpenXrInput_MetaQuest.c \
 	QuakeQuestSrc/OpenXrInput_PicoXR.c \
 	QuakeQuestSrc/TBXR_Common.c \
