@@ -1,6 +1,7 @@
-#include "VrCommon.h"
 
 #ifdef META_QUEST
+
+#include "VrCommon.h"
 
 extern ovrApp gAppState;
 

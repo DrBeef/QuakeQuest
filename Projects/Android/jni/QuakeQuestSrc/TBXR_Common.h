@@ -320,6 +320,7 @@ void TBXR_InitialiseOpenXR();
 void TBXR_WaitForSessionActive();
 void TBXR_InitRenderer();
 void TBXR_EnterVR();
+void TBXR_LeaveVR( );
 void TBXR_GetScreenRes(int *width, int *height);
 void TBXR_InitActions( void );
 void TBXR_Vibrate(int duration, int channel, float intensity );

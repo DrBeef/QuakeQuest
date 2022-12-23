@@ -1,6 +1,6 @@
-#include "VrCommon.h"
-
 #ifdef PICO_XR
+
+#include "VrCommon.h"
 
 extern ovrApp gAppState;
 

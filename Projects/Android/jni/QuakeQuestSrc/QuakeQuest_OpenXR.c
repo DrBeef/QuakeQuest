@@ -305,7 +305,14 @@ void * AppThreadFunction(void * parm ) {
 		
 		TBXR_submitFrame();
 	}
-		
+
+	{
+		TBXR_LeaveVR();
+		//Ask Java to shut down
+		VR_Shutdown();
+
+		exit(0); // in case Java doesn't do the job
+	}
 
 	return NULL;
 }

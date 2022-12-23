@@ -17,7 +17,8 @@ LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL -lOpenSLES		# include default l
 LOCAL_C_INCLUDES := ../QuakeQuestSrc/ \
     ../darkplaces/ \
     $(SUPPORT_LIBS)/liboggvorbis/include \
-    $(TOP_DIR)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/include
+    $(TOP_DIR)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/include \
+    $(TOP_DIR)/../../../../../OpenXR/Include
 
 
 LOCAL_SHARED_LIBRARIES	:= openxr_loader libvorbis libogg libvorbis-jni
