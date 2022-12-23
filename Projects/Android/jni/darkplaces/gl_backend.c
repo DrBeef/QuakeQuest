@@ -961,7 +961,7 @@ void R_Viewport_InitPerspective(r_viewport_t *v, const matrix4x4_t *cameramatrix
 	Matrix4x4_FromArrayFloatGL(&v->projectmatrix, m);
 }
 
-void R_Viewport_InitPerspectiveInfinite(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float nearclip, const float *nearplane, const int allowwaterclippingplane)
+void R_Viewport_InitPerspectiveInfinite(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float nearclip, const float *nearplane)
 {
 	matrix4x4_t tempmatrix, basematrix;
 	const float nudge = 1.0 - 1.0 / (1<<23);
@@ -1001,11 +1001,7 @@ void R_Viewport_InitPerspectiveInfinite(r_viewport_t *v, const matrix4x4_t *came
 		m[12] = -m[12];
 	}
 
-	if (allowwaterclippingplane)
-	{
-		VR_GetVRProjection(r_stereo_side, nearclip, 8192, m);
-	}
-
+	VR_GetVRProjection(r_stereo_side, nearclip, (1<<23), m);
 	Matrix4x4_FromArrayFloatGL(&v->projectmatrix, m);
 }
 
