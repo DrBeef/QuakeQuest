@@ -451,11 +451,8 @@ void VR_HapticEvent(const char* event, int position, int flags, int intensity, f
 		if ((timeNow - timeLastHaptic) > hapticInterval)
 		{
 			timeLastHaptic = timeNow;
-			TBXR_Vibrate(hapticLength, cl_righthanded.integer ? 1 : 0, hapticLevel);
-			if (weapon_stabilised)
-            {
-                TBXR_Vibrate(hapticLength, cl_righthanded.integer ? 0 : 1, hapticLevel);
-            }
+            int channel = weapon_stabilised ? 3 : (cl_righthanded.integer ? 2 : 1);
+			TBXR_Vibrate(hapticLength, channel, hapticLevel);
 		}
 	}
 }
@@ -965,7 +962,7 @@ static void HandleInput_Default(  )
 
                     //Vibrate to let user know they successfully saved
 					SCR_CenterPrint("Quick Saved");
-                    TBXR_Vibrate(500, cl_righthanded.integer ? 0 : 1, 1.0);
+                    TBXR_Vibrate(500, cl_righthanded.integer ? 1 : 2, 1.0);
                 }
 
                 if ((leftTrackedRemoteState_new.Buttons & xrButton_Y) &&

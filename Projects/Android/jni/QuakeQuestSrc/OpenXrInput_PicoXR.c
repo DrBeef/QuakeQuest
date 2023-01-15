@@ -570,7 +570,6 @@ void TBXR_UpdateControllers( )
     rightTrackedRemoteState_new.Joystick.y = moveJoystickState.currentState.y;
 }
 
-
 //0 = left, 1 = right
 float vibration_channel_duration[2] = {0.0f, 0.0f};
 float vibration_channel_intensity[2] = {0.0f, 0.0f};
@@ -579,17 +578,16 @@ void TBXR_Vibrate( int duration, int chan, float intensity )
 {
     for (int i = 0; i < 2; ++i)
     {
-        int channel = 1-i;
         if ((i + 1) & chan)
         {
-            if (vibration_channel_duration[channel] > 0.0f)
+            if (vibration_channel_duration[i] > 0.0f)
                 return;
 
-            if (vibration_channel_duration[channel] == -1.0f && duration != 0.0f)
+            if (vibration_channel_duration[i] == -1.0f && duration != 0.0f)
                 return;
 
-            vibration_channel_duration[channel] = duration;
-            vibration_channel_intensity[channel] = intensity;
+            vibration_channel_duration[i] = duration;
+            vibration_channel_intensity[i] = intensity;
         }
     }
 }

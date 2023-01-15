@@ -50,7 +50,7 @@ PFNEGLGETSYNCATTRIBKHRPROC		eglGetSyncAttribKHR;
 //Let's go to the maximum!
 int NUM_MULTI_SAMPLES	= 1;
 int REFRESH	            = 0;
-float SS_MULTIPLIER    = 0.0f;
+float SS_MULTIPLIER    = 1.5f;
 
 GLboolean stageSupported = GL_FALSE;
 
@@ -1341,8 +1341,8 @@ void TBXR_InitialiseResolution()
 	free(viewportConfigurationTypes);
 
 	//Shortcut to width and height
-	gAppState.Width = gAppState.ViewConfigurationView[0].recommendedImageRectWidth;
-	gAppState.Height = gAppState.ViewConfigurationView[0].recommendedImageRectHeight;
+	gAppState.Width = gAppState.ViewConfigurationView[0].recommendedImageRectWidth * SS_MULTIPLIER;
+	gAppState.Height = gAppState.ViewConfigurationView[0].recommendedImageRectHeight * SS_MULTIPLIER;
 }
 
 void TBXR_EnterVR( ) {
@@ -1533,8 +1533,8 @@ void TBXR_InitRenderer(  ) {
 	ovrRenderer_Create(
 			gAppState.Session,
 			&gAppState.Renderer,
-			gAppState.ViewConfigurationView[0].recommendedImageRectWidth,
-			gAppState.ViewConfigurationView[0].recommendedImageRectHeight);
+			gAppState.Width,
+			gAppState.Height);
 }
 
 void VR_DestroyRenderer(  )

@@ -283,6 +283,9 @@ void * AppThreadFunction(void * parm );
 void ovrAppThread_Create( ovrAppThread * appThread, JNIEnv * env, jobject activityObject, jclass activityClass );
 void ovrAppThread_Destroy( ovrAppThread * appThread, JNIEnv * env );
 
+
+void QuatToYawPitchRoll(XrQuaternionf q, vec3_t rotation, vec3_t out);
+
 /*
  * Surface Lifecycle Message Queue
  */
