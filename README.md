@@ -1,7 +1,7 @@
 QuakeQuest
 ==========
 
-Welcome to the only implementation of the Quake Engine for the Oculus Quest 1 and 2, using DarkPlaces as a base for this port.
+Welcome to the only implementation of the Quake Engine for the Oculus Quest 1 and 2 and Pico 4, using DarkPlaces as a base for this port.
 
 The easiest way to install this on your Quest is using SideQuest, download SideQuest here:
 https://sidequestvr.com/
