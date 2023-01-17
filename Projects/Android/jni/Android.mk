@@ -18,6 +18,7 @@ LOCAL_C_INCLUDES := ../QuakeQuestSrc/ \
     ../darkplaces/ \
     $(SUPPORT_LIBS)/liboggvorbis/include \
     $(TOP_DIR)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/include \
+    $(TOP_DIR)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/src/common \
     $(TOP_DIR)/../../../../../OpenXR/Include
 
 
