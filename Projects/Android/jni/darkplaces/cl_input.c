@@ -430,7 +430,7 @@ float CL_KeyState (kbutton_t *key)
 //==========================================================================
 
 cvar_t cl_upspeed = {CVAR_SAVE, "cl_upspeed","400","vertical movement speed (while swimming or flying)"};
-cvar_t cl_movementspeed = {CVAR_SAVE, "cl_movementspeed","150","forward movement speed"};
+cvar_t cl_movementspeed = {CVAR_SAVE, "cl_movementspeed","170","forward movement speed"};
 
 cvar_t cl_movespeedkey = {CVAR_SAVE, "cl_movespeedkey","2.0","how much +speed multiplies keyboard movement speed"};
 cvar_t cl_movecliptokeyboard = {0, "cl_movecliptokeyboard", "0", "if set to 1, any move is clipped to the nine keyboard states; if set to 2, only the direction is clipped, not the amount"};
