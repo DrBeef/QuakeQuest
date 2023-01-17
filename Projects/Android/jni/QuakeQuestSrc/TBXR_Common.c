@@ -860,6 +860,7 @@ ovrRenderThread
 
 void ovrApp_Clear(ovrApp* app) {
 	app->Focused = false;
+	app->Visible = false;
 	app->Instance = XR_NULL_HANDLE;
 	app->Session = XR_NULL_HANDLE;
 	memset(&app->ViewportConfig, 0, sizeof(XrViewConfigurationProperties));
@@ -1012,7 +1013,7 @@ GLboolean ovrApp_HandleXrEvents(ovrApp* app) {
 						app->Focused = true;
 						break;
 					case XR_SESSION_STATE_VISIBLE:
-						app->Focused = false;
+						app->Visible = true;
 						break;
 					case XR_SESSION_STATE_READY:
 					case XR_SESSION_STATE_STOPPING:
@@ -1567,9 +1568,9 @@ void TBXR_InitialiseOpenXR()
 	// Create the OpenXR instance.
 	XrApplicationInfo appInfo;
 	memset(&appInfo, 0, sizeof(appInfo));
-	strcpy(appInfo.applicationName, "JKXR");
+	strcpy(appInfo.applicationName, "QuakeQuest");
 	appInfo.applicationVersion = 0;
-	strcpy(appInfo.engineName, "JKXR");
+	strcpy(appInfo.engineName, "QuakeQuest");
 	appInfo.engineVersion = 0;
 	appInfo.apiVersion = XR_CURRENT_API_VERSION;
 
@@ -1581,10 +1582,10 @@ void TBXR_InitialiseOpenXR()
 #endif
 #ifdef PICO_XR
     XrInstanceCreateInfoAndroidKHR instanceCreateInfoAndroid = {XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
-instanceCreateInfoAndroid.applicationVM = java.Vm;
-instanceCreateInfoAndroid.applicationActivity = java.ActivityObject;
+	instanceCreateInfoAndroid.applicationVM = java.Vm;
+	instanceCreateInfoAndroid.applicationActivity = java.ActivityObject;
 
-instanceCreateInfo.next = (XrBaseInStructure*)&instanceCreateInfoAndroid;
+	instanceCreateInfo.next = (XrBaseInStructure*)&instanceCreateInfoAndroid;
 #endif
 	instanceCreateInfo.createFlags = 0;
 	instanceCreateInfo.applicationInfo = appInfo;
@@ -1660,7 +1661,7 @@ void TBXR_Recenter() {
 		vec3_t rotation = {0, 0, 0};
 		XrSpaceLocation loc = {};
 		loc.type = XR_TYPE_SPACE_LOCATION;
-		OXR(xrLocateSpace(gAppState.HeadSpace, gAppState.CurrentSpace, gAppState.PredictedDisplayTime, &loc));
+		OXR(xrLocateSpace(gAppState.HeadSpace, gAppState.CurrentSpace, gAppState.FrameState.predictedDisplayTime, &loc));
 		QuatToYawPitchRoll(loc.pose.orientation, rotation, hmdorientation);
 
 		spaceCreateInfo.poseInReferenceSpace.orientation.x = 0;
@@ -1721,7 +1722,7 @@ void TBXR_WaitForSessionActive()
 
 static void TBXR_GetHMDOrientation() {
 
-	if (gAppState.PredictedDisplayTime == 0)
+	if (gAppState.FrameState.predictedDisplayTime == 0)
 	{
 		return;
 	}
@@ -1732,7 +1733,7 @@ static void TBXR_GetHMDOrientation() {
 	// The better the prediction, the less black will be pulled in at the edges.
 	XrSpaceLocation loc = {};
 	loc.type = XR_TYPE_SPACE_LOCATION;
-	OXR(xrLocateSpace(gAppState.HeadSpace, gAppState.CurrentSpace, gAppState.PredictedDisplayTime, &loc));
+	OXR(xrLocateSpace(gAppState.HeadSpace, gAppState.CurrentSpace, gAppState.FrameState.predictedDisplayTime, &loc));
 	gAppState.xfStageFromHead = loc.pose;
 
 	const XrQuaternionf quatHmd = gAppState.xfStageFromHead.orientation;
@@ -1790,19 +1791,15 @@ void TBXR_FrameSetup()
 
 	// NOTE: OpenXR does not use the concept of frame indices. Instead,
 	// XrWaitFrame returns the predicted display time.
-	XrFrameWaitInfo waitFrameInfo = {};
-	waitFrameInfo.type = XR_TYPE_FRAME_WAIT_INFO;
-	waitFrameInfo.next = NULL;
+	//XrFrameWaitInfo waitFrameInfo = {};
+	//waitFrameInfo.type = XR_TYPE_FRAME_WAIT_INFO;
+	//waitFrameInfo.next = NULL;
 
-	XrFrameState frameState = {};
-	frameState.type = XR_TYPE_FRAME_STATE;
-	frameState.next = NULL;
+	memset(&(gAppState.FrameState), 0, sizeof(XrFrameState));
+	gAppState.FrameState.type = XR_TYPE_FRAME_STATE;
 
-	OXR(xrWaitFrame(gAppState.Session, &waitFrameInfo, &frameState));
-	gAppState.PredictedDisplayTime = frameState.predictedDisplayTime;
-	if (!frameState.shouldRender) {
-		return;
-	}
+	ALOGV("xrWaitFrame");
+	OXR(xrWaitFrame(gAppState.Session, NULL, &gAppState.FrameState));
 
 	// Get the HMD pose, predicted for the middle of the time period during which
 	// the new eye images will be displayed. The number of frames predicted ahead
@@ -1811,6 +1808,7 @@ void TBXR_FrameSetup()
 	XrFrameBeginInfo beginFrameDesc = {};
 	beginFrameDesc.type = XR_TYPE_FRAME_BEGIN_INFO;
 	beginFrameDesc.next = NULL;
+	ALOGV("xrBeginFrame");
 	OXR(xrBeginFrame(gAppState.Session, &beginFrameDesc));
 
 	//Game specific frame setup stuff called here
@@ -1882,7 +1880,7 @@ void TBXR_updateProjections()
 	XrViewLocateInfo projectionInfo = {};
 	projectionInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
 	projectionInfo.viewConfigurationType = gAppState.ViewportConfig.viewConfigurationType;
-	projectionInfo.displayTime = gAppState.PredictedDisplayTime;
+	projectionInfo.displayTime = gAppState.FrameState.predictedDisplayTime;
 	projectionInfo.space = gAppState.HeadSpace;
 
 	XrViewState viewState = {XR_TYPE_VIEW_STATE, NULL};
@@ -2003,11 +2001,12 @@ void TBXR_submitFrame()
 
 	XrFrameEndInfo endFrameInfo = {};
 	endFrameInfo.type = XR_TYPE_FRAME_END_INFO;
-	endFrameInfo.displayTime = gAppState.PredictedDisplayTime;
+	endFrameInfo.displayTime = gAppState.FrameState.predictedDisplayTime;
 	endFrameInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
 	endFrameInfo.layerCount = gAppState.LayerCount;
 	endFrameInfo.layers = layers;
 
+	ALOGV("xrEndFrame");
 	OXR(xrEndFrame(gAppState.Session, &endFrameInfo));
 
 	gAppState.FrameSetup = false;

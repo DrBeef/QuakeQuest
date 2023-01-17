@@ -221,6 +221,7 @@ typedef struct
     ANativeWindow* NativeWindow;
     bool				Resumed;
     bool				Focused;
+    bool				Visible;
     bool                FrameSetup;
 
     float               Width;
@@ -248,7 +249,7 @@ typedef struct
     PFN_xrGetDisplayRefreshRateFB pfnGetDisplayRefreshRate;
     PFN_xrRequestDisplayRefreshRateFB pfnRequestDisplayRefreshRate;
 
-    XrTime              PredictedDisplayTime;
+    XrFrameState        FrameState;
     int					SwapInterval;
     int					MainThreadTid;
     int					RenderThreadTid;

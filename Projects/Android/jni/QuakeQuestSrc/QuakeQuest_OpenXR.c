@@ -276,7 +276,7 @@ void * AppThreadFunction(void * parm ) {
 	while (runStatus == -1)
 	{
 		TBXR_FrameSetup();
-		
+
 		//Set move information - if showing menu, don't pass head orientation through
 		if (m_state == m_none)
 			QC_MoveEvent(hmdorientation[YAW], hmdorientation[PITCH], hmdorientation[ROLL]);
@@ -287,12 +287,15 @@ void * AppThreadFunction(void * parm ) {
 		QC_BeginFrame(/* true to stop time if needed in future */ false);
 
 		// Render the eye images.
-		for ( int eye = 0; eye < ovrMaxNumEyes; eye++ )
+		for (int eye = 0; eye < ovrMaxNumEyes; eye++)
 		{
 			TBXR_prepareEyeBuffer(eye);
 
-			//Now do the drawing for this eye
-			QC_DrawFrame(eye, 0, 0);
+			if (gAppState.FrameState.shouldRender)
+			{
+				//Now do the drawing for this eye
+				QC_DrawFrame(eye, 0, 0);
+			}
 
 			TBXR_finishEyeBuffer(eye);
 		}
@@ -302,7 +305,7 @@ void * AppThreadFunction(void * parm ) {
 		//Now trigger any haptics for this frame - QuakeQuest does this a bit differently
 		//so we don't bother to provide any params
 		VR_HapticEvent(NULL, 0, 0, 0, 0, 0);
-		
+
 		TBXR_submitFrame();
 	}
 
