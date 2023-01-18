@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 		package="com.drbeef.quakequest"
-		android:versionCode="21"
-		android:versionName="1.5.2"
+		android:versionCode="22"
+		android:versionName="1.5.3"
 		android:installLocation="auto" >
 
 	<!-- Tell the system this app requires OpenGL ES 3.1. -->

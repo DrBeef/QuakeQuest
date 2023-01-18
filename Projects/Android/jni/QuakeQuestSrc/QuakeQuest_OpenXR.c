@@ -310,6 +310,9 @@ void * AppThreadFunction(void * parm ) {
 	}
 
 	{
+		//Ensure all exit stuff happens
+		Host_Shutdown();
+
 		TBXR_LeaveVR();
 		//Ask Java to shut down
 		VR_Shutdown();
@@ -570,14 +573,14 @@ float nonLinearFilter(float in)
 	float val = 0.0f;
 	if (in > NLF_DEADZONE)
 	{
-		val = in;
+		val = in > 1.0f ? 1.0f : in;
 		val -= NLF_DEADZONE;
 		val /= (1.0f - NLF_DEADZONE);
 		val = powf(val, NLF_POWER);
 	}
 	else if (in < -NLF_DEADZONE)
 	{
-		val = in;
+		val = in < -1.0f ? -1.0f : in;
 		val += NLF_DEADZONE;
 		val /= (1.0f - NLF_DEADZONE);
 		val = -powf(fabsf(val), NLF_POWER);
@@ -931,8 +934,9 @@ static void HandleInput_Default(  )
 			//and we don't get movement jitter when the joystick doesn't quite center properly
 			float dist = length(leftTrackedRemoteState_new.Joystick.x, leftTrackedRemoteState_new.Joystick.y);
 			float nlf = nonLinearFilter(dist);
-			float x = nlf * leftTrackedRemoteState_new.Joystick.x;
-			float y = nlf * leftTrackedRemoteState_new.Joystick.y;
+			dist = (dist > 1.0f) ? dist : 1.0f;
+			float x = nlf * (leftTrackedRemoteState_new.Joystick.x / dist);
+			float y = nlf * (leftTrackedRemoteState_new.Joystick.y / dist);
 
             //Adjust to be off-hand controller oriented
             vec2_t v;
