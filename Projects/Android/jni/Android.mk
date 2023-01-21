@@ -7,8 +7,8 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 # Uncomment for the correct headset - slight changes required in OpenXR implementation
-#OPENXR_HMD = -DMETA_QUEST
-OPENXR_HMD = -DPICO_XR
+OPENXR_HMD = -DMETA_QUEST
+#OPENXR_HMD = -DPICO_XR
 
 LOCAL_CFLAGS			:= $(OPENXR_HMD)
 LOCAL_MODULE			:= quakequest
@@ -129,8 +129,7 @@ SRC_COMMON := \
 SRC_QUEST := \
 	QuakeQuestSrc/argtable3.c \
 	QuakeQuestSrc/QuakeQuest_OpenXR.c \
-	QuakeQuestSrc/OpenXrInput_MetaQuest.c \
-	QuakeQuestSrc/OpenXrInput_PicoXR.c \
+	QuakeQuestSrc/OpenXrInput.c \
 	QuakeQuestSrc/TBXR_Common.c \
 
 LOCAL_SRC_FILES := \
