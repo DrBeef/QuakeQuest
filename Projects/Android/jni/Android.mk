@@ -7,10 +7,10 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 # Uncomment for the correct headset - slight changes required in OpenXR implementation
-OPENXR_HMD = -DMETA_QUEST
-#OPENXR_HMD = -DPICO_XR
+OPENXR_HMD = META_QUEST
+#OPENXR_HMD = PICO_XR
 
-LOCAL_CFLAGS			:= $(OPENXR_HMD)
+LOCAL_CFLAGS			:= -D$(OPENXR_HMD)
 LOCAL_MODULE			:= quakequest
 LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL -lOpenSLES		# include default libraries
 
@@ -144,4 +144,4 @@ LOCAL_SRC_FILES := \
 include $(BUILD_SHARED_LIBRARY)
 include $(SUPPORT_LIBS)/liboggvorbis/Android.mk
 
-$(call import-module,OpenXR/Projects/AndroidPrebuilt/jni)
+$(call import-module,AndroidPrebuilt/jni)
