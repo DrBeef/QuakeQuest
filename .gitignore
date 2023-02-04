@@ -15,8 +15,6 @@ $RECYCLE.BIN/
 *.o
 *.d
 
-#binaries
-*.so
 
 #libs
 *.a
@@ -38,3 +36,17 @@ Projects/Android/.idea/codeStyles/Project.xml
 Projects/Android/.gradle/*
 drbeef-release-key.keystore
 Projects/Android/.idea/.name
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/armeabi-v7a/libogg.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/armeabi-v7a/libvorbis-jni.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/armeabi-v7a/libvorbis.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/armeabi/libogg.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/armeabi/libvorbis-jni.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/armeabi/libvorbis.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/mips/libogg.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/mips/libvorbis-jni.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/mips/libvorbis.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/x86/libogg.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/x86/libvorbis-jni.so
+Projects/Android/jni/SupportLibs/liboggvorbis/libs/x86/libvorbis.so
+Projects/Android/libs/arm64-v8a/libopenxr_loader_meta.so
+Projects/Android/libs/arm64-v8a/libopenxr_loader_pico.so

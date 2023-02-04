@@ -11,7 +11,7 @@
 #include <jni.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
-#include <openxr/openxr_oculus_helpers.h>
+#include <openxr_helpers.h>
 
 #include <android/native_window_jni.h>
 #include <android/log.h>
@@ -228,6 +228,7 @@ typedef struct
     bool				Focused;
     bool				Visible;
     bool                FrameSetup;
+    char*               OpenXRHMD;
 
     float               Width;
     float               Height;

@@ -494,7 +494,7 @@ void TBXR_Vibrate( int duration, int chan, float intensity )
 {
     for (int i = 0; i < 2; ++i)
     {
-        int channel = 1-i;
+        int channel = i;
         if ((i + 1) & chan)
         {
             if (vibration_channel_duration[channel] > 0.0f)

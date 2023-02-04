@@ -6,20 +6,14 @@ LOCAL_PATH:= $(call my-dir)
 #--------------------------------------------------------
 include $(CLEAR_VARS)
 
-# Uncomment for the correct headset - slight changes required in OpenXR implementation
-OPENXR_HMD = META_QUEST
-#OPENXR_HMD = PICO_XR
-
-LOCAL_CFLAGS			:= -D$(OPENXR_HMD)
 LOCAL_MODULE			:= quakequest
 LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL -lOpenSLES		# include default libraries
 
 LOCAL_C_INCLUDES := ../QuakeQuestSrc/ \
     ../darkplaces/ \
     $(SUPPORT_LIBS)/liboggvorbis/include \
-    $(TOP_DIR)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/include \
-    $(TOP_DIR)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/src/common \
-    $(TOP_DIR)/../../../../../OpenXR/Include
+	${TOP_DIR}/OpenXR-SDK/include \
+	${TOP_DIR}/OpenXR-SDK/src/common
 
 
 LOCAL_SHARED_LIBRARIES	:= openxr_loader libvorbis libogg libvorbis-jni
