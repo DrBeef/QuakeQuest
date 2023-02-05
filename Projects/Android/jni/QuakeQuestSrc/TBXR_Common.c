@@ -1518,15 +1518,16 @@ void TBXR_InitRenderer(  ) {
         gAppState.Projections[eye].type = XR_TYPE_VIEW;
 	}
 
-#ifdef PICO_XR
-	xrGetInstanceProcAddr(gAppState.Instance,"xrSetConfigPICO", (PFN_xrVoidFunction*)(&pfnXrSetConfigPICO));
-	xrGetInstanceProcAddr(gAppState.Instance,"xrGetConfigPICO", (PFN_xrVoidFunction*)(&pfnXrGetConfigPICO));
+    if (strstr(gAppState.OpenXRHMD, "pico") != NULL)
+    {
+        xrGetInstanceProcAddr(gAppState.Instance,"xrSetConfigPICO", (PFN_xrVoidFunction*)(&pfnXrSetConfigPICO));
+        xrGetInstanceProcAddr(gAppState.Instance,"xrGetConfigPICO", (PFN_xrVoidFunction*)(&pfnXrGetConfigPICO));
 
-	pfnXrSetConfigPICO(gAppState.Session,TRACKING_ORIGIN,"0");
-	pfnXrSetConfigPICO(gAppState.Session,TRACKING_ORIGIN,"1");
+        pfnXrSetConfigPICO(gAppState.Session,TRACKING_ORIGIN,"0");
+        pfnXrSetConfigPICO(gAppState.Session,TRACKING_ORIGIN,"1");
 
-	pfnXrGetConfigPICO(gAppState.Session, GET_DISPLAY_RATE, &gAppState.currentDisplayRefreshRate);
-#endif
+        pfnXrGetConfigPICO(gAppState.Session, GET_DISPLAY_RATE, &gAppState.currentDisplayRefreshRate);
+    }
 
 	ovrRenderer_Create(
 			gAppState.Session,
