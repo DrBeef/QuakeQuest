@@ -38,7 +38,7 @@ char **argv;
 int argc=0;
 
 float playerHeight;
-float playerYaw;
+float playerYaw = -999.0f;
 
 extern float worldPosition[3];
 float hmdPosition[3];
@@ -186,7 +186,7 @@ void VR_SetHMDOrientation(float pitch, float yaw, float roll)
 {
 	VectorSet(hmdorientation, pitch, yaw, roll);
 
-	if (!VR_UseScreenLayer())
+	if (!VR_UseScreenLayer() || playerYaw == -999.0f)
     {
     	playerYaw = yaw;
 	}
