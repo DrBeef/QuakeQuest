@@ -21,6 +21,7 @@ import android.content.res.AssetManager;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.system.ErrnoException;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -66,6 +67,8 @@ import android.support.v4.content.ContextCompat;
 	private SurfaceHolder mSurfaceHolder;
 	private long mNativeHandle;
 
+	String dir;
+
 	private final boolean m_asynchronousTracking = false;
 	
 	@Override protected void onCreate( Bundle icicle )
@@ -77,6 +80,8 @@ import android.support.v4.content.ContextCompat;
 		mView = new SurfaceView( this );
 		setContentView( mView );
 		mView.getHolder().addCallback( this );
+
+		dir = getBaseContext().getExternalFilesDir(null).getAbsolutePath();
 
 		// Force the screen to stay on, rather than letting it dim and shut off
 		// while the user is watching a movie.
@@ -120,7 +125,12 @@ import android.support.v4.content.ContextCompat;
 
 		if (permissionCount == 2) {
 			// Permissions have already been granted.
-			create();
+			try {
+				create();
+			} catch (Exception ignored)
+			{
+
+			}
 		}
 	}
 
@@ -150,22 +160,23 @@ import android.support.v4.content.ContextCompat;
 		checkPermissionsAndInitialize();
 	}
 
-	public void create()
-	{
+	public void create() throws ErrnoException {
 		//This will copy the shareware version of quake if user doesn't have anything installed
-		copy_asset("/sdcard/QuakeQuest/id1", "pak0.pak");
-		copy_asset("/sdcard/QuakeQuest/id1", "config.cfg");
-		copy_asset("/sdcard/QuakeQuest", "commandline.txt");
+		copy_asset(dir + "/id1", "pak0.pak");
+		copy_asset(dir + "/id1", "config.cfg");
+		copy_asset(dir, "commandline.txt");
+
+		setenv("QUAKEQUEST_DIR", dir, true);
 
 		//Read these from a file and pass through
 		commandLineParams = new String("quake");
 
 		//See if user is trying to use command line params
-		if(new File("/sdcard/QuakeQuest/commandline.txt").exists()) // should exist!
+		if(new File(dir + "/commandline.txt").exists()) // should exist!
 		{
 			BufferedReader br;
 			try {
-				br = new BufferedReader(new FileReader("/sdcard/QuakeQuest/commandline.txt"));
+				br = new BufferedReader(new FileReader(dir + "/commandline.txt"));
 				String s;
 				StringBuilder sb=new StringBuilder(0);
 				while ((s=br.readLine())!=null)

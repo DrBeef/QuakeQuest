@@ -221,7 +221,7 @@ void VR_Init()
 	//init randomiser
 	srand(time(NULL));
 	
-	chdir("/sdcard/QuakeQuest");
+	chdir((char*)getenv("QUAKEQUEST_DIR"));
 }
 
 extern int runStatus;

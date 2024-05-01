@@ -1,7 +1,20 @@
+buildscript {
+    repositories {
+        google() // For Gradle 4.0+
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.1'
+    }
+}
+
 apply plugin: 'com.android.application'
-apply from: "${rootProject.projectDir}/XrApp.gradle"
 
 android {
+
+    namespace = "com.drbeef.quakequest"
+
   // This is the name of the generated apk file, which will have
   // -debug.apk or -release.apk appended to it.
   // The filename doesn't effect the Android installation process.
@@ -15,18 +28,81 @@ android {
     applicationId "com.drbeef." + project.archivesBaseName
 
     // override app plugin abiFilters for both 32 and 64-bit support
-      externalNativeBuild {
-          ndk {
-              abiFilters 'arm64-v8a'
-          }
-          ndkBuild {
-              abiFilters 'arm64-v8a'
-          }
-      }
+    externalNativeBuild {
+        ndk {
+                abiFilters 'arm64-v8a'
+        }
+        ndkBuild {
+                abiFilters 'arm64-v8a'
+        }
+    }
 
-      minSdkVersion 26
-      targetSdkVersion 26
+      minSdkVersion 32
+      targetSdkVersion 32
   }
+
+    externalNativeBuild {
+        ndkBuild {
+            path file('jni/Android.mk')
+        }
+    }
+
+    signingConfigs {
+        def keystorePath = (project.hasProperty('key.store')) ?
+                new File(project.getProperty('key.store')) :
+                project.file('android.debug.keystore')
+
+        def keystorePassword = (project.hasProperty('key.store.password')) ?
+                project.getProperty('key.store.password') : 'android'
+
+        def keystoreKeyAlias = (project.hasProperty('key.alias')) ?
+                project.getProperty('key.alias') : 'androiddebugkey'
+
+        def keystoreKeyPassword = (project.hasProperty('key.alias.password')) ?
+                project.getProperty('key.alias.password') : 'android'
+
+        debug {
+            storeFile keystorePath
+            storePassword keystorePassword
+            keyAlias keystoreKeyAlias
+            keyPassword keystoreKeyPassword
+            v2SigningEnabled true
+        }
+
+        release {
+            storeFile keystorePath
+            storePassword keystorePassword
+            keyAlias keystoreKeyAlias
+            keyPassword keystoreKeyPassword
+            v2SigningEnabled true
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            debuggable true
+            jniDebuggable true
+
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "NDK_DEBUG=1","USE_ASAN=1"
+                }
+            }
+        }
+
+        release {
+            signingConfig signingConfigs.release
+            debuggable false
+            jniDebuggable false
+
+            externalNativeBuild {
+                ndkBuild {
+                    arguments "NDK_DEBUG=0","USE_ASAN=0"
+                }
+            }
+        }
+    }
 
   sourceSets {
     main {
@@ -42,25 +118,40 @@ android {
         targetCompatibility = '1.8'
     }
 
+    lintOptions {
+        checkReleaseBuilds false
+        disable 'ExpiredTargetSdkVersion'
+    }
+
     packagingOptions {
         exclude 'lib/arm64-v8a/libopenxr_loader.so'
     }
+    compileSdkVersion = 32
 
-    compileSdkVersion = 26
-    buildToolsVersion = '29.0.1'
+    buildToolsVersion = '29.0.3'
+
+    ndkVersion '25.1.8937393'
 }
 
 dependencies {
-    implementation "com.android.support:support-compat:26.1.0"
-    implementation "com.android.support:support-core-utils:26.1.0"
+    implementation "com.android.support:support-compat:28.0.0"
+    implementation "com.android.support:support-core-utils:28.0.0"
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
 }
 
 repositories {
     google()
 }
+
 buildscript {
     repositories {
         google()
     }
+}
+
+// Workaround to fix issue in Android Studio Chipmunk 2021.2.1 and later
+// where opening a project would result in a 'prepareKotlinBuildScriptModel'
+// not found error
+if (!tasks.findByName("prepareKotlinBuildScriptModel")) {
+    tasks.register("prepareKotlinBuildScriptModel") {}
 }
