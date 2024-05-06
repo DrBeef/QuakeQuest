@@ -16,11 +16,15 @@ import java.util.Locale;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.system.ErrnoException;
 import android.util.Log;
 import android.view.SurfaceHolder;
@@ -57,31 +61,25 @@ import android.support.v4.content.ContextCompat;
 
 	private static final String TAG = "QuakeQuest";
 
-	private int permissionCount = 0;
-	private static final int READ_EXTERNAL_STORAGE_PERMISSION_ID = 1;
-	private static final int WRITE_EXTERNAL_STORAGE_PERMISSION_ID = 2;
-
 	String commandLineParams;
 
-	private SurfaceView mView;
-	private SurfaceHolder mSurfaceHolder;
+    private SurfaceHolder mSurfaceHolder;
 	private long mNativeHandle;
 
 	String dir;
 
-	private final boolean m_asynchronousTracking = false;
-	
 	@Override protected void onCreate( Bundle icicle )
 	{
 		Log.v( TAG, "----------------------------------------------------------------" );
 		Log.v( TAG, "GLES3JNIActivity::onCreate()" );
 		super.onCreate( icicle );
 
-		mView = new SurfaceView( this );
-		setContentView( mView );
+        SurfaceView mView = new SurfaceView(this);
+		setContentView(mView);
 		mView.getHolder().addCallback( this );
 
-		dir = getBaseContext().getExternalFilesDir(null).getAbsolutePath();
+		dir = "/sdcard/QuakeQuest";
+		//dir = getBaseContext().getExternalFilesDir(null).getAbsolutePath();
 
 		// Force the screen to stay on, rather than letting it dim and shut off
 		// while the user is watching a movie.
@@ -97,76 +95,37 @@ import android.support.v4.content.ContextCompat;
 
 	/** Initializes the Activity only if the permission has been granted. */
 	private void checkPermissionsAndInitialize() {
-		// Boilerplate for checking runtime permissions in Android.
-		if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-				!= PackageManager.PERMISSION_GRANTED){
-			ActivityCompat.requestPermissions(
-					GLES3JNIActivity.this,
-					new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE},
-					WRITE_EXTERNAL_STORAGE_PERMISSION_ID);
+		if (!Environment.isExternalStorageManager()) {
+			//request for the permission
+			Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+			Uri uri = Uri.fromParts("package", getPackageName(), null);
+			intent.setData(uri);
+			startActivityForResult(intent, 1);
 		}
 		else
 		{
-			permissionCount++;
-		}
-
-		if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-				!= PackageManager.PERMISSION_GRANTED)
-		{
-			ActivityCompat.requestPermissions(
-					GLES3JNIActivity.this,
-					new String[] {Manifest.permission.READ_EXTERNAL_STORAGE},
-					READ_EXTERNAL_STORAGE_PERMISSION_ID);
-		}
-		else
-		{
-			permissionCount++;
-		}
-
-		if (permissionCount == 2) {
 			// Permissions have already been granted.
-			try {
-				create();
-			} catch (Exception ignored)
-			{
-
-			}
+			create();
 		}
 	}
 
-	/** Handles the user accepting the permission. */
 	@Override
-	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-		if (requestCode == READ_EXTERNAL_STORAGE_PERMISSION_ID) {
-			if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
-				permissionCount++;
-			}
-			else
-			{
-				System.exit(0);
-			}
-		}
-
-		if (requestCode == WRITE_EXTERNAL_STORAGE_PERMISSION_ID) {
-			if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
-				permissionCount++;
-			}
-			else
-			{
-				System.exit(0);
-			}
-		}
-
-		checkPermissionsAndInitialize();
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		create();
 	}
 
-	public void create() throws ErrnoException {
+	public void create() {
 		//This will copy the shareware version of quake if user doesn't have anything installed
 		copy_asset(dir + "/id1", "pak0.pak");
 		copy_asset(dir + "/id1", "config.cfg");
 		copy_asset(dir, "commandline.txt");
 
-		setenv("QUAKEQUEST_DIR", dir, true);
+		try {
+			setenv("QUAKEQUEST_DIR", dir, true);
+		} catch (Exception ignored)
+		{
+			System.exit(-9);;
+		}
 
 		//Read these from a file and pass through
 		commandLineParams = new String("quake");
